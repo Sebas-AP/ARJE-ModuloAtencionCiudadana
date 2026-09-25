@@ -1,0 +1,1 @@
+export { ConsultaReportesScreen as MisReportesScreen } from './ConsultaReportesScreen';

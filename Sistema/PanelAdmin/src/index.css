@@ -1,0 +1,275 @@
+/* ============================================================
+   ARJE ADMINISTRADOR - DESIGN SYSTEM & TOKENS
+   Basado en la Guía Oficial de Uso de Colores - Sistema Visual ARJE
+   ============================================================ */
+
+:root {
+  /* Azules Principales */
+  --color-royal-blue: #253C96;       /* Color principal de marca */
+  --color-royal-blue-dark: #1B2C73;  /* Hover / Contraste */
+  --color-royal-blue-light: #3550BA;
+  --color-electric-blue: #0057D9;     /* Acento digital y tecnológico */
+  --color-electric-blue-hover: #0045B0;
+
+  /* Agua */
+  --color-soft-aqua: #C4E7E5;        /* Calma, claridad */
+  --color-soft-aqua-light: #EBF7F6;
+  --color-cyan: #00B8D9;             /* Acento secundario agua */
+  --color-cyan-light: #E0F7FA;
+
+  /* Energía */
+  --color-orange: #F36B2E;           /* Acento principal de acción / Botón Primario */
+  --color-orange-hover: #D9561E;
+  --color-orange-active: #BF4413;
+  --color-orange-light: #FFF0E8;
+  --color-amber: #F59A1E;            /* Menú activo, alertas, advertencias */
+  --color-amber-light: #FEF3C7;
+
+  /* Neutrales */
+  --color-white: #FFFFFF;
+  --color-light-gray: #F7F9FC;       /* Fondos secundarios y superficies */
+  --color-dark-navy: #19244E;        /* Texto principal y alto contraste */
+  --color-text-body: #334155;        /* Texto regular */
+  --color-text-muted: #64748B;       /* Texto secundario / subtítulos */
+  --color-text-light: #94A3B8;
+  --color-border: #E2E8F0;           /* Bordes suaves */
+  --color-border-hover: #CBD5E1;
+
+  /* Estados Funcionales */
+  --color-success: #22C55E;
+  --color-success-bg: #E8F8F0;
+  --color-warning: #F59E0B;
+  --color-warning-bg: #FFFBEB;
+  --color-danger: #EF4444;
+  --color-danger-bg: #FEF2F2;
+  --color-info: #0284C7;
+  --color-info-bg: #F0F9FF;
+
+  /* Sombras y Elevaciones */
+  --shadow-sm: 0 1px 2px 0 rgba(25, 36, 78, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(25, 36, 78, 0.08), 0 2px 4px -2px rgba(25, 36, 78, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(25, 36, 78, 0.09), 0 4px 6px -4px rgba(25, 36, 78, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(25, 36, 78, 0.12), 0 8px 10px -6px rgba(25, 36, 78, 0.04);
+
+  /* Bordes Redondeados */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Dimensiones de Navegación */
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 80px;
+  --header-height: 72px;
+
+  /* Tipografías */
+  --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-heading: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Reset Global */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font-family-base);
+  background-color: var(--color-light-gray);
+  color: var(--color-dark-navy);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tipografía de Encabezados */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family-heading);
+  color: var(--color-dark-navy);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: var(--color-electric-blue);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+a:hover {
+  color: var(--color-electric-blue-hover);
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* Estilos de Botones Globales (Basados en Guía Oficial) */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  outline: none;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Botón Primario: Orange Energy */
+.btn-primary {
+  background-color: var(--color-orange);
+  color: var(--color-white);
+  box-shadow: 0 2px 8px rgba(243, 107, 46, 0.35);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-orange-hover);
+  box-shadow: 0 4px 12px rgba(243, 107, 46, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  background-color: var(--color-orange-active);
+  transform: translateY(0);
+}
+
+/* Botón Secundario: Royal Blue / Electric Blue */
+.btn-secondary {
+  background-color: var(--color-electric-blue);
+  color: var(--color-white);
+  box-shadow: 0 2px 8px rgba(0, 87, 217, 0.25);
+}
+
+.btn-secondary:hover {
+  background-color: var(--color-electric-blue-hover);
+  box-shadow: 0 4px 12px rgba(0, 87, 217, 0.35);
+  transform: translateY(-1px);
+}
+
+/* Botón Outline / Alternativo */
+.btn-outline {
+  background-color: transparent;
+  border-color: var(--color-cyan);
+  color: var(--color-royal-blue);
+}
+
+.btn-outline:hover {
+  background-color: var(--color-cyan-light);
+  border-color: var(--color-cyan);
+}
+
+/* Botón Danger */
+.btn-danger {
+  background-color: var(--color-danger);
+  color: var(--color-white);
+}
+
+.btn-danger:hover {
+  background-color: #DC2626;
+}
+
+/* Botón Success */
+.btn-success {
+  background-color: var(--color-success);
+  color: var(--color-white);
+}
+
+.btn-success:hover {
+  background-color: #16A34A;
+}
+
+/* Botón Ghost / Icon */
+.btn-ghost {
+  background-color: transparent;
+  color: var(--color-text-muted);
+}
+
+.btn-ghost:hover {
+  background-color: #EDE9FE;
+  color: var(--color-royal-blue);
+}
+
+/* Tarjetas y Contenedores */
+.card {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* Scrollbars Modernos */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Leaflet Map Overrides */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-family-base) !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-lg) !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  line-height: 1.4 !important;
+}

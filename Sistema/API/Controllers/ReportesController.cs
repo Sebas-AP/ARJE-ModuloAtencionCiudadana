@@ -42,7 +42,8 @@ public class ReportesController : ControllerBase
         [FromQuery] TipoProblema? tipoProblema = null,
         [FromQuery] int? idCuadrillaAsignada = null,
         [FromQuery] DateTime? fechaDesde = null,
-        [FromQuery] DateTime? fechaHasta = null)
+        [FromQuery] DateTime? fechaHasta = null,
+        [FromQuery] string? numeroContrato = null)
     {
         var queryable = _context.Reportes
             .Include(r => r.CuadrillaAsignada)
@@ -63,6 +64,13 @@ public class ReportesController : ControllerBase
 
         if (fechaHasta.HasValue)
             queryable = queryable.Where(r => r.FechaRecibido <= fechaHasta.Value);
+
+        if (!string.IsNullOrWhiteSpace(numeroContrato))
+        {
+            var nc = numeroContrato.Trim();
+            queryable = queryable.Where(r => r.NumeroContrato != null &&
+                EF.Functions.Like(r.NumeroContrato, $"%{nc}%"));
+        }
 
         queryable = queryable.OrderByDescending(r => r.FechaRecibido);
 

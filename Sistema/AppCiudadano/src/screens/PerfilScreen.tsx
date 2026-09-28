@@ -128,7 +128,9 @@ export const PerfilScreen = () => {
               label="Número de contrato"
               value={contrato}
               onChangeText={setContrato}
-              keyboardType="numeric"
+              keyboardType="default"
+              autoCapitalize="characters"
+              placeholder="ej. T001 o 123456"
               leftIcon={<MaterialCommunityIcons name="card-account-details" size={20} color={COLORS.textTertiary} />}
             />
             <Button

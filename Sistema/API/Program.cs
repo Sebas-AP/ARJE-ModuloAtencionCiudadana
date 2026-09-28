@@ -32,10 +32,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("permitirTodo", policy =>
     {
-        var origenes = builder.Configuration["origenesPermitidos"]?.Split(',', StringSplitOptions.RemoveEmptyEntries)
-            ?? new[] { "http://localhost:5173" };
-
-        policy.WithOrigins(origenes)
+        policy.SetIsOriginAllowed(_ => true)
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
@@ -45,10 +42,10 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<IAlmacenadorArchivos, AlmacenadorArchivosLocal>();
 builder.Services.AddHttpContextAccessor();
 
-// HTTP Client para NVIDIA API
+// HTTP Client para NVIDIA API (timeout ágil de 10s para fallback inmediato en caso de red lenta)
 builder.Services.AddHttpClient<IClasificadorService, ClasificadorNvidiaService>(client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(30);
+    client.Timeout = TimeSpan.FromSeconds(10);
 });
 
 builder.Services.AddEndpointsApiExplorer();

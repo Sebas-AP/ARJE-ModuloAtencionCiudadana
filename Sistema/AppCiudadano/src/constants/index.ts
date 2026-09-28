@@ -1,6 +1,15 @@
+import { Platform } from 'react-native';
 import { TipoProblema, EstatusReporte, TipoEvidencia, NotificationData } from '../types';
 
-export const API_BASE_URL = 'http://192.168.1.70:5170/api';
+// IP local de la máquina (192.168.0.8) o localhost en web
+const LOCAL_IP = '192.168.0.8';
+const DEFAULT_URL = Platform.OS === 'web'
+  ? 'http://localhost:5170/api'
+  : `http://${LOCAL_IP}:5170/api`;
+
+export const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (process.env.EXPO_PUBLIC_API_TUNNEL_URL ? `${process.env.EXPO_PUBLIC_API_TUNNEL_URL}/api` : DEFAULT_URL);
 
 export const STORAGE_KEYS = {
   USER_PROFILE: '@user_profile',

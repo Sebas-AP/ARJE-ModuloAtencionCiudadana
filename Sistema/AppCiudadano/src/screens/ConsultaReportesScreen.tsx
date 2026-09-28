@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -31,20 +31,53 @@ export const ConsultaReportesScreen = () => {
   const [filtroContrato, setFiltroContrato] = useState(initialContrato);
   const [hasSearched, setHasSearched] = useState(initialContrato.length > 0);
 
-  const { reportes, loading, error, refresh } = useReportes();
+  const { reportes, loading, error, refresh, fetchReportes } = useReportes();
+
+  // Cargar reportes al iniciar la pantalla
+  useEffect(() => {
+    fetchReportes({
+      pagina: 1,
+      registrosPorPagina: 50,
+      numeroContrato: initialContrato ? initialContrato.trim() : undefined,
+    });
+  }, []);
 
   const handleSearch = () => {
-    setFiltroContrato(contratoInput.trim());
+    const term = contratoInput.trim();
+    setFiltroContrato(term);
     setHasSearched(true);
+    fetchReportes({
+      pagina: 1,
+      registrosPorPagina: 50,
+      numeroContrato: term || undefined,
+    });
   };
 
   const reportesFiltrados = useMemo(() => {
     if (!filtroContrato) return reportes;
-    return reportes.filter((r) =>
-      r.numeroContrato?.toLowerCase().includes(filtroContrato.toLowerCase()) ||
-      `FOL-${r.id}`.toLowerCase().includes(filtroContrato.toLowerCase()) ||
-      String(r.id) === filtroContrato
-    );
+    const cleanSearch = filtroContrato.toLowerCase().trim();
+    const digitsOnly = cleanSearch.replace(/\D/g, '');
+
+    return reportes.filter((r) => {
+      const contrato = (r.numeroContrato || '').toLowerCase().trim();
+      const contratoDigits = contrato.replace(/\D/g, '');
+      const folio = `fol-${r.id}`.toLowerCase();
+      const idStr = String(r.id);
+
+      // Coincidencia exacta o parcial de texto (ej. "T001", "t001")
+      if (contrato.includes(cleanSearch)) return true;
+      if (folio.includes(cleanSearch)) return true;
+      if (idStr === cleanSearch) return true;
+
+      // Coincidencia por dígitos numéricos (ej. buscar "001" o "1" encuentra "T001")
+      if (digitsOnly && contratoDigits) {
+        if (contratoDigits.includes(digitsOnly) || parseInt(contratoDigits, 10) === parseInt(digitsOnly, 10)) {
+          return true;
+        }
+      }
+
+      return false;
+    });
   }, [reportes, filtroContrato]);
 
   const getStatusBadge = (estatus: EstatusReporte) => {
@@ -197,9 +230,11 @@ export const ConsultaReportesScreen = () => {
                   style={styles.textInput}
                   value={contratoInput}
                   onChangeText={setContratoInput}
-                  placeholder="123456"
+                  placeholder="ej. T001 o 123456"
                   placeholderTextColor={COLORS.textTertiary}
-                  keyboardType="numeric"
+                  keyboardType="default"
+                  autoCapitalize="characters"
+                  autoCorrect={false}
                   returnKeyType="search"
                   onSubmitEditing={handleSearch}
                 />

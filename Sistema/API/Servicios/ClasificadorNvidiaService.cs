@@ -60,7 +60,7 @@ public class ClasificadorNvidiaService : IClasificadorService
 
             var request = new
             {
-                model = "meta/llama-3.1-8b-instruct",
+                model = "meta/llama-3.2-11b-vision-instruct",
                 messages = new[]
                 {
                     new { role = "system", content = "Eres un clasificador de reportes de agua. Responde SOLO con JSON válido." },
@@ -78,11 +78,11 @@ public class ClasificadorNvidiaService : IClasificadorService
             var result = JsonSerializer.Deserialize<NvidiaResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
             var content = result?.Choices?[0]?.Message?.Content?.Trim() ?? "";
-            return ParsearRespuesta(content);
+            return ParsearRespuesta(content, descripcion);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error clasificando reporte, usando fallback");
+            _logger.LogWarning(ex, "Error llamando a API NVIDIA, usando clasificación de respaldo (fallback)");
             return ClasificacionFallback(descripcion);
         }
     }
@@ -98,7 +98,7 @@ Responde SOLO con JSON:
 {{""categoria"": ""nombre_exacto_categoria"", ""confianza"": 0.95, ""razonamiento"": ""breve_explicacion""}}";
     }
 
-    private ClasificacionResult ParsearRespuesta(string content)
+    private ClasificacionResult ParsearRespuesta(string content, string descripcionOriginal)
     {
         try
         {
@@ -111,24 +111,37 @@ Responde SOLO con JSON:
 
                 if (parsed != null && !string.IsNullOrEmpty(parsed.Categoria))
                 {
-                    var tipoEnum = MapeoCategoriaAEnum.GetValueOrDefault(parsed.Categoria, TipoProblema.Otro);
+                    var catTrim = parsed.Categoria.Trim();
+                    var tipoEnum = MapeoCategoriaAEnum.GetValueOrDefault(catTrim, TipoProblema.Otro);
+
+                    // Si el mapeo directo no coincidió y la IA devolvió una categoría aproximada
+                    if (tipoEnum == TipoProblema.Otro && !catTrim.Equals("Otro", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var match = MapeoCategoriaAEnum.FirstOrDefault(kvp =>
+                            kvp.Key.Contains(catTrim, StringComparison.OrdinalIgnoreCase) ||
+                            catTrim.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase));
+
+                        if (!string.IsNullOrEmpty(match.Key))
+                        {
+                            tipoEnum = match.Value;
+                        }
+                    }
+
                     return new ClasificacionResult
                     {
                         TipoProblema = tipoEnum.ToString(),
-                        Confianza = parsed.Confianza,
-                        Razonamiento = parsed.Razonamiento ?? ""
+                        Confianza = parsed.Confianza > 0 ? parsed.Confianza : 0.85,
+                        Razonamiento = parsed.Razonamiento ?? "Clasificado por IA"
                     };
                 }
             }
         }
-        catch { }
-
-        return new ClasificacionResult
+        catch (Exception ex)
         {
-            TipoProblema = TipoProblema.Otro.ToString(),
-            Confianza = 0.5,
-            Razonamiento = "No se pudo parsear la respuesta de la IA"
-        };
+            _logger.LogWarning(ex, "No se pudo deserializar respuesta de IA: {Content}", content);
+        }
+
+        return ClasificacionFallback(descripcionOriginal);
     }
 
     private ClasificacionResult ClasificacionFallback(string descripcion)

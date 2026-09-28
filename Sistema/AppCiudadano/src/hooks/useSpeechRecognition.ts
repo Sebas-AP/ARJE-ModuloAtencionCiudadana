@@ -70,15 +70,15 @@ export function useSpeechRecognition() {
       if (restartTimeoutRef.current) {
         clearTimeout(restartTimeoutRef.current);
       }
-      ExpoSpeechRecognitionModule.stop();
+      ExpoSpeechRecognitionModule?.stop?.();
     };
   }, []);
 
   const checkAvailability = async () => {
     try {
-      const available = ExpoSpeechRecognitionModule.isRecognitionAvailable();
+      const available = ExpoSpeechRecognitionModule?.isRecognitionAvailable ? ExpoSpeechRecognitionModule.isRecognitionAvailable() : false;
       if (isMountedRef.current) {
-        setState((prev) => ({ ...prev, isAvailable: available }));
+        setState((prev) => ({ ...prev, isAvailable: !!available }));
       }
     } catch {
       if (isMountedRef.current) {
@@ -92,7 +92,12 @@ export function useSpeechRecognition() {
       await checkAvailability();
     }
 
-    const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!ExpoSpeechRecognitionModule) {
+      setState((prev) => ({ ...prev, error: 'Reconocimiento de voz no soportado en este dispositivo' }));
+      return;
+    }
+
+    const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync?.() ?? { granted: false };
     if (!permission.granted) {
       setState((prev) => ({ ...prev, error: 'Permiso de micrófono denegado' }));
       return;
@@ -106,7 +111,7 @@ export function useSpeechRecognition() {
     }));
 
     try {
-      ExpoSpeechRecognitionModule.start({
+      ExpoSpeechRecognitionModule.start?.({
         lang: 'es-ES',
         interimResults: true,
         continuous: false,
@@ -124,7 +129,7 @@ export function useSpeechRecognition() {
 
   const stopListening = useCallback(async () => {
     try {
-      ExpoSpeechRecognitionModule.stop();
+      ExpoSpeechRecognitionModule?.stop?.();
       if (isMountedRef.current) {
         setState((prev) => ({
           ...prev,

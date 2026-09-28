@@ -320,9 +320,11 @@ export const CrearReporteScreen = () => {
                         style={styles.textInput}
                         value={numeroContrato}
                         onChangeText={setNumeroContrato}
-                        placeholder="ej. 123456"
+                        placeholder="ej. T001 o 123456"
                         placeholderTextColor={COLORS.textTertiary}
-                        keyboardType="numeric"
+                        keyboardType="default"
+                        autoCapitalize="characters"
+                        autoCorrect={false}
                       />
                     </View>
                   </View>

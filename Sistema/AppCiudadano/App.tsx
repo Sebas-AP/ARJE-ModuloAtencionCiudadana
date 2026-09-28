@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -10,10 +10,21 @@ import { CrearReporteScreen } from './src/screens/CrearReporteScreen';
 import { ConsultaReportesScreen } from './src/screens/ConsultaReportesScreen';
 import { ReporteDetalleScreen } from './src/screens/ReporteDetalleScreen';
 import { COLORS, FONT_WEIGHTS } from './src/constants';
+import { offlineService } from './src/services/offline';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
+  useEffect(() => {
+    offlineService.startPeriodicSync();
+    offlineService.syncQueue().catch((err) => {
+      console.warn('Sync inicial offline:', err);
+    });
+
+    return () => {
+      offlineService.stopPeriodicSync();
+    };
+  }, []);
   return (
     <SafeAreaProvider>
       <NavigationContainer>

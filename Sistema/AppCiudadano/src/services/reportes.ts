@@ -19,6 +19,7 @@ export interface ReportesFilters {
   idCuadrillaAsignada?: number;
   fechaDesde?: string;
   fechaHasta?: string;
+  numeroContrato?: string;
 }
 
 export interface ClasificacionResult {

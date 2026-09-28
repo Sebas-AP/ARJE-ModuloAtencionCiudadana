@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="../build/ARJE.Api.props" />
-</Project>

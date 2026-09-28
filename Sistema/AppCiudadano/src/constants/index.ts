@@ -1,6 +1,6 @@
 import { TipoProblema, EstatusReporte, TipoEvidencia, NotificationData } from '../types';
 
-export const API_BASE_URL = 'http://localhost:5170/api';
+export const API_BASE_URL = 'http://192.168.1.70:5170/api';
 
 export const STORAGE_KEYS = {
   USER_PROFILE: '@user_profile',

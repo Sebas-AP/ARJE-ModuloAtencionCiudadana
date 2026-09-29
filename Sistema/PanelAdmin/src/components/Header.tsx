@@ -8,27 +8,40 @@ import {
   CheckCircle2,
   X,
   Sparkles,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { ScreenTab } from './Sidebar';
-import { ReporteDTO } from '../types';
+import { ReporteDTO, UsuarioDTO } from '../types';
+import { UserBlobatar } from './UserBlobatar';
 
 interface HeaderProps {
   currentTab: ScreenTab;
   reportes: ReporteDTO[];
+  currentUser?: UsuarioDTO | null;
+  onLogout?: () => void;
   onRefresh: () => void;
   isRefreshing?: boolean;
   onSelectReporte?: (reporteId: number) => void;
+  isSidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   currentTab,
   reportes,
+  currentUser,
+  onLogout,
   onRefresh,
   isRefreshing = false,
   onSelectReporte,
+  isSidebarCollapsed = false,
+  onToggleSidebar,
 }) => {
   const [currentTime, setCurrentTime] = useState<string>('');
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   useEffect(() => {
     const updateTime = () => {
@@ -54,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
       case 'dashboard':
         return {
           title: 'Panel de Control Operativo',
-          subtitle: 'Monitoreo en tiempo real de reportes de agua y cuadrillas',
+          subtitle: 'Monitoreo en tiempo real de incidencias y cuadrillas técnicas',
         };
       case 'reportes':
         return {
@@ -69,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
       case 'cuadrillas':
         return {
           title: 'Control de Cuadrillas Técnicas',
-          subtitle: 'Disponibilidad, personal, vehículos y carga de trabajo',
+          subtitle: 'Disponibilidad, miembros, vehículos y carga de trabajo',
         };
       case 'indicadores':
         return {
@@ -111,51 +124,85 @@ export const Header: React.FC<HeaderProps> = ({
         top: 0,
         zIndex: 40,
         boxShadow: 'var(--shadow-sm)',
+        fontFamily: "var(--font-family-base, 'Inria Sans', sans-serif)",
       }}
     >
-      {/* Title & Subtitle */}
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <h2
+      {/* Title & Subtitle + Botón colapsar si sidebar está contraído */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        {onToggleSidebar && (
+          <button
+            onClick={onToggleSidebar}
+            title={isSidebarCollapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'}
             style={{
-              fontSize: '20px',
-              fontWeight: 800,
+              background: 'transparent',
+              border: '1px solid var(--color-border)',
+              borderRadius: '8px',
+              width: '36px',
+              height: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
               color: 'var(--color-dark-navy)',
-              margin: 0,
-              lineHeight: 1.2,
+              transition: 'all 0.18s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-light-gray)';
+              e.currentTarget.style.borderColor = 'var(--color-royal-blue)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.borderColor = 'var(--color-border)';
             }}
           >
-            {title}
-          </h2>
-          {currentTab === 'reportes' && (
-            <span
+            {isSidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          </button>
+        )}
+
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h2
               style={{
-                fontSize: '11px',
-                padding: '2px 8px',
-                backgroundColor: 'var(--color-cyan-light)',
-                color: 'var(--color-royal-blue)',
-                fontWeight: 700,
-                borderRadius: 'var(--radius-full)',
-                border: '1px solid rgba(0, 184, 217, 0.3)',
+                fontSize: '20px',
+                fontWeight: 800,
+                color: 'var(--color-dark-navy)',
+                margin: 0,
+                lineHeight: 1.2,
+                fontFamily: "var(--font-family-heading, 'Inria Sans', sans-serif)",
               }}
             >
-              {reportes.length} registros
-            </span>
-          )}
+              {title}
+            </h2>
+            {currentTab === 'reportes' && (
+              <span
+                style={{
+                  fontSize: '11.5px',
+                  padding: '2px 8px',
+                  backgroundColor: 'var(--color-cyan-light)',
+                  color: 'var(--color-royal-blue)',
+                  fontWeight: 700,
+                  borderRadius: 'var(--radius-full)',
+                  border: '1px solid rgba(0, 184, 217, 0.3)',
+                }}
+              >
+                {reportes.length} registros
+              </span>
+            )}
+          </div>
+          <p
+            style={{
+              fontSize: '12.5px',
+              color: 'var(--color-text-muted)',
+              margin: '2px 0 0 0',
+            }}
+          >
+            {subtitle}
+          </p>
         </div>
-        <p
-          style={{
-            fontSize: '12.5px',
-            color: 'var(--color-text-muted)',
-            margin: '2px 0 0 0',
-          }}
-        >
-          {subtitle}
-        </p>
       </div>
 
-      {/* Right Actions & Clock */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      {/* Right Actions & User Profile Area (Figma Header) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
         {/* Real-time Clock */}
         <div
           style={{
@@ -183,8 +230,8 @@ export const Header: React.FC<HeaderProps> = ({
           disabled={isRefreshing}
           title="Actualizar datos del sistema"
           style={{
-            width: '40px',
-            height: '40px',
+            width: '38px',
+            height: '38px',
             borderRadius: 'var(--radius-md)',
             border: '1px solid var(--color-border)',
             backgroundColor: 'var(--color-white)',
@@ -206,7 +253,7 @@ export const Header: React.FC<HeaderProps> = ({
           }}
         >
           <RefreshCw
-            size={18}
+            size={17}
             className={isRefreshing ? 'animate-spin' : ''}
             style={{
               transition: 'transform 0.5s',
@@ -221,8 +268,8 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => setShowNotifications(!showNotifications)}
             title="Alertas y Notificaciones de Reportes"
             style={{
-              width: '40px',
-              height: '40px',
+              width: '38px',
+              height: '38px',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--color-border)',
               backgroundColor: showNotifications
@@ -238,14 +285,14 @@ export const Header: React.FC<HeaderProps> = ({
               boxShadow: 'var(--shadow-sm)',
             }}
           >
-            <Bell size={19} color="var(--color-dark-navy)" />
+            <Bell size={18} color="var(--color-dark-navy)" />
             {pendientesCount > 0 && (
               <span
                 style={{
                   position: 'absolute',
                   top: '-4px',
                   right: '-4px',
-                  backgroundColor: 'var(--color-orange)',
+                  background: 'var(--gradient-orange)',
                   color: 'var(--color-white)',
                   fontSize: '11px',
                   fontWeight: 800,
@@ -269,7 +316,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div
               style={{
                 position: 'absolute',
-                top: '52px',
+                top: '48px',
                 right: 0,
                 width: '360px',
                 backgroundColor: 'var(--color-white)',
@@ -284,7 +331,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div
                 style={{
                   padding: '14px 18px',
-                  backgroundColor: 'var(--color-royal-blue)',
+                  background: 'var(--gradient-royal)',
                   color: 'var(--color-white)',
                   display: 'flex',
                   alignItems: 'center',
@@ -444,6 +491,170 @@ export const Header: React.FC<HeaderProps> = ({
                     + {pendientes.length - 5} reportes más pendientes
                   </span>
                 </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Separador sutil */}
+        <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--color-border)' }} />
+
+        {/* User Profile Avatar (Blobatar con forma Droplet - https://blobatar.dev/?shape=droplet) */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div
+            onClick={() => setShowProfileMenu(!showProfileMenu)}
+            style={{
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '4px 6px',
+              borderRadius: 'var(--radius-full)',
+              transition: 'background-color 0.15s ease',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-light-gray)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            title="Ver perfil de usuario"
+          >
+            {/* Avatar oficial de Blobatar con forma Droplet */}
+            <UserBlobatar
+              name={currentUser?.nombre || 'Administrador General'}
+              size={38}
+              isOnline={true}
+              showBorder={true}
+            />
+
+            <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+              <span
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  color: 'var(--color-dark-navy)',
+                  lineHeight: 1.2,
+                }}
+              >
+                {currentUser?.nombre || 'Admin ARJE'}
+              </span>
+              <span
+                style={{
+                  fontSize: '11px',
+                  color: 'var(--color-text-muted)',
+                  fontWeight: 500,
+                }}
+              >
+                {currentUser?.rol || 'Administrador'}
+              </span>
+            </div>
+          </div>
+
+          {/* Botón de Logout directo en la barra superior (como en el diseño Figma) */}
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              title="Cerrar sesión"
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '8px',
+                border: '1px solid var(--color-border)',
+                backgroundColor: 'transparent',
+                color: 'var(--color-text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.18s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#FEF2F2';
+                e.currentTarget.style.color = '#EF4444';
+                e.currentTarget.style.borderColor = '#FCA5A5';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = 'var(--color-text-muted)';
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+              }}
+            >
+              <LogOut size={17} />
+            </button>
+          )}
+
+          {/* Menú de Perfil Flotante */}
+          {showProfileMenu && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '50px',
+                right: 0,
+                width: '240px',
+                backgroundColor: 'var(--color-white)',
+                borderRadius: 'var(--radius-lg)',
+                boxShadow: 'var(--shadow-xl)',
+                border: '1px solid var(--color-border)',
+                zIndex: 100,
+                padding: '16px',
+                animation: 'fadeIn 0.2s ease-out',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <UserBlobatar
+                  name={currentUser?.nombre || 'Administrador'}
+                  size={44}
+                  isOnline={true}
+                />
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-dark-navy)' }}>
+                    {currentUser?.nombre || 'Administrador'}
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
+                    {currentUser?.correo || currentUser?.usuario || 'admin@arje.gob.mx'}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: '8px 10px',
+                  backgroundColor: 'var(--color-light-gray)',
+                  borderRadius: '6px',
+                  fontSize: '11.5px',
+                  color: 'var(--color-royal-blue)',
+                  fontWeight: 600,
+                  marginBottom: '12px',
+                }}
+              >
+                Rol: {currentUser?.rol || 'Administrador del Sistema'}
+              </div>
+
+              {onLogout && (
+                <button
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    onLogout();
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #FECACA',
+                    backgroundColor: '#FEF2F2',
+                    color: '#DC2626',
+                    fontSize: '12.5px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#FEE2E2')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#FEF2F2')}
+                >
+                  <LogOut size={15} />
+                  <span>Cerrar sesión</span>
+                </button>
               )}
             </div>
           )}

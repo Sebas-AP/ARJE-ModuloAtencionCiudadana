@@ -45,6 +45,7 @@ export interface UsuarioDTO {
   usuario: string;
   rol: RolUsuario | string;
   activo: boolean;
+  correo?: string;
 }
 
 export interface LoginDTO {

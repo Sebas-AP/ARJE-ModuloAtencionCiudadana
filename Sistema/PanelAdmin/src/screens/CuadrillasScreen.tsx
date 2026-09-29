@@ -3,6 +3,7 @@ import { Eye, ArrowLeft, MapPin, User, Plus, Truck } from 'lucide-react';
 import { CuadrillaDTO, ReporteDTO, EstatusCuadrilla } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { MapView } from '../components/MapView';
+import { UserBlobatar } from '../components/UserBlobatar';
 
 interface CuadrillasScreenProps {
   cuadrillas: CuadrillaDTO[];
@@ -233,26 +234,17 @@ export const CuadrillasScreen: React.FC<CuadrillasScreenProps> = ({
                   gap: '12px',
                 }}
               >
-                <div
-                  style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '50%',
-                    backgroundColor: '#E0F2FE',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#0057D9',
-                    flexShrink: 0,
-                  }}
-                >
-                  <User size={20} />
-                </div>
+                <UserBlobatar
+                  name={m.nombre}
+                  size={42}
+                  isOnline={true}
+                  showBorder={true}
+                />
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#19244E' }}>
+                  <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--color-dark-navy)' }}>
                     {m.nombre}
                   </div>
-                  <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
+                  <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
                     {m.cargo}
                   </div>
                 </div>
@@ -280,21 +272,18 @@ export const CuadrillasScreen: React.FC<CuadrillasScreenProps> = ({
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <button
           onClick={onOpenNuevaCuadrillaModal}
+          className="btn-primary"
           style={{
-            padding: '8px 16px',
-            backgroundColor: '#0057D9',
-            color: '#FFFFFF',
-            borderRadius: '6px',
-            border: 'none',
-            fontSize: '13px',
+            padding: '9px 18px',
+            fontSize: '13.5px',
             fontWeight: 700,
-            cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
+            gap: '8px',
+            boxShadow: 'var(--shadow-orange)',
           }}
         >
-          <Plus size={16} />
+          <Plus size={17} strokeWidth={2.5} />
           <span>Registrar cuadrilla</span>
         </button>
       </div>
@@ -304,8 +293,8 @@ export const CuadrillasScreen: React.FC<CuadrillasScreenProps> = ({
         <h2
           style={{
             fontSize: '20px',
-            fontWeight: 800,
-            color: '#19244E',
+            fontWeight: 700,
+            color: 'var(--color-dark-navy)',
             margin: '0 0 16px 0',
           }}
         >
@@ -314,7 +303,7 @@ export const CuadrillasScreen: React.FC<CuadrillasScreenProps> = ({
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {cuadrillasActivas.length === 0 ? (
-            <div style={{ padding: '20px', color: '#64748B', backgroundColor: '#FFFFFF', borderRadius: '8px' }}>
+            <div style={{ padding: '20px', color: 'var(--color-text-muted)', backgroundColor: '#FFFFFF', borderRadius: '8px' }}>
               No hay cuadrillas activas registradas.
             </div>
           ) : (
@@ -323,46 +312,54 @@ export const CuadrillasScreen: React.FC<CuadrillasScreenProps> = ({
                 key={cuad.id}
                 style={{
                   backgroundColor: '#FFFFFF',
-                  borderRadius: '8px',
+                  borderRadius: '10px',
                   border: '1px solid #CBD5E1',
                   padding: '14px 20px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                  transition: 'all 0.15s ease',
                 }}
               >
                 <span
                   style={{
-                    fontSize: '14.5px',
-                    fontWeight: 600,
-                    color: '#19244E',
+                    fontSize: '15px',
+                    fontWeight: 700,
+                    color: 'var(--color-dark-navy)',
                   }}
                 >
                   {cuad.nombre}
                 </span>
 
-                {/* Botón Ojo Azul de Figma (#0057D9) */}
+                {/* Botón Ojo Azul de Figma (#0057D9) con gradiente eléctrico */}
                 <button
                   onClick={() => setSelectedCuadrilla(cuad)}
                   title={`Ver detalle de ${cuad.nombre}`}
                   style={{
-                    width: '36px',
-                    height: '36px',
-                    backgroundColor: '#0057D9', // Azul eléctrico oficial de Figma
+                    width: '38px',
+                    height: '38px',
+                    background: 'var(--gradient-electric)',
                     color: '#FFFFFF',
                     border: 'none',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    transition: 'background-color 0.15s ease',
+                    boxShadow: '0 2px 6px rgba(0, 87, 217, 0.28)',
+                    transition: 'all 0.18s ease',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#0045B0')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0057D9')}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 10px rgba(0, 87, 217, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(0, 87, 217, 0.28)';
+                  }}
                 >
-                  <Eye size={18} color="#FFFFFF" />
+                  <Eye size={18} color="#FFFFFF" strokeWidth={2.2} />
                 </button>
               </div>
             ))
@@ -375,8 +372,8 @@ export const CuadrillasScreen: React.FC<CuadrillasScreenProps> = ({
         <h2
           style={{
             fontSize: '20px',
-            fontWeight: 800,
-            color: '#19244E',
+            fontWeight: 700,
+            color: 'var(--color-dark-navy)',
             margin: '0 0 16px 0',
           }}
         >
@@ -388,25 +385,25 @@ export const CuadrillasScreen: React.FC<CuadrillasScreenProps> = ({
             <div
               style={{
                 backgroundColor: '#FFFFFF',
-                borderRadius: '8px',
+                borderRadius: '10px',
                 border: '1px solid #CBD5E1',
                 padding: '14px 20px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                color: '#64748B',
-                fontSize: '13.5px',
+                color: 'var(--color-text-muted)',
+                fontSize: '14px',
               }}
             >
               <span>Cuadrilla 6</span>
               <button
                 style={{
-                  width: '36px',
-                  height: '36px',
-                  backgroundColor: '#0057D9',
+                  width: '38px',
+                  height: '38px',
+                  background: 'var(--gradient-electric)',
                   color: '#FFFFFF',
                   border: 'none',
-                  borderRadius: '6px',
+                  borderRadius: '8px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -414,7 +411,7 @@ export const CuadrillasScreen: React.FC<CuadrillasScreenProps> = ({
                   opacity: 0.6,
                 }}
               >
-                <Eye size={18} color="#FFFFFF" />
+                <Eye size={18} color="#FFFFFF" strokeWidth={2.2} />
               </button>
             </div>
           ) : (
@@ -423,7 +420,7 @@ export const CuadrillasScreen: React.FC<CuadrillasScreenProps> = ({
                 key={cuad.id}
                 style={{
                   backgroundColor: '#FFFFFF',
-                  borderRadius: '8px',
+                  borderRadius: '10px',
                   border: '1px solid #CBD5E1',
                   padding: '14px 20px',
                   display: 'flex',
@@ -433,7 +430,7 @@ export const CuadrillasScreen: React.FC<CuadrillasScreenProps> = ({
               >
                 <span
                   style={{
-                    fontSize: '14.5px',
+                    fontSize: '15px',
                     fontWeight: 600,
                     color: '#64748B',
                   }}
@@ -445,19 +442,29 @@ export const CuadrillasScreen: React.FC<CuadrillasScreenProps> = ({
                   onClick={() => setSelectedCuadrilla(cuad)}
                   title={`Ver detalle de ${cuad.nombre}`}
                   style={{
-                    width: '36px',
-                    height: '36px',
-                    backgroundColor: '#0057D9',
+                    width: '38px',
+                    height: '38px',
+                    background: 'var(--gradient-electric)',
                     color: '#FFFFFF',
                     border: 'none',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(0, 87, 217, 0.28)',
+                    transition: 'all 0.18s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 10px rgba(0, 87, 217, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(0, 87, 217, 0.28)';
                   }}
                 >
-                  <Eye size={18} color="#FFFFFF" />
+                  <Eye size={18} color="#FFFFFF" strokeWidth={2.2} />
                 </button>
               </div>
             ))

@@ -358,6 +358,7 @@ export function App() {
           metrics={metrics}
           onSelectReporte={handleSelectReporte}
           onOpenAsignarModal={(r) => setAsignarReporte(r)}
+          onOpenSupervisionModal={(r) => setSupervisionReporte(r)}
           onNavigateToReportes={() => setCurrentTab('reportes')}
           onNavigateToCuadrillas={() => setCurrentTab('cuadrillas')}
         />

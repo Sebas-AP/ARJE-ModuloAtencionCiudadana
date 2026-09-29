@@ -63,9 +63,22 @@
   --sidebar-collapsed-width: 80px;
   --header-height: 72px;
 
-  /* Tipografías */
-  --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-family-heading: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Tipografías Oficiales de Figma */
+  --font-family-base: 'Inria Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-heading: 'Inria Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Gradientes Oficiales del Sistema ARJE (Figma & Manual de Marca) */
+  --gradient-royal: linear-gradient(180deg, #253C96 0%, #16245C 100%);
+  --gradient-royal-subtle: linear-gradient(135deg, #253C96 0%, #1D2E73 100%);
+  --gradient-orange: linear-gradient(180deg, #F97A3C 0%, #E85B1C 100%);
+  --gradient-orange-hover: linear-gradient(180deg, #FA8850 0%, #ED6426 100%);
+  --gradient-orange-active: linear-gradient(180deg, #E05417 0%, #C7450D 100%);
+  --gradient-electric: linear-gradient(180deg, #0A6CF5 0%, #0057D9 100%);
+  --gradient-electric-hover: linear-gradient(180deg, #1C7BFF 0%, #0050CA 100%);
+  --gradient-table-header: linear-gradient(180deg, #F8FAFD 0%, #EDF3FC 100%);
+  --gradient-card-total: linear-gradient(180deg, #FFFFFF 0%, #F4F7FD 100%);
+  --gradient-card-success: linear-gradient(180deg, #FFFFFF 0%, #F0FDF4 100%);
+  --gradient-card-warning: linear-gradient(180deg, #FFFFFF 0%, #FFFBEB 100%);
 }
 
 /* Reset Global */
@@ -138,34 +151,34 @@ button, input, select, textarea {
   pointer-events: none;
 }
 
-/* Botón Primario: Orange Energy */
+/* Botón Primario: Orange Energy con Gradiente Oficial de Figma */
 .btn-primary {
-  background-color: var(--color-orange);
+  background: var(--gradient-orange);
   color: var(--color-white);
-  box-shadow: 0 2px 8px rgba(243, 107, 46, 0.35);
+  box-shadow: 0 2px 8px rgba(243, 107, 46, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .btn-primary:hover {
-  background-color: var(--color-orange-hover);
-  box-shadow: 0 4px 12px rgba(243, 107, 46, 0.45);
+  background: var(--gradient-orange-hover);
+  box-shadow: 0 4px 14px rgba(243, 107, 46, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
   transform: translateY(-1px);
 }
 
 .btn-primary:active {
-  background-color: var(--color-orange-active);
+  background: var(--gradient-orange-active);
   transform: translateY(0);
 }
 
-/* Botón Secundario: Royal Blue / Electric Blue */
+/* Botón Secundario: Royal / Electric Blue con Gradiente */
 .btn-secondary {
-  background-color: var(--color-electric-blue);
+  background: var(--gradient-electric);
   color: var(--color-white);
-  box-shadow: 0 2px 8px rgba(0, 87, 217, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 87, 217, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .btn-secondary:hover {
-  background-color: var(--color-electric-blue-hover);
-  box-shadow: 0 4px 12px rgba(0, 87, 217, 0.35);
+  background: var(--gradient-electric-hover);
+  box-shadow: 0 4px 14px rgba(0, 87, 217, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.35);
   transform: translateY(-1px);
 }
 

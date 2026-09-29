@@ -54,14 +54,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         minHeight: '100vh',
         width: '100%',
         backgroundColor: '#FFFFFF',
-        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        fontFamily: 'var(--font-family-base)',
       }}
     >
-      {/* LADO IZQUIERDO: Fondo Royal Blue #253C96 con el logo oficial ARJE en blanco de Figma */}
+      {/* LADO IZQUIERDO: Fondo Royal Blue con el logo oficial ARJE en blanco de Figma */}
       <div
         style={{
           flex: 1.1,
-          backgroundColor: '#253C96',
+          background: 'var(--gradient-royal)',
           position: 'relative',
           display: 'flex',
           flexDirection: 'column',
@@ -223,17 +223,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               />
             </div>
 
-            {/* Botón: Iniciar sesión (Azul oficial de Figma #0057D9 con icono de flecha) */}
+            {/* Botón: Iniciar sesión (Azul eléctrico oficial de Figma con gradiente y elevación) */}
             <button
               type="submit"
               disabled={loading}
               style={{
                 width: '100%',
                 padding: '13px 20px',
-                backgroundColor: '#0057D9',
+                background: 'var(--gradient-electric)',
                 color: '#FFFFFF',
                 border: 'none',
-                borderRadius: '6px',
+                borderRadius: '8px',
                 fontSize: '15px',
                 fontWeight: 700,
                 cursor: loading ? 'wait' : 'pointer',
@@ -241,18 +241,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '10px',
-                transition: 'background-color 0.15s ease',
-                boxShadow: '0 2px 6px rgba(0, 87, 217, 0.25)',
+                transition: 'all 0.18s ease',
+                boxShadow: '0 3px 10px rgba(0, 87, 217, 0.32)',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#0045B0';
+                e.currentTarget.style.background = 'var(--gradient-electric-hover)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 87, 217, 0.45)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#0057D9';
+                e.currentTarget.style.background = 'var(--gradient-electric)';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 3px 10px rgba(0, 87, 217, 0.32)';
               }}
             >
               <span>{loading ? 'Accediendo...' : 'Iniciar sesión'}</span>
-              <ArrowRight size={18} />
+              <ArrowRight size={18} strokeWidth={2.5} />
             </button>
 
             {/* Acceso demo rápido */}

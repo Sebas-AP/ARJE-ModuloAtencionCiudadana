@@ -7,6 +7,8 @@ import {
   ClipboardCheck,
   RotateCcw,
   Search,
+  ClipboardList,
+  Users,
 } from 'lucide-react';
 import { ReporteDTO, CuadrillaDTO, EstatusReporte } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
@@ -354,7 +356,8 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
           borderRadius: '10px',
           border: '1px solid #E2E8F0',
           overflow: 'hidden',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+          boxShadow: '0 2px 6px rgba(25, 36, 78, 0.04)',
+          fontFamily: "var(--font-family-base, 'Inria Sans', sans-serif)",
         }}
       >
         <table
@@ -362,17 +365,17 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
             width: '100%',
             borderCollapse: 'collapse',
             textAlign: 'left',
-            fontSize: '13.5px',
+            fontSize: '14px',
           }}
         >
           <thead>
             <tr
               style={{
                 borderBottom: '1px solid #E2E8F0',
-                color: '#64748B',
-                fontWeight: 600,
+                color: '#475569',
+                fontWeight: 700,
                 fontSize: '13px',
-                backgroundColor: '#F8FAFC',
+                background: 'var(--gradient-table-header, linear-gradient(180deg, #F8FAFD 0%, #EDF3FC 100%))',
               }}
             >
               <th style={{ padding: '14px 20px', width: '70px' }}>ID</th>
@@ -380,7 +383,7 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
               <th style={{ padding: '14px 20px' }}>Tiempo</th>
               <th style={{ padding: '14px 20px' }}>Estado</th>
               <th style={{ padding: '14px 20px' }}>Sector</th>
-              <th style={{ padding: '14px 20px', textAlign: 'center', width: '140px' }}>
+              <th style={{ padding: '14px 20px', textAlign: 'center', width: '150px' }}>
                 Acciones
               </th>
             </tr>
@@ -408,12 +411,25 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
                   rep.estatus === EstatusReporte.Cerrado ||
                   String(rep.estatus).toLowerCase().includes('resuelto');
 
+                // Clic según comentarios de Figma (#3 y #4):
+                // Reporte completado: abre programación de supervisión
+                // Reporte pendiente: va a seguimiento detallado para asignar
+                const handleRowClick = () => {
+                  if (isResuelto) {
+                    onOpenSupervisionModal(rep);
+                  } else {
+                    onSelectReporte(rep.id);
+                  }
+                };
+
                 return (
                   <tr
                     key={rep.id}
+                    onClick={handleRowClick}
                     style={{
                       borderBottom: '1px solid #F1F5F9',
                       transition: 'background-color 0.15s ease',
+                      cursor: 'pointer',
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor = '#F8FAFC';
@@ -421,13 +437,14 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
                     onMouseLeave={(e) => {
                       e.currentTarget.style.backgroundColor = 'transparent';
                     }}
+                    title="Haz clic para ver detalles del reporte"
                   >
                     {/* ID */}
                     <td
                       style={{
                         padding: '14px 20px',
                         color: '#64748B',
-                        fontWeight: 600,
+                        fontWeight: 700,
                       }}
                     >
                       {idDisplay}
@@ -437,11 +454,9 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
                     <td style={{ padding: '14px 20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span
-                          onClick={() => onSelectReporte(rep.id)}
                           style={{
-                            fontWeight: 600,
+                            fontWeight: 700,
                             color: '#19244E',
-                            cursor: 'pointer',
                           }}
                         >
                           {rep.categoria || rep.descripcion}
@@ -457,7 +472,7 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
                               borderRadius: '4px',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '2px',
+                              gap: '3px',
                             }}
                             title={`Clasificado por IA: ${rep.categoria} (${Math.round(rep.confianzaIA * 100)}%)`}
                           >
@@ -469,7 +484,7 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
                     </td>
 
                     {/* Tiempo */}
-                    <td style={{ padding: '14px 20px', color: '#64748B', fontSize: '13px' }}>
+                    <td style={{ padding: '14px 20px', color: '#64748B', fontSize: '13.5px' }}>
                       {getTiempoTranscurrido(rep.fechaCreacion || rep.fechaRecibido)}
                     </td>
 
@@ -479,12 +494,15 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
                     </td>
 
                     {/* Sector */}
-                    <td style={{ padding: '14px 20px', color: '#19244E', fontWeight: 600 }}>
+                    <td style={{ padding: '14px 20px', color: '#19244E', fontWeight: 700 }}>
                       {sectorDisplay}
                     </td>
 
-                    {/* Acciones */}
-                    <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                    {/* Acciones Oficiales de Figma (ClipboardList, Users, Sparkles, ClipboardCheck) */}
+                    <td
+                      style={{ padding: '14px 20px', textAlign: 'center' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div
                         style={{
                           display: 'flex',
@@ -493,26 +511,35 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
                           gap: '10px',
                         }}
                       >
-                        {/* Ver Seguimiento */}
+                        {/* Ver Detalle / Seguimiento (Figma ClipboardList) */}
                         <button
-                          onClick={() => onSelectReporte(rep.id)}
+                          onClick={handleRowClick}
                           title="Ver detalle del reporte"
                           style={{
                             background: 'none',
                             border: 'none',
                             color: '#64748B',
                             cursor: 'pointer',
-                            padding: '4px',
+                            padding: '5px',
+                            borderRadius: '6px',
                             display: 'flex',
                             alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s ease',
                           }}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = '#0057D9')}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = '#64748B')}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = '#0057D9';
+                            e.currentTarget.style.backgroundColor = '#EFF6FF';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = '#64748B';
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                          }}
                         >
-                          <Eye size={17} />
+                          <ClipboardList size={18} />
                         </button>
 
-                        {/* Asignar Cuadrilla */}
+                        {/* Asignar Cuadrilla (Figma Users) */}
                         <button
                           onClick={() => onOpenAsignarModal(rep)}
                           title="Asignar cuadrilla"
@@ -521,14 +548,23 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
                             border: 'none',
                             color: '#64748B',
                             cursor: 'pointer',
-                            padding: '4px',
+                            padding: '5px',
+                            borderRadius: '6px',
                             display: 'flex',
                             alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s ease',
                           }}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = '#F36B2E')}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = '#64748B')}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = '#F36B2E';
+                            e.currentTarget.style.backgroundColor = '#FFF0E8';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = '#64748B';
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                          }}
                         >
-                          <UserPlus size={17} />
+                          <Users size={18} />
                         </button>
 
                         {/* Corregir Categoría IA */}
@@ -540,12 +576,21 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
                             border: 'none',
                             color: '#64748B',
                             cursor: 'pointer',
-                            padding: '4px',
+                            padding: '5px',
+                            borderRadius: '6px',
                             display: 'flex',
                             alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s ease',
                           }}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = '#253C96')}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = '#64748B')}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = '#253C96';
+                            e.currentTarget.style.backgroundColor = '#EEF2FF';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = '#64748B';
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                          }}
                         >
                           <Sparkles size={16} />
                         </button>
@@ -558,14 +603,25 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
                             style={{
                               background: 'none',
                               border: 'none',
-                              color: '#22C55E',
+                              color: '#16A34A',
                               cursor: 'pointer',
-                              padding: '4px',
+                              padding: '5px',
+                              borderRadius: '6px',
                               display: 'flex',
                               alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = '#15803D';
+                              e.currentTarget.style.backgroundColor = '#DCFCE7';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = '#16A34A';
+                              e.currentTarget.style.backgroundColor = 'transparent';
                             }}
                           >
-                            <ClipboardCheck size={16} />
+                            <ClipboardCheck size={17} />
                           </button>
                         )}
                       </div>

@@ -8,6 +8,9 @@ import {
   Clock,
   AlertTriangle,
   ChevronDown,
+  Navigation,
+  Play,
+  Crosshair,
 } from 'lucide-react';
 import { ReporteDTO, CuadrillaDTO, EstatusReporte } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
@@ -21,6 +24,7 @@ interface SeguimientoScreenProps {
   onOpenAsignarModal: (reporte: ReporteDTO) => void;
   onOpenCorregirModal: (reporte: ReporteDTO) => void;
   onOpenSupervisionModal: (reporte: ReporteDTO) => void;
+  onActualizarReporte?: (reporteActualizado: Partial<ReporteDTO>) => Promise<void>;
 }
 
 export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
@@ -30,15 +34,49 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
   onOpenAsignarModal,
   onOpenCorregirModal,
   onOpenSupervisionModal,
+  onActualizarReporte,
 }) => {
   const [selectedCuadrilla, setSelectedCuadrilla] = useState<string>(
     reporte.cuadrillaAsignadaNombre || ''
   );
+  const [showTiempoEstimadoBox, setShowTiempoEstimadoBox] = useState<boolean>(false);
+  const [tiempoEstimadoMinutos, setTiempoEstimadoMinutos] = useState<string>(
+    reporte.tiempoEstimado ? String(reporte.tiempoEstimado) : '45'
+  );
+  const [ubicacionMarcada, setUbicacionMarcada] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const isResuelto =
     reporte.estatus === EstatusReporte.Completado ||
     reporte.estatus === EstatusReporte.Cerrado ||
     String(reporte.estatus).toLowerCase().includes('resuelto');
+
+  // Acción para marcar/resaltar la ubicación (Figma Comentario #11)
+  const handleMarcarUbicacion = () => {
+    setUbicacionMarcada(true);
+    setTimeout(() => setUbicacionMarcada(false), 3000);
+  };
+
+  // Confirmar atención del reporte con tiempo estimado (Figma Comentario #11)
+  const handleConfirmarAtencion = async () => {
+    setIsSubmitting(true);
+    try {
+      const minutos = parseInt(tiempoEstimadoMinutos, 10) || 45;
+      const crewObj = cuadrillas.find((c) => c.nombre === selectedCuadrilla);
+
+      if (onActualizarReporte) {
+        await onActualizarReporte({
+          estatus: EstatusReporte.EnProceso,
+          idCuadrillaAsignada: crewObj?.id,
+          cuadrillaAsignadaNombre: selectedCuadrilla || reporte.cuadrillaAsignadaNombre,
+          tiempoEstimado: minutos,
+        });
+      }
+      setShowTiempoEstimadoBox(false);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div
@@ -49,6 +87,7 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
         maxWidth: '1100px',
         margin: '0 auto',
         padding: '10px 0',
+        fontFamily: "var(--font-family-base, 'Inria Sans', sans-serif)",
       }}
     >
       {/* Botón Volver y Título del Reporte (Exacto a Figma) */}
@@ -64,11 +103,16 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
             gap: '6px',
             color: '#0057D9',
             fontWeight: 700,
-            fontSize: '13.5px',
+            fontSize: '14px',
+            padding: '6px 10px',
+            borderRadius: '6px',
+            transition: 'background-color 0.15s ease',
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#EFF6FF')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
         >
           <ArrowLeft size={16} />
-          <span>Volver</span>
+          <span>Volver a reportes</span>
         </button>
 
         <h1
@@ -77,16 +121,20 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
             fontWeight: 800,
             color: '#19244E',
             margin: 0,
+            fontFamily: "var(--font-family-heading, 'Inria Sans', sans-serif)",
           }}
         >
-          {reporte.categoria || reporte.descripcion || 'Fuga en via publica'}
+          {reporte.categoria || reporte.descripcion || 'Fuga en vía pública'}
         </h1>
 
         <span
           style={{
             fontSize: '13px',
             color: '#64748B',
-            fontWeight: 600,
+            fontWeight: 700,
+            backgroundColor: '#F1F5F9',
+            padding: '4px 10px',
+            borderRadius: '6px',
           }}
         >
           Folio: {reporte.folio || `REP-${reporte.id}`}
@@ -114,6 +162,7 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
               backgroundColor: '#F1F5F9',
               boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
               border: '1px solid #E2E8F0',
+              position: 'relative',
             }}
           >
             <img
@@ -125,6 +174,22 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
                 objectFit: 'cover',
               }}
             />
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '10px',
+                right: '10px',
+                backgroundColor: 'rgba(25, 36, 78, 0.85)',
+                color: '#FFFFFF',
+                fontSize: '11.5px',
+                fontWeight: 600,
+                padding: '4px 8px',
+                borderRadius: '4px',
+                backdropFilter: 'blur(4px)',
+              }}
+            >
+              Evidencia fotográfica adjunta
+            </div>
           </div>
 
           {/* Texto Descriptivo del Ciudadano */}
@@ -137,26 +202,62 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
               padding: '16px 20px',
               borderRadius: '8px',
               border: '1px solid #E2E8F0',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
             }}
           >
+            <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>
+              Descripción del reporte
+            </div>
             "{reporte.descripcion || 'Fuga de agua en la vía pública con derrame continuo sobre banqueta.'}"
           </div>
 
-          {/* Mapa de Ubicación */}
+          {/* Mapa de Ubicación con Botón para Marcar Ubicación (Figma Comentario #11) */}
           <div>
             <div
               style={{
-                fontSize: '13.5px',
-                fontWeight: 700,
-                color: '#19244E',
-                marginBottom: '8px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                justifyContent: 'space-between',
+                marginBottom: '10px',
               }}
             >
-              <MapPin size={16} color="#0057D9" />
-              <span>{reporte.direccion || 'Ubicación registrada'}</span>
+              <div
+                style={{
+                  fontSize: '13.5px',
+                  fontWeight: 700,
+                  color: '#19244E',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <MapPin size={16} color="#0057D9" />
+                <span>{reporte.direccion || 'Ubicación registrada en mapa'}</span>
+              </div>
+
+              {/* Botón para Marcar Ubicación de Figma (Comentario #11) */}
+              <button
+                onClick={handleMarcarUbicacion}
+                title="Centrar y marcar ubicación exacta en el mapa"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #0057D9',
+                  backgroundColor: ubicacionMarcada ? '#EFF6FF' : '#FFFFFF',
+                  color: '#0057D9',
+                  fontSize: '12.5px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.18s ease',
+                  boxShadow: ubicacionMarcada ? '0 0 0 3px rgba(0, 87, 217, 0.2)' : 'none',
+                }}
+              >
+                <Crosshair size={14} color="#0057D9" />
+                <span>{ubicacionMarcada ? '¡Ubicación Marcada!' : 'Marcar ubicación'}</span>
+              </button>
             </div>
 
             <div
@@ -164,8 +265,11 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
                 height: '240px',
                 borderRadius: '10px',
                 overflow: 'hidden',
-                border: '1px solid #E2E8F0',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                border: ubicacionMarcada ? '2px solid #0057D9' : '1px solid #E2E8F0',
+                boxShadow: ubicacionMarcada
+                  ? '0 4px 14px rgba(0, 87, 217, 0.25)'
+                  : '0 2px 6px rgba(0,0,0,0.06)',
+                transition: 'all 0.25s ease',
               }}
             >
               <MapView
@@ -186,7 +290,7 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
               borderRadius: '10px',
               border: '1px solid #E2E8F0',
               padding: '24px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              boxShadow: '0 2px 6px rgba(25, 36, 78, 0.04)',
               display: 'flex',
               flexDirection: 'column',
               gap: '16px',
@@ -197,7 +301,7 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
               <span style={{ fontSize: '13.5px', color: '#64748B', fontWeight: 600 }}>
                 Hora de registro
               </span>
-              <span style={{ fontSize: '14px', color: '#19244E', fontWeight: 600 }}>
+              <span style={{ fontSize: '14px', color: '#19244E', fontWeight: 700 }}>
                 {new Date(reporte.fechaCreacion || reporte.fechaRecibido || Date.now()).toLocaleTimeString('es-MX', {
                   hour: '2-digit',
                   minute: '2-digit',
@@ -211,7 +315,16 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
               <span style={{ fontSize: '13.5px', color: '#64748B', fontWeight: 600 }}>
                 Prioridad
               </span>
-              <span style={{ fontSize: '14px', color: '#19244E', fontWeight: 700 }}>
+              <span
+                style={{
+                  fontSize: '13.5px',
+                  color: reporte.prioridad === 'Alta' ? '#EF4444' : '#19244E',
+                  fontWeight: 800,
+                  backgroundColor: reporte.prioridad === 'Alta' ? '#FEF2F2' : '#F1F5F9',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                }}
+              >
                 {reporte.prioridad || 'Alta'}
               </span>
             </div>
@@ -223,6 +336,19 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
               </span>
               <StatusBadge estatus={reporte.estatus} size="md" />
             </div>
+
+            {/* Tiempo estimado actual */}
+            {reporte.tiempoEstimado && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13.5px', color: '#64748B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Clock size={14} color="#F36B2E" />
+                  Tiempo estimado
+                </span>
+                <span style={{ fontSize: '13.5px', color: '#F36B2E', fontWeight: 800 }}>
+                  {reporte.tiempoEstimado} minutos
+                </span>
+              </div>
+            )}
 
             {/* Clasificación IA */}
             <div
@@ -254,7 +380,7 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
                     border: 'none',
                     color: '#0057D9',
                     fontSize: '12px',
-                    fontWeight: 600,
+                    fontWeight: 700,
                     cursor: 'pointer',
                     textDecoration: 'underline',
                   }}
@@ -263,7 +389,7 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
                 </button>
               </div>
 
-              <div style={{ fontSize: '13px', color: '#19244E', fontWeight: 600 }}>
+              <div style={{ fontSize: '13.5px', color: '#19244E', fontWeight: 700 }}>
                 {reporte.categoria || 'Sin clasificación'}
               </div>
 
@@ -291,14 +417,14 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
             </div>
           </div>
 
-          {/* Asignar cuadrilla (Figma: Dropdown y Botón Orange #F36B2E) */}
+          {/* Asignar cuadrilla y Atender Reporte con recuadro de tiempo estimado (Figma Comentario #11) */}
           <div
             style={{
               backgroundColor: '#FFFFFF',
               borderRadius: '10px',
               border: '1px solid #E2E8F0',
               padding: '24px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              boxShadow: '0 2px 6px rgba(25, 36, 78, 0.04)',
             }}
           >
             <label
@@ -310,11 +436,11 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
                 marginBottom: '12px',
               }}
             >
-              {isResuelto ? 'Cuadrilla de supervisión (RF-13)' : 'Asignar cuadrilla'}
+              {isResuelto ? 'Supervisión del reporte completado' : 'Asignar cuadrilla de atención'}
             </label>
 
             {/* Dropdown de Cuadrilla */}
-            <div style={{ position: 'relative', marginBottom: '20px' }}>
+            <div style={{ position: 'relative', marginBottom: '16px' }}>
               <select
                 value={selectedCuadrilla}
                 onChange={(e) => setSelectedCuadrilla(e.target.value)}
@@ -327,7 +453,7 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
                   backgroundColor: '#FFFFFF',
                   color: selectedCuadrilla ? '#19244E' : '#94A3B8',
                   fontSize: '13.5px',
-                  fontWeight: 500,
+                  fontWeight: 600,
                   outline: 'none',
                   cursor: 'pointer',
                   boxSizing: 'border-box',
@@ -349,65 +475,212 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
               />
             </div>
 
-            {/* Botón Naranja de Acción Principal de Figma (#F36B2E) */}
+            {/* Recuadro para asignar tiempo estimado tras dar clic en atender (Figma Comentario #11) */}
+            {showTiempoEstimadoBox && !isResuelto && (
+              <div
+                style={{
+                  marginBottom: '16px',
+                  padding: '16px',
+                  backgroundColor: '#FFF7ED',
+                  border: '1px solid #FDBA74',
+                  borderRadius: '8px',
+                  animation: 'fadeIn 0.2s ease-out',
+                }}
+              >
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    color: '#9A3412',
+                    marginBottom: '8px',
+                  }}
+                >
+                  <Clock size={15} color="#F36B2E" />
+                  <span>Asignar tiempo estimado de resolución (minutos):</span>
+                </label>
+
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                  <input
+                    type="number"
+                    min="5"
+                    step="5"
+                    value={tiempoEstimadoMinutos}
+                    onChange={(e) => setTiempoEstimadoMinutos(e.target.value)}
+                    placeholder="ej. 45"
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid #F97316',
+                      fontSize: '14px',
+                      fontWeight: 700,
+                      color: '#19244E',
+                      outline: 'none',
+                      backgroundColor: '#FFFFFF',
+                    }}
+                  />
+                  <span style={{ alignSelf: 'center', fontSize: '13px', fontWeight: 600, color: '#9A3412' }}>
+                    minutos
+                  </span>
+                </div>
+
+                {/* Accesos rápidos de tiempo */}
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
+                  {['30', '45', '60', '90', '120'].map((mins) => (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() => setTiempoEstimadoMinutos(mins)}
+                      style={{
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        border: tiempoEstimadoMinutos === mins ? '1px solid #EA580C' : '1px solid #FED7AA',
+                        backgroundColor: tiempoEstimadoMinutos === mins ? '#EA580C' : '#FFFFFF',
+                        color: tiempoEstimadoMinutos === mins ? '#FFFFFF' : '#9A3412',
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {mins} min
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowTiempoEstimadoBox(false)}
+                    style={{
+                      flex: 1,
+                      padding: '8px',
+                      borderRadius: '6px',
+                      border: '1px solid #CBD5E1',
+                      backgroundColor: '#FFFFFF',
+                      color: '#64748B',
+                      fontSize: '12.5px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmarAtencion}
+                    disabled={isSubmitting}
+                    style={{
+                      flex: 2,
+                      padding: '8px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: 'var(--gradient-orange)',
+                      color: '#FFFFFF',
+                      fontSize: '12.5px',
+                      fontWeight: 700,
+                      cursor: isSubmitting ? 'wait' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      boxShadow: '0 2px 6px rgba(243, 107, 46, 0.3)',
+                    }}
+                  >
+                    <CheckCircle2 size={15} />
+                    <span>Confirmar atención</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Botón Principal de Acción (Gradiente Oficial de Figma) */}
             {isResuelto ? (
               <button
                 onClick={() => onOpenSupervisionModal(reporte)}
                 style={{
                   width: '100%',
-                  padding: '12px',
-                  backgroundColor: '#F36B2E', // Naranja primario de Figma
+                  padding: '13px',
+                  background: 'var(--gradient-orange)',
                   color: '#FFFFFF',
                   border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '14px',
+                  borderRadius: '8px',
+                  fontSize: '14.5px',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: '0 2px 6px rgba(243, 107, 46, 0.3)',
+                  boxShadow: '0 2px 8px rgba(243, 107, 46, 0.35)',
+                  transition: 'transform 0.15s, box-shadow 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(243, 107, 46, 0.45)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(243, 107, 46, 0.35)';
                 }}
               >
-                <ClipboardCheck size={16} />
+                <ClipboardCheck size={18} />
                 <span>Programar visita de supervisión</span>
               </button>
-            ) : (
+            ) : !showTiempoEstimadoBox ? (
               <button
-                onClick={() => onOpenAsignarModal(reporte)}
+                onClick={() => {
+                  // Figma Comentario #11: Mostrar recuadro para asignar tiempo estimado
+                  setShowTiempoEstimadoBox(true);
+                }}
                 style={{
                   width: '100%',
-                  padding: '12px',
-                  backgroundColor: '#F36B2E', // Naranja primario de Figma
+                  padding: '13px',
+                  background: 'var(--gradient-orange)',
                   color: '#FFFFFF',
                   border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '14px',
+                  borderRadius: '8px',
+                  fontSize: '14.5px',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: '0 2px 6px rgba(243, 107, 46, 0.3)',
+                  boxShadow: '0 2px 8px rgba(243, 107, 46, 0.35)',
+                  transition: 'transform 0.15s, box-shadow 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(243, 107, 46, 0.45)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(243, 107, 46, 0.35)';
                 }}
               >
-                <span>Marcar en proceso</span>
+                <Play size={16} fill="#FFFFFF" />
+                <span>Atender reporte (Marcar en proceso)</span>
               </button>
-            )}
+            ) : null}
 
             {reporte.cuadrillaAsignadaNombre && (
               <div
                 style={{
-                  marginTop: '12px',
-                  fontSize: '12px',
+                  marginTop: '14px',
+                  fontSize: '12.5px',
                   color: '#059669',
                   textAlign: 'center',
-                  fontWeight: 600,
+                  fontWeight: 700,
+                  backgroundColor: '#ECFDF5',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #A7F3D0',
                 }}
               >
-                Cuadrilla actual: {reporte.cuadrillaAsignadaNombre}
+                Cuadrilla asignada: {reporte.cuadrillaAsignadaNombre}
               </div>
             )}
           </div>

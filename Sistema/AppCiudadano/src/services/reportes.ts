@@ -23,6 +23,7 @@ export interface ReportesFilters {
 }
 
 export interface ClasificacionResult {
+  categoria?: string;
   tipoProblema: TipoProblema;
   confianza: number;
   razonamiento: string;

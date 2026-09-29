@@ -129,6 +129,7 @@ Responde SOLO con JSON:
 
                     return new ClasificacionResult
                     {
+                        Categoria = catTrim,
                         TipoProblema = tipoEnum.ToString(),
                         Confianza = parsed.Confianza > 0 ? parsed.Confianza : 0.85,
                         Razonamiento = parsed.Razonamiento ?? "Clasificado por IA"
@@ -151,41 +152,42 @@ Responde SOLO con JSON:
         if (desc.Contains("fuga") || desc.Contains("goteo") || desc.Contains("chorro") || desc.Contains("brote") || desc.Contains("escape"))
         {
             if (desc.Contains("domicil") || desc.Contains("casa") || desc.Contains("hogar"))
-                return new ClasificacionResult { TipoProblema = TipoProblema.Fuga.ToString(), Confianza = 0.8, Razonamiento = "Palabras clave: fuga domiciliaria" };
+                return new ClasificacionResult { Categoria = "Fuga domiciliaria", TipoProblema = TipoProblema.Fuga.ToString(), Confianza = 0.8, Razonamiento = "Palabras clave: fuga domiciliaria" };
             if (desc.Contains("calle") || desc.Contains("via") || desc.Contains("publica") || desc.Contains("banqueta"))
-                return new ClasificacionResult { TipoProblema = TipoProblema.Fuga.ToString(), Confianza = 0.8, Razonamiento = "Palabras clave: fuga en via publica" };
-            return new ClasificacionResult { TipoProblema = TipoProblema.Fuga.ToString(), Confianza = 0.75, Razonamiento = "Palabras clave: fuga" };
+                return new ClasificacionResult { Categoria = "Fuga en vía pública", TipoProblema = TipoProblema.Fuga.ToString(), Confianza = 0.8, Razonamiento = "Palabras clave: fuga en via publica" };
+            return new ClasificacionResult { Categoria = "Fuga en vía pública", TipoProblema = TipoProblema.Fuga.ToString(), Confianza = 0.75, Razonamiento = "Palabras clave: fuga" };
         }
 
         if (desc.Contains("presion") || desc.Contains("poco chorro") || desc.Contains("baja") || desc.Contains("gotea apenas"))
-            return new ClasificacionResult { TipoProblema = TipoProblema.FaltaAbastecimiento.ToString(), Confianza = 0.8, Razonamiento = "Palabras clave: baja presion" };
+            return new ClasificacionResult { Categoria = "Baja presión del agua", TipoProblema = TipoProblema.FaltaAbastecimiento.ToString(), Confianza = 0.8, Razonamiento = "Palabras clave: baja presion" };
 
         if (desc.Contains("no hay agua") || desc.Contains("sin agua") || desc.Contains("falta agua") || desc.Contains("corte") || desc.Contains("suspension"))
-            return new ClasificacionResult { TipoProblema = TipoProblema.FaltaAbastecimiento.ToString(), Confianza = 0.85, Razonamiento = "Palabras clave: falta de abastecimiento" };
+            return new ClasificacionResult { Categoria = "Falta de abastecimiento", TipoProblema = TipoProblema.FaltaAbastecimiento.ToString(), Confianza = 0.85, Razonamiento = "Palabras clave: falta de abastecimiento" };
 
         if (desc.Contains("intermitent") || desc.Contains("va y viene") || desc.Contains("a ratos"))
-            return new ClasificacionResult { TipoProblema = TipoProblema.FaltaAbastecimiento.ToString(), Confianza = 0.75, Razonamiento = "Palabras clave: suministro intermitente" };
+            return new ClasificacionResult { Categoria = "Suministro intermitente", TipoProblema = TipoProblema.FaltaAbastecimiento.ToString(), Confianza = 0.75, Razonamiento = "Palabras clave: suministro intermitente" };
 
         if (desc.Contains("roto") || desc.Contains("quebrado") || desc.Contains("dañado") || desc.Contains("partido") || desc.Contains("grieta"))
-            return new ClasificacionResult { TipoProblema = TipoProblema.InstalacionRota.ToString(), Confianza = 0.8, Razonamiento = "Palabras clave: instalacion rota" };
+            return new ClasificacionResult { Categoria = "Instalación rota", TipoProblema = TipoProblema.InstalacionRota.ToString(), Confianza = 0.8, Razonamiento = "Palabras clave: instalacion rota" };
 
         if (desc.Contains("medidor") || desc.Contains("contador"))
-            return new ClasificacionResult { TipoProblema = TipoProblema.InstalacionRota.ToString(), Confianza = 0.8, Razonamiento = "Palabras clave: medidor dañado" };
+            return new ClasificacionResult { Categoria = "Medidor dañado", TipoProblema = TipoProblema.InstalacionRota.ToString(), Confianza = 0.8, Razonamiento = "Palabras clave: medidor dañado" };
 
         if (desc.Contains("registro") || desc.Contains("tapa") || desc.Contains("alcantarilla"))
-            return new ClasificacionResult { TipoProblema = TipoProblema.InstalacionRota.ToString(), Confianza = 0.75, Razonamiento = "Palabras clave: registro dañado" };
+            return new ClasificacionResult { Categoria = "Registro dañado o sin tapa", TipoProblema = TipoProblema.InstalacionRota.ToString(), Confianza = 0.75, Razonamiento = "Palabras clave: registro dañado" };
 
         if (desc.Contains("hundim") || desc.Contains("socavon") || desc.Contains("hoyo"))
-            return new ClasificacionResult { TipoProblema = TipoProblema.Fuga.ToString(), Confianza = 0.75, Razonamiento = "Palabras clave: hundimiento por fuga" };
+            return new ClasificacionResult { Categoria = "Hundimiento o socavón por fuga", TipoProblema = TipoProblema.Fuga.ToString(), Confianza = 0.75, Razonamiento = "Palabras clave: hundimiento por fuga" };
 
         if (desc.Contains("sucia") || desc.Contains("contaminada") || desc.Contains("turbia") || desc.Contains("color") || desc.Contains("mal olor"))
-            return new ClasificacionResult { TipoProblema = TipoProblema.Otro.ToString(), Confianza = 0.7, Razonamiento = "Palabras clave: agua contaminada" };
+            return new ClasificacionResult { Categoria = "Agua contaminada o sucia", TipoProblema = TipoProblema.Otro.ToString(), Confianza = 0.7, Razonamiento = "Palabras clave: agua contaminada" };
 
         if (desc.Contains("robo") || desc.Contains("hurto") || desc.Contains("ilegal") || desc.Contains("bypass") || desc.Contains("manguera") || desc.Contains("riego") || desc.Contains("lavado") || desc.Contains("piscina"))
-            return new ClasificacionResult { TipoProblema = TipoProblema.UsoIndebido.ToString(), Confianza = 0.8, Razonamiento = "Palabras clave: uso indebido" };
+            return new ClasificacionResult { Categoria = "Uso indebido", TipoProblema = TipoProblema.UsoIndebido.ToString(), Confianza = 0.8, Razonamiento = "Palabras clave: uso indebido" };
 
         return new ClasificacionResult
         {
+            Categoria = "Otro",
             TipoProblema = TipoProblema.Otro.ToString(),
             Confianza = 0.5,
             Razonamiento = "Clasificación por palabras clave (fallback)"

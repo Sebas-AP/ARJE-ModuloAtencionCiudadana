@@ -6,6 +6,9 @@ public class ReporteDTO
 {
     public int Id { get; set; }
     public TipoProblema TipoProblema { get; set; }
+    public string? Categoria { get; set; }
+    public double? ConfianzaIA { get; set; }
+    public string? RazonamientoIA { get; set; }
     public string Descripcion { get; set; } = string.Empty;
     public decimal Latitud { get; set; }
     public decimal Longitud { get; set; }

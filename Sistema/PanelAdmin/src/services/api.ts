@@ -7,8 +7,23 @@
  * - Asegúrate de que Sistema/API esté corriendo (ej. en http://localhost:5000 o https://localhost:7001).
  */
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-export const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK !== 'false';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5170/api';
+export let USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK === 'true';
+
+export function setUseMockData(useMock: boolean): void {
+  USE_MOCK_DATA = useMock;
+  localStorage.setItem('arje_use_mock', useMock ? 'true' : 'false');
+}
+
+export function toggleMockData(): boolean {
+  setUseMockData(!USE_MOCK_DATA);
+  return USE_MOCK_DATA;
+}
+
+const savedMock = localStorage.getItem('arje_use_mock');
+if (savedMock !== null) {
+  USE_MOCK_DATA = savedMock === 'true';
+}
 
 // Helper para obtener token JWT de localStorage
 export function getAuthToken(): string | null {

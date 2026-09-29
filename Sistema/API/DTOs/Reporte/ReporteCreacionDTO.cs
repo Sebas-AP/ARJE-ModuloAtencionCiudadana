@@ -8,6 +8,14 @@ public class ReporteCreacionDTO
     [Required]
     public TipoProblema TipoProblema { get; set; }
 
+    [StringLength(100)]
+    public string? Categoria { get; set; }
+
+    public double? ConfianzaIA { get; set; }
+
+    [StringLength(500)]
+    public string? RazonamientoIA { get; set; }
+
     [Required]
     [StringLength(2000)]
     public string Descripcion { get; set; } = string.Empty;

@@ -43,7 +43,7 @@ export interface UsuarioDTO {
   id: number;
   nombre: string;
   usuario: string;
-  rol: RolUsuario;
+  rol: RolUsuario | string;
   activo: boolean;
 }
 
@@ -79,12 +79,19 @@ export interface SeguimientoUbicacionDTO {
 export interface CuadrillaDTO {
   id: number;
   nombre: string;
-  integrantes?: string;
+  integrantes?: any; // string o string[]
   usuarioApp: string;
   estatusDisponibilidad: EstatusCuadrilla;
   reportesActivosCount?: number;
   telefonoContacto?: string;
+  telefono?: string;
   vehiculo?: string;
+  placas?: string;
+  zona?: string;
+  lider?: string;
+  activo?: boolean;
+  disponible?: boolean;
+  especialidades?: string[];
 }
 
 export interface CuadrillaCreacionDTO {
@@ -93,6 +100,8 @@ export interface CuadrillaCreacionDTO {
   usuarioApp: string;
   password: string;
   estatusDisponibilidad: EstatusCuadrilla;
+  telefonoContacto?: string;
+  vehiculo?: string;
 }
 
 export interface CuadrillaDisponibilidadDTO {
@@ -102,27 +111,39 @@ export interface CuadrillaDisponibilidadDTO {
 // DTOs de Reporte
 export interface ReporteDTO {
   id: number;
-  folio?: string; // FOL-2023-XX
+  folio?: string; // FOL-2023-XX o REP-2026-XX
   tipoProblema: TipoProblema;
+  tipoReporte?: string;
+  categoria?: string | null; // Categoría producida por el Agente de Clasificación IA
+  confianzaIA?: number | null;
+  razonamientoIA?: string | null;
   descripcion: string;
   latitud: number;
   longitud: number;
   direccion?: string;
   fechaRecibido: string;
-  estatus: EstatusReporte;
+  fechaCreacion?: string; // Alias para compatibilidad de vistas
+  estatus: EstatusReporte | any;
   tiempoEstimado?: number; // en minutos u horas
+  tiempoEstimadoHoras?: number;
   idCuadrillaAsignada?: number | null;
+  cuadrillaAsignada?: string | null; // Alias para compatibilidad de vistas
   cuadrillaAsignadaNombre?: string | null;
+  idCuadrillaSupervisora?: number | null;
+  cuadrillaSupervisora?: string | null;
+  cuadrillaSupervisoraNombre?: string | null;
+  fechaSupervision?: string;
+  observacionesSupervision?: string;
+  notasSupervision?: string;
   numeroContrato?: string | null;
   nombreCiudadano?: string | null;
+  telefonoCiudadano?: string | null;
+  correoCiudadano?: string | null;
   totalEvidencias: number;
   prioridad?: 'Alta' | 'Media' | 'Baja';
 }
 
 export interface ReporteDetalleDTO extends ReporteDTO {
-  telefonoCiudadano?: string | null;
-  idCuadrillaSupervisora?: number | null;
-  cuadrillaSupervisoraNombre?: string | null;
   evidencias: EvidenciaDTO[];
   seguimientosUbicacion: SeguimientoUbicacionDTO[];
   comentariosResolucion?: string;
@@ -131,12 +152,32 @@ export interface ReporteDetalleDTO extends ReporteDTO {
 
 export interface ReporteCreacionDTO {
   tipoProblema: TipoProblema;
+  categoria?: string;
+  confianzaIA?: number;
+  razonamientoIA?: string;
   descripcion: string;
   latitud: number;
   longitud: number;
   numeroContrato?: string;
   nombreCiudadano?: string;
   telefonoCiudadano?: string;
+}
+
+export interface ActualizarCategoriaDTO {
+  categoria: string;
+  tipoProblema?: TipoProblema;
+  razonamiento?: string;
+}
+
+export interface AsignarCuadrillaDTO {
+  idCuadrilla: number;
+  tiempoEstimado?: number;
+}
+
+export interface ProgramarSupervisionDTO {
+  idCuadrillaSupervisora: number;
+  fechaSupervision?: string;
+  notasSupervision?: string;
 }
 
 export interface LandingPageDTO {
@@ -154,6 +195,7 @@ export interface DashboardMetricsDTO {
   deltaEnProceso: number;
   deltaPendientes: number;
   deltaResueltos: number;
+  totalReportes?: number;
 }
 
 export interface GraficaMesDTO {

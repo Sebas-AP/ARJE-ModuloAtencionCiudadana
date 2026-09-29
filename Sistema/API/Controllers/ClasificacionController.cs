@@ -30,6 +30,7 @@ public class ClasificacionController : ControllerBase
 
             return Ok(new ClasificacionResponseDTO
             {
+                Categoria = resultado.Categoria,
                 TipoProblema = Enum.TryParse<TipoProblema>(resultado.TipoProblema, out var tipo) ? tipo : TipoProblema.Otro,
                 Confianza = resultado.Confianza,
                 Razonamiento = resultado.Razonamiento
@@ -39,6 +40,7 @@ public class ClasificacionController : ControllerBase
         {
             return Ok(new ClasificacionResponseDTO
             {
+                Categoria = "Otro",
                 TipoProblema = TipoProblema.Otro,
                 Confianza = 0.5,
                 Razonamiento = "Clasificación asignada por seguridad"
@@ -54,6 +56,7 @@ public class ClasificacionRequestDTO
 
 public class ClasificacionResponseDTO
 {
+    public string Categoria { get; set; } = string.Empty;
     public TipoProblema TipoProblema { get; set; }
     public double Confianza { get; set; }
     public string Razonamiento { get; set; } = string.Empty;

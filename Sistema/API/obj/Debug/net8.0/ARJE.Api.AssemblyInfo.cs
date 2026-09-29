@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ARJE.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cc71f32c5c9859e05a008b1d87555414f231221f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cda2f6a493e3084d97fe21f60b30f76bb7aff008")]
 [assembly: System.Reflection.AssemblyProductAttribute("ARJE.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ARJE.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

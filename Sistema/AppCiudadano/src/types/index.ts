@@ -28,6 +28,7 @@ export interface Coordenadas {
 
 export interface ReporteCreacionDTO {
   tipoProblema: TipoProblema;
+  categoria?: string;
   descripcion: string;
   latitud: number;
   longitud: number;
@@ -72,6 +73,7 @@ export interface CuadrillaDTO {
 export interface ReporteDTO {
   id: number;
   tipoProblema: TipoProblema;
+  categoria?: string;
   descripcion: string;
   latitud: number;
   longitud: number;

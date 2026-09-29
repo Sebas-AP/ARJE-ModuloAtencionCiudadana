@@ -19,18 +19,21 @@ public class ReportesController : ControllerBase
     private readonly IMapper _mapper;
     private readonly IOutputCacheStore _outputCacheStore;
     private readonly IAlmacenadorArchivos _almacenadorArchivos;
+    private readonly IClasificadorService _clasificador;
     private const string ContenedorEvidencias = "evidencias";
 
     public ReportesController(
         ApplicationDbContext context,
         IMapper mapper,
         IOutputCacheStore outputCacheStore,
-        IAlmacenadorArchivos almacenadorArchivos)
+        IAlmacenadorArchivos almacenadorArchivos,
+        IClasificadorService clasificador)
     {
         _context = context;
         _mapper = mapper;
         _outputCacheStore = outputCacheStore;
         _almacenadorArchivos = almacenadorArchivos;
+        _clasificador = clasificador;
     }
 
     [HttpGet]
@@ -40,6 +43,7 @@ public class ReportesController : ControllerBase
         [FromQuery] int registrosPorPagina = 10,
         [FromQuery] EstatusReporte? estatus = null,
         [FromQuery] TipoProblema? tipoProblema = null,
+        [FromQuery] string? categoria = null,
         [FromQuery] int? idCuadrillaAsignada = null,
         [FromQuery] DateTime? fechaDesde = null,
         [FromQuery] DateTime? fechaHasta = null,
@@ -55,6 +59,12 @@ public class ReportesController : ControllerBase
 
         if (tipoProblema.HasValue)
             queryable = queryable.Where(r => r.TipoProblema == tipoProblema.Value);
+
+        if (!string.IsNullOrWhiteSpace(categoria))
+        {
+            var cat = categoria.Trim();
+            queryable = queryable.Where(r => r.Categoria != null && EF.Functions.Like(r.Categoria, $"%{cat}%"));
+        }
 
         if (idCuadrillaAsignada.HasValue)
             queryable = queryable.Where(r => r.IdCuadrillaAsignada == idCuadrillaAsignada.Value);
@@ -139,6 +149,27 @@ public class ReportesController : ControllerBase
         reporte.FechaRecibido = DateTime.UtcNow;
         reporte.Estatus = EstatusReporte.Nuevo;
 
+        // Si no se proporcionó categoría, clasificar automáticamente mediante agente de IA
+        if (string.IsNullOrWhiteSpace(reporte.Categoria))
+        {
+            try
+            {
+                var clasif = await _clasificador.ClasificarReporteAsync(reporte.Descripcion);
+                reporte.Categoria = clasif.Categoria;
+                reporte.ConfianzaIA = clasif.Confianza;
+                reporte.RazonamientoIA = clasif.Razonamiento;
+
+                if (reporte.TipoProblema == TipoProblema.Otro && Enum.TryParse<TipoProblema>(clasif.TipoProblema, out var tipoEnum))
+                {
+                    reporte.TipoProblema = tipoEnum;
+                }
+            }
+            catch
+            {
+                reporte.Categoria = reporte.TipoProblema.ToString();
+            }
+        }
+
         _context.Add(reporte);
         await _context.SaveChangesAsync();
         await _outputCacheStore.EvictByTagAsync("reportes", default);
@@ -159,6 +190,90 @@ public class ReportesController : ControllerBase
         _mapper.Map(creacionDTO, reporte);
         await _context.SaveChangesAsync();
         await _outputCacheStore.EvictByTagAsync("reportes", default);
+
+        return NoContent();
+    }
+
+    [HttpPut("{id:int}/categoria")]
+    public async Task<ActionResult> PutCategoria(int id, [FromBody] ActualizarCategoriaDTO dto)
+    {
+        var reporte = await _context.Reportes.FindAsync(id);
+        if (reporte == null)
+        {
+            return NotFound();
+        }
+
+        if (!string.IsNullOrWhiteSpace(dto.Categoria))
+        {
+            reporte.Categoria = dto.Categoria.Trim();
+        }
+
+        if (dto.TipoProblema.HasValue)
+        {
+            reporte.TipoProblema = dto.TipoProblema.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(dto.Razonamiento))
+        {
+            reporte.RazonamientoIA = dto.Razonamiento.Trim();
+        }
+
+        await _context.SaveChangesAsync();
+        await _outputCacheStore.EvictByTagAsync("reportes", default);
+
+        return NoContent();
+    }
+
+    [HttpPut("{id:int}/asignar")]
+    public async Task<ActionResult> AsignarCuadrilla(int id, [FromBody] AsignarCuadrillaDTO dto)
+    {
+        var reporte = await _context.Reportes.FindAsync(id);
+        if (reporte == null)
+        {
+            return NotFound();
+        }
+
+        reporte.IdCuadrillaAsignada = dto.IdCuadrilla;
+        reporte.Estatus = EstatusReporte.Asignado;
+
+        if (dto.TiempoEstimado.HasValue)
+        {
+            reporte.TiempoEstimado = dto.TiempoEstimado.Value;
+        }
+
+        var cuadrilla = await _context.Cuadrillas.FindAsync(dto.IdCuadrilla);
+        if (cuadrilla != null)
+        {
+            cuadrilla.EstatusDisponibilidad = EstatusCuadrilla.Ocupada;
+        }
+
+        await _context.SaveChangesAsync();
+        await _outputCacheStore.EvictByTagAsync("reportes", default);
+        await _outputCacheStore.EvictByTagAsync("cuadrillas", default);
+
+        return NoContent();
+    }
+
+    [HttpPut("{id:int}/supervision")]
+    public async Task<ActionResult> ProgramarSupervision(int id, [FromBody] ProgramarSupervisionDTO dto)
+    {
+        var reporte = await _context.Reportes.FindAsync(id);
+        if (reporte == null)
+        {
+            return NotFound();
+        }
+
+        if (reporte.IdCuadrillaAsignada.HasValue && reporte.IdCuadrillaAsignada == dto.IdCuadrillaSupervisora)
+        {
+            return BadRequest(new { mensaje = "La visita de supervisión debe asignarse a una cuadrilla distinta a la que atendió el reporte (RF-13)." });
+        }
+
+        reporte.IdCuadrillaSupervisora = dto.IdCuadrillaSupervisora;
+        reporte.Estatus = EstatusReporte.EnSupervision;
+
+        await _context.SaveChangesAsync();
+        await _outputCacheStore.EvictByTagAsync("reportes", default);
+        await _outputCacheStore.EvictByTagAsync("cuadrillas", default);
 
         return NoContent();
     }
@@ -281,4 +396,24 @@ public class LandingPageDTO
 {
     public List<ReporteDTO> EnProceso { get; set; } = new();
     public List<ReporteDTO> Nuevos { get; set; } = new();
+}
+
+public class ActualizarCategoriaDTO
+{
+    public string? Categoria { get; set; }
+    public TipoProblema? TipoProblema { get; set; }
+    public string? Razonamiento { get; set; }
+}
+
+public class AsignarCuadrillaDTO
+{
+    public int IdCuadrilla { get; set; }
+    public decimal? TiempoEstimado { get; set; }
+}
+
+public class ProgramarSupervisionDTO
+{
+    public int IdCuadrillaSupervisora { get; set; }
+    public DateTime? FechaSupervision { get; set; }
+    public string? NotasSupervision { get; set; }
 }

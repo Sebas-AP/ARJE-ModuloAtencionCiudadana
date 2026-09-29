@@ -199,10 +199,14 @@ export const CrearReporteScreen = () => {
     try {
       // Clasificación automática mediante API (con fallback a keywords)
       let tipoFinal: TipoProblema = TipoProblema.Fuga;
+      let categoriaFinal: string | undefined = undefined;
       try {
         const clasif = await clasificacionService.classify(descripcion.trim());
         if (clasif?.tipoProblema) {
           tipoFinal = clasif.tipoProblema;
+        }
+        if (clasif?.categoria) {
+          categoriaFinal = clasif.categoria;
         }
       } catch (err) {
         console.warn('Fallback clasificación', err);
@@ -215,6 +219,7 @@ export const CrearReporteScreen = () => {
 
       const payload = {
         tipoProblema: tipoFinal,
+        categoria: categoriaFinal,
         descripcion: descripcion.trim(),
         latitud: coords.latitud,
         longitud: coords.longitud,

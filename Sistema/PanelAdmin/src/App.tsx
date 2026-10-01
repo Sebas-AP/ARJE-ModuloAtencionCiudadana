@@ -133,6 +133,8 @@ export function App() {
   useEffect(() => {
     if (currentUser) {
       loadData();
+      const interval = setInterval(loadData, 60_000);
+      return () => clearInterval(interval);
     }
   }, [currentUser, loadData]);
 
@@ -165,6 +167,12 @@ export function App() {
   const handleSelectReporte = (id: number) => {
     setSelectedReporteId(id);
     setCurrentTab('seguimiento');
+  };
+
+  // Handler para actualizar reporte desde SeguimientoScreen
+  const handleActualizarReporte = async (parcial: Partial<ReporteDTO>) => {
+    if (!selectedReporteId) return;
+    setReportes(prev => prev.map(r => r.id === selectedReporteId ? { ...r, ...parcial } : r));
   };
 
   // Acciones en Reportes
@@ -383,6 +391,7 @@ export function App() {
           onOpenAsignarModal={(r) => setAsignarReporte(r)}
           onOpenCorregirModal={(r) => setCorregirReporte(r)}
           onOpenSupervisionModal={(r) => setSupervisionReporte(r)}
+          onActualizarReporte={handleActualizarReporte}
         />
       )}
 

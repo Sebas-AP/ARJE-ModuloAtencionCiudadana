@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -23,13 +23,7 @@ import {
   Sparkles,
   ArrowUpRight,
 } from 'lucide-react';
-import {
-  MOCK_GRAFICA_MES,
-  MOCK_CATEGORIAS,
-  MOCK_CUADRILLAS_RENDIMIENTO,
-  MOCK_DASHBOARD_METRICS,
-} from '../services/mockData';
-import { ReporteDTO, CuadrillaDTO } from '../types';
+import { ReporteDTO, CuadrillaDTO, EstatusReporte } from '../types';
 
 // Registrar componentes de Chart.js
 ChartJS.register(
@@ -55,75 +49,120 @@ export const IndicadoresScreen: React.FC<IndicadoresScreenProps> = ({
 }) => {
   const [periodo, setPeriodo] = useState<'mes' | 'semana' | 'dia'>('mes');
 
-  // Datos para gráfica de tiempo según el periodo seleccionado (02, 03, 04)
-  const getTemporalData = () => {
+  // Datos para gráfica temporal - calcular desde reportes reales
+  const temporalData = useMemo(() => {
+    const hoy = new Date();
+    const labels: string[] = [];
+    const recibidos: number[] = [];
+    const resueltos: number[] = [];
+
     if (periodo === 'dia') {
-      return {
-        labels: ['Lun 18', 'Mar 19', 'Mié 20', 'Jue 21', 'Vie 22', 'Sáb 23', 'Dom 24'],
-        recibidos: [28, 35, 42, 39, 44, 25, 18],
-        resueltos: [26, 32, 38, 36, 40, 24, 17],
-      };
-    }
-    if (periodo === 'semana') {
-      return {
-        labels: ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4'],
-        recibidos: [142, 168, 155, 175],
-        resueltos: [135, 159, 148, 169],
-      };
-    }
-    // Mes
-    return {
-      labels: MOCK_GRAFICA_MES.map((g) => g.mes),
-      recibidos: MOCK_GRAFICA_MES.map((g) => g.recibidos),
-      resueltos: MOCK_GRAFICA_MES.map((g) => g.resueltos),
-    };
-  };
+      for (let i = 6; i >= 0; i--) {
+        const fecha = new Date(hoy);
+        fecha.setDate(hoy.getDate() - i);
+        const diaStr = fecha.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' });
+        labels.push(diaStr);
 
-  const temporal = getTemporalData();
+        const inicioDia = new Date(fecha);
+        inicioDia.setHours(0, 0, 0, 0);
+        const finDia = new Date(fecha);
+        finDia.setHours(23, 59, 59, 999);
 
-  // 1. Dataset de Gráfica Temporal (Reportes por Mes / Semana / Día)
+        const reportesDia = reportes.filter(r => {
+          const f = new Date(r.fechaCreacion || r.fechaRecibido);
+          return f >= inicioDia && f <= finDia;
+        });
+        recibidos.push(reportesDia.length);
+        resueltos.push(reportesDia.filter(r =>
+          r.estatus === EstatusReporte.Completado || r.estatus === EstatusReporte.Cerrado
+        ).length);
+      }
+    } else if (periodo === 'semana') {
+      for (let i = 3; i >= 0; i--) {
+        const semanaInicio = new Date(hoy);
+        semanaInicio.setDate(hoy.getDate() - (hoy.getDay() + 7 * i));
+        semanaInicio.setHours(0, 0, 0, 0);
+        const semanaFin = new Date(semanaInicio);
+        semanaFin.setDate(semanaInicio.getDate() + 6);
+        semanaFin.setHours(23, 59, 59, 999);
+
+        labels.push(`Semana ${4 - i}`);
+        const reportesSemana = reportes.filter(r => {
+          const f = new Date(r.fechaCreacion || r.fechaRecibido);
+          return f >= semanaInicio && f <= semanaFin;
+        });
+        recibidos.push(reportesSemana.length);
+        resueltos.push(reportesSemana.filter(r =>
+          r.estatus === EstatusReporte.Completado || r.estatus === EstatusReporte.Cerrado
+        ).length);
+      }
+    } else {
+      // Mes - últimos 6 meses
+      for (let i = 5; i >= 0; i--) {
+        const mesFecha = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+        const mesStr = mesFecha.toLocaleDateString('es-MX', { month: 'short', year: '2-digit' });
+        labels.push(mesStr);
+
+        const mesInicio = new Date(mesFecha);
+        const mesFin = new Date(mesFecha.getFullYear(), mesFecha.getMonth() + 1, 0, 23, 59, 59, 999);
+
+        const reportesMes = reportes.filter(r => {
+          const f = new Date(r.fechaCreacion || r.fechaRecibido);
+          return f >= mesInicio && f <= mesFin;
+        });
+        recibidos.push(reportesMes.length);
+        resueltos.push(reportesMes.filter(r =>
+          r.estatus === EstatusReporte.Completado || r.estatus === EstatusReporte.Cerrado
+        ).length);
+      }
+    }
+
+    return { labels, recibidos, resueltos };
+  }, [reportes, periodo]);
+
+  // 1. Dataset de Gráfica Temporal
   const temporalChartData = {
-    labels: temporal.labels,
+    labels: temporalData.labels,
     datasets: [
       {
         label: 'Reportes Recibidos',
-        data: temporal.recibidos,
-        backgroundColor: '#253C96', // Royal Blue
+        data: temporalData.recibidos,
+        backgroundColor: '#253C96',
         borderRadius: 6,
       },
       {
         label: 'Reportes Resueltos',
-        data: temporal.resueltos,
-        backgroundColor: '#0057D9', // Electric Blue
+        data: temporalData.resueltos,
+        backgroundColor: '#0057D9',
         borderRadius: 6,
       },
     ],
   };
 
-  // 2. Dataset Donut: Estado de Reportes (05-estado-de-reportes.png)
+  // 2. Dataset Donut: Estado de Reportes
   const resueltosCount = reportes.filter(
-    (r) => r.estatus === 'Resuelto' || r.estatus === 'Completado'
-  ).length || 71;
+    (r) => r.estatus === EstatusReporte.Completado || r.estatus === EstatusReporte.Cerrado
+  ).length;
   const enProcesoCount = reportes.filter(
-    (r) => r.estatus === 'En Proceso' || r.estatus === 'Asignado'
-  ).length || 42;
+    (r) => r.estatus === EstatusReporte.EnProceso || r.estatus === EstatusReporte.Asignado || r.estatus === EstatusReporte.LevantandoInformacion
+  ).length;
   const pendientesCount = reportes.filter(
-    (r) => r.estatus === 'Pendiente'
-  ).length || 15;
+    (r) => r.estatus === EstatusReporte.Nuevo
+  ).length;
   const canceladosCount = reportes.filter(
-    (r) => r.estatus === 'Cancelado'
-  ).length || 5;
+    (r) => r.estatus === EstatusReporte.EnSupervision
+  ).length;
 
   const donutData = {
-    labels: ['Resueltos', 'En Proceso', 'Pendientes', 'Cancelados'],
+    labels: ['Resueltos', 'En Proceso', 'Pendientes', 'En Supervisión'],
     datasets: [
       {
         data: [resueltosCount, enProcesoCount, pendientesCount, canceladosCount],
         backgroundColor: [
-          '#22C55E', // Verde éxito
-          '#0057D9', // Electric blue
-          '#F36B2E', // Orange energy
-          '#94A3B8', // Gris
+          '#22C55E',
+          '#0057D9',
+          '#F36B2E',
+          '#94A3B8',
         ],
         borderWidth: 2,
         borderColor: '#FFFFFF',
@@ -131,39 +170,66 @@ export const IndicadoresScreen: React.FC<IndicadoresScreenProps> = ({
     ],
   };
 
-  // 3. Dataset Horizontal Bar: Reportes por Categoría IA (06-reportes-por-categoria.png)
-  const categoriasData = {
-    labels: MOCK_CATEGORIAS.map((c) => c.categoria),
-    datasets: [
-      {
+  // 3. Dataset Horizontal Bar: Reportes por Categoría IA
+  const categoriasData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    reportes.forEach(r => {
+      const cat = r.categoria || 'Sin categoría';
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    const labels = Object.keys(counts);
+    const data = Object.values(counts);
+    const colors = ['#253C96', '#0057D9', '#00B8D9', '#F36B2E', '#F59A1E', '#3550BA', '#64748B', '#059669', '#EA580C', '#7C3AED'];
+    return {
+      labels,
+      datasets: [{
         label: 'Total de Incidencias',
-        data: MOCK_CATEGORIAS.map((c) => c.total),
-        backgroundColor: [
-          '#253C96',
-          '#0057D9',
-          '#00B8D9',
-          '#F36B2E',
-          '#F59A1E',
-          '#3550BA',
-          '#64748B',
-        ],
+        data,
+        backgroundColor: labels.map((_, i) => colors[i % colors.length]),
         borderRadius: 6,
-      },
-    ],
-  };
+      }],
+    };
+  }, [reportes]);
 
-  // 4. Dataset Vertical Bar: Cuadrillas con más reportes atendidos (07-cuadrillas-con-mas-reportes-atendidos.png)
-  const cuadrillasData = {
-    labels: MOCK_CUADRILLAS_RENDIMIENTO.map((c) => c.nombre),
-    datasets: [
-      {
+  // 4. Dataset Vertical Bar: Cuadrillas con más reportes atendidos
+  const cuadrillasData = useMemo(() => {
+    const rendimiento = cuadrillas.map(c => {
+      const resueltos = reportes.filter(r =>
+        r.idCuadrillaAsignada === c.id &&
+        (r.estatus === EstatusReporte.Completado || r.estatus === EstatusReporte.Cerrado)
+      ).length;
+      return { nombre: c.nombre, resueltos };
+    }).filter(c => c.resueltos > 0).sort((a, b) => b.resueltos - a.resueltos);
+
+    return {
+      labels: rendimiento.map(c => c.nombre),
+      datasets: [{
         label: 'Reportes Atendidos y Resueltos',
-        data: MOCK_CUADRILLAS_RENDIMIENTO.map((c) => c.reportesAtendidos),
+        data: rendimiento.map(c => c.resueltos),
         backgroundColor: '#0057D9',
         borderRadius: 6,
-      },
-    ],
-  };
+      }],
+    };
+  }, [reportes, cuadrillas]);
+
+  // KPI: Reportes de hoy
+  const reportesHoy = useMemo(() => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const manana = new Date(hoy);
+    manana.setDate(hoy.getDate() + 1);
+    return reportes.filter(r => {
+      const f = new Date(r.fechaCreacion || r.fechaRecibido);
+      return f >= hoy && f < manana;
+    }).length;
+  }, [reportes]);
+
+  // KPI: Efectividad (% de reportes resueltos sobre total con cuadrilla asignada)
+  const efectividad = useMemo(() => {
+    const conCuadrilla = reportes.filter(r => r.idCuadrillaAsignada != null).length;
+    if (conCuadrilla === 0) return 0;
+    return Math.round((resueltosCount / conCuadrilla) * 100);
+  }, [reportes, resueltosCount]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -191,11 +257,11 @@ export const IndicadoresScreen: React.FC<IndicadoresScreenProps> = ({
               Reportes Hoy
             </div>
             <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--color-dark-navy)', marginTop: '4px' }}>
-              {MOCK_DASHBOARD_METRICS.deltaHoy + 12}
+              {reportesHoy}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--color-electric-blue)', fontWeight: 600, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <ArrowUpRight size={14} />
-              <span>+18% vs ayer</span>
+              <span>Actualizado en tiempo real</span>
             </div>
           </div>
           <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-md)', backgroundColor: 'rgba(37, 60, 150, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-royal-blue)' }}>
@@ -276,7 +342,7 @@ export const IndicadoresScreen: React.FC<IndicadoresScreenProps> = ({
               {resueltosCount}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--color-success)', fontWeight: 600, marginTop: '4px' }}>
-              94.8% efectividad
+              {efectividad}% efectividad
             </div>
           </div>
           <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--color-success-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-success)' }}>

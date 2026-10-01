@@ -4,6 +4,7 @@ import {
   ClipboardList,
   Users,
   BarChart3,
+  Map,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -37,7 +38,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed = false,
   onToggleCollapse,
 }) => {
-  // Los 4 módulos oficiales exactos del diseño de Figma con iconos actualizados
+  // Módulos del sistema — Panel de Administración ARJE
   const menuItems = [
     {
       id: 'dashboard' as ScreenTab,
@@ -58,6 +59,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'indicadores' as ScreenTab,
       label: 'Indicadores',
       icon: BarChart3,
+    },
+    {
+      id: 'mapa' as ScreenTab,
+      label: 'Mapa',
+      icon: Map,
     },
   ];
 

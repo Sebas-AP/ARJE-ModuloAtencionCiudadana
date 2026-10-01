@@ -12,8 +12,10 @@ import {
   Play,
   Crosshair,
   RotateCw,
+  Image,
+  ChevronRight,
 } from 'lucide-react';
-import { ReporteDTO, CuadrillaDTO, EstatusReporte } from '../types';
+import { ReporteDTO, CuadrillaDTO, EstatusReporte, EvidenciaDTO, ReporteDetalleDTO } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { PrioridadBadge } from '../components/PrioridadBadge';
 import { MapView } from '../components/MapView';
@@ -39,7 +41,8 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
   onOpenSupervisionModal,
   onActualizarReporte,
 }) => {
-  const [currentReporte, setCurrentReporte] = useState<ReporteDTO>(reporte);
+  const [currentReporte, setCurrentReporte] = useState<ReporteDetalleDTO | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isReevaluating, setIsReevaluating] = useState<boolean>(false);
   const [selectedCuadrilla, setSelectedCuadrilla] = useState<string>(
     reporte.cuadrillaAsignadaNombre || ''
@@ -52,19 +55,38 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   useEffect(() => {
-    setCurrentReporte(reporte);
+    const loadReporteDetalle = async () => {
+      try {
+        const detalle = await reportesService.getById(reporte.id);
+        setCurrentReporte(detalle);
+      } catch (err) {
+        console.error('Error cargando detalle del reporte:', err);
+        // Fallback al reporte base si falla
+        setCurrentReporte({ ...reporte, evidencias: [], seguimientosUbicacion: [] } as ReporteDetalleDTO);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadReporteDetalle();
+  }, [reporte.id]);
+
+  useEffect(() => {
+    if (currentReporte && reporte) {
+      setCurrentReporte(prev => prev ? { ...prev, ...reporte } : null);
+    }
   }, [reporte]);
 
   const handleReevaluarPrioridad = async () => {
+    if (!currentReporte) return;
     setIsReevaluating(true);
     try {
       const updated = await reportesService.revaluarPrioridad(currentReporte.id);
-      setCurrentReporte((prev) => ({
+      setCurrentReporte((prev) => prev ? {
         ...prev,
         prioridad: updated.prioridad,
         scorePrioridad: updated.scorePrioridad,
         justificacionPrioridad: updated.justificacionPrioridad,
-      }));
+      } : null);
       if (onActualizarReporte) {
         await onActualizarReporte({
           prioridad: updated.prioridad,
@@ -81,9 +103,9 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
   };
 
   const isResuelto =
-    reporte.estatus === EstatusReporte.Completado ||
-    reporte.estatus === EstatusReporte.Cerrado ||
-    String(reporte.estatus).toLowerCase().includes('resuelto');
+    currentReporte?.estatus === EstatusReporte.Completado ||
+    currentReporte?.estatus === EstatusReporte.Cerrado ||
+    String(currentReporte?.estatus || '').toLowerCase().includes('resuelto');
 
   // Acción para marcar/resaltar la ubicación (Figma Comentario #11)
   const handleMarcarUbicacion = () => {
@@ -102,7 +124,7 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
         await onActualizarReporte({
           estatus: EstatusReporte.EnProceso,
           idCuadrillaAsignada: crewObj?.id,
-          cuadrillaAsignadaNombre: selectedCuadrilla || reporte.cuadrillaAsignadaNombre,
+          cuadrillaAsignadaNombre: selectedCuadrilla || currentReporte?.cuadrillaAsignadaNombre,
           tiempoEstimado: minutos,
         });
       }
@@ -124,8 +146,14 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
         fontFamily: "var(--font-family-base, 'Inria Sans', sans-serif)",
       }}
     >
-      {/* Botón Volver y Título del Reporte (Exacto a Figma) */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      {isLoading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
+          <div style={{ fontSize: '16px', color: '#64748B' }}>Cargando detalle del reporte...</div>
+        </div>
+      ) : currentReporte ? (
+        <>
+        {/* Botón Volver y Título del Reporte (Exacto a Figma) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         <button
           onClick={onBack}
           style={{
@@ -158,7 +186,7 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
             fontFamily: "var(--font-family-heading, 'Inria Sans', sans-serif)",
           }}
         >
-          {reporte.categoria || reporte.descripcion || 'Fuga en vía pública'}
+          {currentReporte?.categoria || currentReporte?.descripcion || 'Fuga en vía pública'}
         </h1>
 
         <span
@@ -171,7 +199,7 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
             borderRadius: '6px',
           }}
         >
-          Folio: {reporte.folio || `REP-${reporte.id}`}
+          Folio: {currentReporte?.folio || `REP-${currentReporte?.id || reporte.id}`}
         </span>
       </div>
 
@@ -199,31 +227,69 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
               position: 'relative',
             }}
           >
-            <img
-              src={fugaImg}
-              alt="Evidencia del reporte"
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '10px',
-                right: '10px',
-                backgroundColor: 'rgba(25, 36, 78, 0.85)',
-                color: '#FFFFFF',
-                fontSize: '11.5px',
-                fontWeight: 600,
-                padding: '4px 8px',
-                borderRadius: '4px',
-                backdropFilter: 'blur(4px)',
-              }}
-            >
-              Evidencia fotográfica adjunta
-            </div>
+            {currentReporte.evidencias && currentReporte.evidencias.length > 0 ? (
+              <div style={{ display: 'flex', height: '100%', overflowX: 'auto', gap: '8px', padding: '8px' }}>
+                {currentReporte.evidencias.map((ev, i) => (
+                  <div key={ev.id || i} style={{ flex: '0 0 200px', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
+                    <img
+                      src={ev.archivoUrl}
+                      alt={`Evidencia ${i + 1}`}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '4px',
+                        left: '4px',
+                        right: '4px',
+                        backgroundColor: 'rgba(25, 36, 78, 0.85)',
+                        color: '#FFFFFF',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        textAlign: 'center',
+                        backdropFilter: 'blur(4px)',
+                      }}
+                    >
+                      {ev.tipo === 1 ? 'Evidencia Inicial' : 'Evidencia de Resolución'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <>
+                <img
+                  src={fugaImg}
+                  alt="Evidencia del reporte"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '10px',
+                    right: '10px',
+                    backgroundColor: 'rgba(25, 36, 78, 0.85)',
+                    color: '#FFFFFF',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    backdropFilter: 'blur(4px)',
+                  }}
+                >
+                  Evidencia fotográfica adjunta
+                </div>
+              </>
+            )}
           </div>
 
           {/* Texto Descriptivo del Ciudadano */}
@@ -242,7 +308,7 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
             <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>
               Descripción del reporte
             </div>
-            "{reporte.descripcion || 'Fuga de agua en la vía pública con derrame continuo sobre banqueta.'}"
+            "{currentReporte?.descripcion || 'Fuga de agua en la vía pública con derrame continuo sobre banqueta.'}"
           </div>
 
           {/* Mapa de Ubicación con Botón para Marcar Ubicación (Figma Comentario #11) */}
@@ -266,7 +332,7 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
                 }}
               >
                 <MapPin size={16} color="#0057D9" />
-                <span>{reporte.direccion || 'Ubicación registrada en mapa'}</span>
+                <span>{currentReporte?.direccion || 'Ubicación registrada en mapa'}</span>
               </div>
 
               {/* Botón para Marcar Ubicación de Figma (Comentario #11) */}
@@ -307,7 +373,7 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
               }}
             >
               <MapView
-                reportes={[reporte]}
+                reportes={currentReporte ? [currentReporte] : [reporte]}
                 cuadrillas={cuadrillas}
                 height="240px"
               />
@@ -336,7 +402,7 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
                 Hora de registro
               </span>
               <span style={{ fontSize: '14px', color: '#19244E', fontWeight: 700 }}>
-                {new Date(reporte.fechaCreacion || reporte.fechaRecibido || Date.now()).toLocaleTimeString('es-MX', {
+                {new Date(currentReporte?.fechaCreacion || currentReporte?.fechaRecibido || Date.now()).toLocaleTimeString('es-MX', {
                   hour: '2-digit',
                   minute: '2-digit',
                 })}{' '}
@@ -546,7 +612,7 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
                 }}
               >
                 <option value="">
-                  {reporte.cuadrillaAsignadaNombre || 'Elige una cuadrilla...'}
+                  {currentReporte?.cuadrillaAsignadaNombre || 'Elige una cuadrilla...'}
                 </option>
                 {cuadrillas.map((c) => (
                   <option key={c.id} value={c.nombre}>
@@ -685,7 +751,7 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
             {/* Botón Principal de Acción (Gradiente Oficial de Figma) */}
             {isResuelto ? (
               <button
-                onClick={() => onOpenSupervisionModal(reporte)}
+                onClick={() => onOpenSupervisionModal(currentReporte!)}
                 style={{
                   width: '100%',
                   padding: '13px',
@@ -752,7 +818,7 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
               </button>
             ) : null}
 
-            {reporte.cuadrillaAsignadaNombre && (
+            {currentReporte?.cuadrillaAsignadaNombre && (
               <div
                 style={{
                   marginTop: '14px',
@@ -766,12 +832,18 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
                   border: '1px solid #A7F3D0',
                 }}
               >
-                Cuadrilla asignada: {reporte.cuadrillaAsignadaNombre}
+                Cuadrilla asignada: {currentReporte.cuadrillaAsignadaNombre}
               </div>
             )}
           </div>
         </div>
       </div>
+    </>
+      ) : (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
+          <div style={{ fontSize: '16px', color: '#EF4444' }}>No se pudo cargar el detalle del reporte</div>
+        </div>
+      )}
     </div>
   );
 };

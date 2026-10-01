@@ -9,6 +9,9 @@ public class ReporteDTO
     public string? Categoria { get; set; }
     public double? ConfianzaIA { get; set; }
     public string? RazonamientoIA { get; set; }
+    public PrioridadReporte Prioridad { get; set; } = PrioridadReporte.Media;
+    public double? ScorePrioridad { get; set; }
+    public string? JustificacionPrioridad { get; set; }
     public string Descripcion { get; set; } = string.Empty;
     public decimal Latitud { get; set; }
     public decimal Longitud { get; set; }

@@ -33,7 +33,12 @@ public class ClasificacionController : ControllerBase
                 Categoria = resultado.Categoria,
                 TipoProblema = Enum.TryParse<TipoProblema>(resultado.TipoProblema, out var tipo) ? tipo : TipoProblema.Otro,
                 Confianza = resultado.Confianza,
-                Razonamiento = resultado.Razonamiento
+                Razonamiento = resultado.Razonamiento,
+                Prioridad = resultado.Prioridad,
+                PrioridadNombre = resultado.Prioridad.ToString(),
+                ScorePrioridad = resultado.ScorePrioridad,
+                JustificacionPrioridad = resultado.JustificacionPrioridad,
+                RequiereAtencionInmediata = resultado.RequiereAtencionInmediata
             });
         }
         catch
@@ -43,7 +48,12 @@ public class ClasificacionController : ControllerBase
                 Categoria = "Otro",
                 TipoProblema = TipoProblema.Otro,
                 Confianza = 0.5,
-                Razonamiento = "Clasificación asignada por seguridad"
+                Razonamiento = "Clasificación asignada por seguridad",
+                Prioridad = PrioridadReporte.Media,
+                PrioridadNombre = "Media",
+                ScorePrioridad = 0.50,
+                JustificacionPrioridad = "Prioridad asignada por seguridad",
+                RequiereAtencionInmediata = false
             });
         }
     }
@@ -60,4 +70,9 @@ public class ClasificacionResponseDTO
     public TipoProblema TipoProblema { get; set; }
     public double Confianza { get; set; }
     public string Razonamiento { get; set; } = string.Empty;
+    public PrioridadReporte Prioridad { get; set; }
+    public string PrioridadNombre { get; set; } = string.Empty;
+    public double ScorePrioridad { get; set; }
+    public string JustificacionPrioridad { get; set; } = string.Empty;
+    public bool RequiereAtencionInmediata { get; set; }
 }

@@ -44,6 +44,8 @@ public class ReportesController : ControllerBase
         [FromQuery] EstatusReporte? estatus = null,
         [FromQuery] TipoProblema? tipoProblema = null,
         [FromQuery] string? categoria = null,
+        [FromQuery] PrioridadReporte? prioridad = null,
+        [FromQuery] bool ordenarPorPrioridad = false,
         [FromQuery] int? idCuadrillaAsignada = null,
         [FromQuery] DateTime? fechaDesde = null,
         [FromQuery] DateTime? fechaHasta = null,
@@ -59,6 +61,9 @@ public class ReportesController : ControllerBase
 
         if (tipoProblema.HasValue)
             queryable = queryable.Where(r => r.TipoProblema == tipoProblema.Value);
+
+        if (prioridad.HasValue)
+            queryable = queryable.Where(r => r.Prioridad == prioridad.Value);
 
         if (!string.IsNullOrWhiteSpace(categoria))
         {
@@ -82,7 +87,10 @@ public class ReportesController : ControllerBase
                 EF.Functions.Like(r.NumeroContrato, $"%{nc}%"));
         }
 
-        queryable = queryable.OrderByDescending(r => r.FechaRecibido);
+        if (ordenarPorPrioridad)
+            queryable = queryable.OrderByDescending(r => r.Prioridad).ThenByDescending(r => r.FechaRecibido);
+        else
+            queryable = queryable.OrderByDescending(r => r.FechaRecibido);
 
         var totalRegistros = await queryable.CountAsync();
         HttpContext.AgregarHeaderCantidadTotalRegistros(totalRegistros);
@@ -149,25 +157,32 @@ public class ReportesController : ControllerBase
         reporte.FechaRecibido = DateTime.UtcNow;
         reporte.Estatus = EstatusReporte.Nuevo;
 
-        // Si no se proporcionó categoría, clasificar automáticamente mediante agente de IA
-        if (string.IsNullOrWhiteSpace(reporte.Categoria))
+        // Clasificar y priorizar automáticamente mediante Agente de IA
+        try
         {
-            try
+            var clasif = await _clasificador.ClasificarReporteAsync(reporte.Descripcion);
+            if (string.IsNullOrWhiteSpace(reporte.Categoria))
             {
-                var clasif = await _clasificador.ClasificarReporteAsync(reporte.Descripcion);
                 reporte.Categoria = clasif.Categoria;
-                reporte.ConfianzaIA = clasif.Confianza;
-                reporte.RazonamientoIA = clasif.Razonamiento;
+            }
+            reporte.ConfianzaIA = clasif.Confianza;
+            reporte.RazonamientoIA = clasif.Razonamiento;
+            reporte.Prioridad = clasif.Prioridad;
+            reporte.ScorePrioridad = clasif.ScorePrioridad;
+            reporte.JustificacionPrioridad = clasif.JustificacionPrioridad;
 
-                if (reporte.TipoProblema == TipoProblema.Otro && Enum.TryParse<TipoProblema>(clasif.TipoProblema, out var tipoEnum))
-                {
-                    reporte.TipoProblema = tipoEnum;
-                }
-            }
-            catch
+            if (reporte.TipoProblema == TipoProblema.Otro && Enum.TryParse<TipoProblema>(clasif.TipoProblema, out var tipoEnum))
             {
-                reporte.Categoria = reporte.TipoProblema.ToString();
+                reporte.TipoProblema = tipoEnum;
             }
+        }
+        catch
+        {
+            if (string.IsNullOrWhiteSpace(reporte.Categoria))
+                reporte.Categoria = reporte.TipoProblema.ToString();
+            reporte.Prioridad = PrioridadReporte.Media;
+            reporte.ScorePrioridad = 0.50;
+            reporte.JustificacionPrioridad = "Prioridad asignada automáticamente por seguridad";
         }
 
         _context.Add(reporte);
@@ -222,6 +237,57 @@ public class ReportesController : ControllerBase
         await _outputCacheStore.EvictByTagAsync("reportes", default);
 
         return NoContent();
+    }
+
+    [HttpPut("{id:int}/prioridad")]
+    public async Task<ActionResult> PutPrioridad(int id, [FromBody] ActualizarPrioridadDTO dto)
+    {
+        var reporte = await _context.Reportes.FindAsync(id);
+        if (reporte == null)
+        {
+            return NotFound();
+        }
+
+        reporte.Prioridad = dto.Prioridad;
+        if (!string.IsNullOrWhiteSpace(dto.Justificacion))
+        {
+            reporte.JustificacionPrioridad = dto.Justificacion.Trim();
+        }
+
+        await _context.SaveChangesAsync();
+        await _outputCacheStore.EvictByTagAsync("reportes", default);
+
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/revaluar-prioridad")]
+    public async Task<ActionResult<ReporteDetalleDTO>> RevaluarPrioridad(int id)
+    {
+        var reporte = await _context.Reportes
+            .Include(r => r.CuadrillaAsignada)
+            .Include(r => r.CuadrillaSupervisora)
+            .Include(r => r.Evidencias)
+            .Include(r => r.SeguimientosUbicacion)
+                .ThenInclude(s => s.Cuadrilla)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (reporte == null)
+        {
+            return NotFound();
+        }
+
+        var clasif = await _clasificador.ClasificarReporteAsync(reporte.Descripcion);
+        reporte.Prioridad = clasif.Prioridad;
+        reporte.ScorePrioridad = clasif.ScorePrioridad;
+        reporte.JustificacionPrioridad = clasif.JustificacionPrioridad;
+        reporte.ConfianzaIA = clasif.Confianza;
+        reporte.RazonamientoIA = clasif.Razonamiento;
+
+        await _context.SaveChangesAsync();
+        await _outputCacheStore.EvictByTagAsync("reportes", default);
+
+        var dto = _mapper.Map<ReporteDetalleDTO>(reporte);
+        return Ok(dto);
     }
 
     [HttpPut("{id:int}/asignar")]

@@ -38,3 +38,11 @@ public enum RolUsuario
     Administrador = 1,
     Cuadrilla = 2
 }
+
+public enum PrioridadReporte
+{
+    Baja = 1,
+    Media = 2,
+    Alta = 3,
+    Critica = 4
+}

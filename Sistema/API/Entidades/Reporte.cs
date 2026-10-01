@@ -20,6 +20,14 @@ public class Reporte : IId
     public string? RazonamientoIA { get; set; }
 
     [Required]
+    public PrioridadReporte Prioridad { get; set; } = PrioridadReporte.Media;
+
+    public double? ScorePrioridad { get; set; }
+
+    [StringLength(500)]
+    public string? JustificacionPrioridad { get; set; }
+
+    [Required]
     [StringLength(2000)]
     public string Descripcion { get; set; } = string.Empty;
 

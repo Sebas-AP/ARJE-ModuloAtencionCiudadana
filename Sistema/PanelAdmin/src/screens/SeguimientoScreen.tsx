@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   MapPin,
@@ -11,10 +11,13 @@ import {
   Navigation,
   Play,
   Crosshair,
+  RotateCw,
 } from 'lucide-react';
 import { ReporteDTO, CuadrillaDTO, EstatusReporte } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
+import { PrioridadBadge } from '../components/PrioridadBadge';
 import { MapView } from '../components/MapView';
+import { reportesService } from '../services/reportesService';
 import fugaImg from '../assets/fuga-ejemplo.png';
 
 interface SeguimientoScreenProps {
@@ -36,6 +39,8 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
   onOpenSupervisionModal,
   onActualizarReporte,
 }) => {
+  const [currentReporte, setCurrentReporte] = useState<ReporteDTO>(reporte);
+  const [isReevaluating, setIsReevaluating] = useState<boolean>(false);
   const [selectedCuadrilla, setSelectedCuadrilla] = useState<string>(
     reporte.cuadrillaAsignadaNombre || ''
   );
@@ -45,6 +50,35 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
   );
   const [ubicacionMarcada, setUbicacionMarcada] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  useEffect(() => {
+    setCurrentReporte(reporte);
+  }, [reporte]);
+
+  const handleReevaluarPrioridad = async () => {
+    setIsReevaluating(true);
+    try {
+      const updated = await reportesService.revaluarPrioridad(currentReporte.id);
+      setCurrentReporte((prev) => ({
+        ...prev,
+        prioridad: updated.prioridad,
+        scorePrioridad: updated.scorePrioridad,
+        justificacionPrioridad: updated.justificacionPrioridad,
+      }));
+      if (onActualizarReporte) {
+        await onActualizarReporte({
+          prioridad: updated.prioridad,
+          scorePrioridad: updated.scorePrioridad,
+          justificacionPrioridad: updated.justificacionPrioridad,
+        });
+      }
+    } catch (err) {
+      console.error('Error al reevaluar prioridad con IA:', err);
+      alert('No se pudo reevaluar la prioridad con el agente IA.');
+    } finally {
+      setIsReevaluating(false);
+    }
+  };
 
   const isResuelto =
     reporte.estatus === EstatusReporte.Completado ||
@@ -310,23 +344,18 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
               </span>
             </div>
 
-            {/* Prioridad */}
+            {/* Prioridad con PrioridadBadge reactivo */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13.5px', color: '#64748B', fontWeight: 600 }}>
                 Prioridad
               </span>
-              <span
-                style={{
-                  fontSize: '13.5px',
-                  color: reporte.prioridad === 'Alta' ? '#EF4444' : '#19244E',
-                  fontWeight: 800,
-                  backgroundColor: reporte.prioridad === 'Alta' ? '#FEF2F2' : '#F1F5F9',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                }}
-              >
-                {reporte.prioridad || 'Alta'}
-              </span>
+              <PrioridadBadge
+                prioridad={currentReporte.prioridad}
+                scorePrioridad={currentReporte.scorePrioridad}
+                justificacion={currentReporte.justificacionPrioridad}
+                size="md"
+                showTooltip={true}
+              />
             </div>
 
             {/* Estado */}
@@ -334,31 +363,34 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
               <span style={{ fontSize: '13.5px', color: '#64748B', fontWeight: 600 }}>
                 Estado
               </span>
-              <StatusBadge estatus={reporte.estatus} size="md" />
+              <StatusBadge estatus={currentReporte.estatus} size="md" />
             </div>
 
             {/* Tiempo estimado actual */}
-            {reporte.tiempoEstimado && (
+            {currentReporte.tiempoEstimado && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '13.5px', color: '#64748B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Clock size={14} color="#F36B2E" />
                   Tiempo estimado
                 </span>
                 <span style={{ fontSize: '13.5px', color: '#F36B2E', fontWeight: 800 }}>
-                  {reporte.tiempoEstimado} minutos
+                  {currentReporte.tiempoEstimado} minutos
                 </span>
               </div>
             )}
 
-            {/* Clasificación IA */}
+            {/* Clasificación & Triage de Prioridad por Agente IA */}
             <div
               style={{
                 marginTop: '10px',
                 paddingTop: '16px',
                 borderTop: '1px solid #F1F5F9',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span
                   style={{
                     fontSize: '12px',
@@ -373,33 +405,87 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
                   Agente IA (NVIDIA Llama)
                 </span>
 
-                <button
-                  onClick={() => onOpenCorregirModal(reporte)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    onClick={handleReevaluarPrioridad}
+                    disabled={isReevaluating}
+                    title="Re-evaluar severidad y prioridad con el Agente IA"
+                    style={{
+                      background: 'none',
+                      border: '1px solid #FDBA74',
+                      color: isReevaluating ? '#94A3B8' : '#EA580C',
+                      fontSize: '11.5px',
+                      fontWeight: 700,
+                      cursor: isReevaluating ? 'wait' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      backgroundColor: isReevaluating ? '#F1F5F9' : '#FFF7ED',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <RotateCw
+                      size={12}
+                      style={{
+                        animation: isReevaluating ? 'spin 1s linear infinite' : 'none',
+                      }}
+                    />
+                    <span>{isReevaluating ? 'Re-evaluando...' : 'Re-evaluar con IA'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => onOpenCorregirModal(currentReporte)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#0057D9',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                    }}
+                  >
+                    Corregir
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: '13.5px', color: '#19244E', fontWeight: 700 }}>
+                  {currentReporte.categoria || 'Sin clasificación'}
+                </div>
+
+                {currentReporte.confianzaIA && (
+                  <div style={{ fontSize: '11.5px', color: '#64748B' }}>
+                    Confianza: <strong>{Math.round(currentReporte.confianzaIA * 100)}%</strong>
+                  </div>
+                )}
+              </div>
+
+              {/* Justificación del Agente IA de Priorización */}
+              {currentReporte.justificacionPrioridad && (
+                <div
                   style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#0057D9',
                     fontSize: '12px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    textDecoration: 'underline',
+                    color: '#334155',
+                    backgroundColor: '#F8FAFC',
+                    borderLeft: '3px solid #F36B2E',
+                    padding: '8px 10px',
+                    borderRadius: '0 6px 6px 0',
+                    lineHeight: 1.45,
+                    marginTop: '4px',
                   }}
                 >
-                  Corregir
-                </button>
-              </div>
-
-              <div style={{ fontSize: '13.5px', color: '#19244E', fontWeight: 700 }}>
-                {reporte.categoria || 'Sin clasificación'}
-              </div>
-
-              {reporte.confianzaIA && (
-                <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
-                  Nivel de confianza: <strong>{Math.round(reporte.confianzaIA * 100)}%</strong>
+                  <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#EA580C', textTransform: 'uppercase', marginBottom: '2px' }}>
+                    Criterio de Prioridad del Agente
+                  </div>
+                  "{currentReporte.justificacionPrioridad}"
                 </div>
               )}
 
-              {reporte.razonamientoIA && (
+              {currentReporte.razonamientoIA && !currentReporte.justificacionPrioridad && (
                 <div
                   style={{
                     fontSize: '12px',
@@ -407,11 +493,11 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
                     backgroundColor: '#F8FAFC',
                     padding: '8px 10px',
                     borderRadius: '6px',
-                    marginTop: '8px',
+                    marginTop: '4px',
                     fontStyle: 'italic',
                   }}
                 >
-                  "{reporte.razonamientoIA}"
+                  "{currentReporte.razonamientoIA}"
                 </div>
               )}
             </div>

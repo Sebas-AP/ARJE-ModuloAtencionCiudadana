@@ -22,6 +22,15 @@ export enum EstatusReporte {
   Cerrado = 7,
 }
 
+export enum PrioridadReporte {
+  Baja = 1,
+  Media = 2,
+  Alta = 3,
+  Critica = 4,
+}
+
+export type NivelPrioridad = 'Critica' | 'Alta' | 'Media' | 'Baja';
+
 export enum TipoEvidencia {
   Inicial = 1,
   Resolucion = 2,
@@ -118,6 +127,9 @@ export interface ReporteDTO {
   categoria?: string | null; // Categoría producida por el Agente de Clasificación IA
   confianzaIA?: number | null;
   razonamientoIA?: string | null;
+  prioridad?: NivelPrioridad | PrioridadReporte | string;
+  scorePrioridad?: number | null;
+  justificacionPrioridad?: string | null;
   descripcion: string;
   latitud: number;
   longitud: number;
@@ -141,7 +153,6 @@ export interface ReporteDTO {
   telefonoCiudadano?: string | null;
   correoCiudadano?: string | null;
   totalEvidencias: number;
-  prioridad?: 'Alta' | 'Media' | 'Baja';
 }
 
 export interface ReporteDetalleDTO extends ReporteDTO {
@@ -156,6 +167,9 @@ export interface ReporteCreacionDTO {
   categoria?: string;
   confianzaIA?: number;
   razonamientoIA?: string;
+  prioridad?: PrioridadReporte | string;
+  scorePrioridad?: number;
+  justificacionPrioridad?: string;
   descripcion: string;
   latitud: number;
   longitud: number;
@@ -170,15 +184,25 @@ export interface ActualizarCategoriaDTO {
   razonamiento?: string;
 }
 
+export interface ActualizarPrioridadDTO {
+  prioridad: PrioridadReporte | number;
+  justificacion?: string;
+}
+
 export interface AsignarCuadrillaDTO {
   idCuadrilla: number;
   tiempoEstimado?: number;
+  IdCuadrilla?: number;
+  TiempoEstimado?: number;
 }
 
 export interface ProgramarSupervisionDTO {
   idCuadrillaSupervisora: number;
   fechaSupervision?: string;
   notasSupervision?: string;
+  IdCuadrillaSupervisora?: number;
+  FechaSupervision?: string;
+  NotasSupervision?: string;
 }
 
 export interface LandingPageDTO {

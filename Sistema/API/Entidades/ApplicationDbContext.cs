@@ -23,7 +23,9 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.FechaRecibido).HasDefaultValueSql("GETUTCDATE()");
             entity.Property(e => e.Estatus).HasDefaultValue(EstatusReporte.Nuevo);
+            entity.Property(e => e.Prioridad).HasDefaultValue(PrioridadReporte.Media);
             entity.HasIndex(e => e.Estatus);
+            entity.HasIndex(e => e.Prioridad);
             entity.HasIndex(e => e.IdCuadrillaAsignada);
             entity.HasIndex(e => e.IdCuadrillaSupervisora);
             entity.HasIndex(e => new { e.Latitud, e.Longitud });

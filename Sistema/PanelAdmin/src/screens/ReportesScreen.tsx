@@ -1,8 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
   ChevronDown,
-  Eye,
-  UserPlus,
   Sparkles,
   ClipboardCheck,
   RotateCcw,
@@ -12,6 +10,7 @@ import {
 } from 'lucide-react';
 import { ReporteDTO, CuadrillaDTO, EstatusReporte } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
+import { PrioridadBadge } from '../components/PrioridadBadge';
 
 interface ReportesScreenProps {
   reportes: ReporteDTO[];
@@ -32,6 +31,7 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
 }) => {
   const [filterEstado, setFilterEstado] = useState<string>('todos');
   const [filterCategoria, setFilterCategoria] = useState<string>('todas');
+  const [filterPrioridad, setFilterPrioridad] = useState<string>('todas');
   const [filterSector, setFilterSector] = useState<string>('todos');
   const [ordenarPor, setOrdenarPor] = useState<'recientes' | 'prioridad'>('recientes');
   const [busqueda, setBusqueda] = useState<string>('');
@@ -66,15 +66,44 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
         filterCategoria === 'todas' ||
         (r.categoria && r.categoria.toLowerCase() === filterCategoria.toLowerCase());
 
+      let matchPrioridad = true;
+      if (filterPrioridad !== 'todas') {
+        const pStr = String(r.prioridad || '').toLowerCase();
+        if (filterPrioridad === 'critica') matchPrioridad = pStr.includes('crit') || pStr.includes('crít') || pStr === '4';
+        else if (filterPrioridad === 'alta') matchPrioridad = pStr.includes('alt') || pStr === '3';
+        else if (filterPrioridad === 'media') matchPrioridad = pStr.includes('med') || pStr === '2';
+        else if (filterPrioridad === 'baja') matchPrioridad = pStr.includes('baj') || pStr === '1';
+      }
+
       const sectorNum = String((r.id % 15) + 1);
       const matchSector = filterSector === 'todos' || sectorNum === filterSector;
 
-      return matchBusqueda && matchEstado && matchCat && matchSector;
+      return matchBusqueda && matchEstado && matchCat && matchPrioridad && matchSector;
     });
 
     if (ordenarPor === 'prioridad') {
-      const prioridadWeight: Record<string, number> = { Alta: 3, Media: 2, Baja: 1 };
-      list.sort((a, b) => (prioridadWeight[b.prioridad || 'Media'] || 0) - (prioridadWeight[a.prioridad || 'Media'] || 0));
+      const getWeight = (p?: any): number => {
+        if (!p) return 2;
+        if (p === 4 || p === '4') return 4;
+        if (p === 3 || p === '3') return 3;
+        if (p === 2 || p === '2') return 2;
+        if (p === 1 || p === '1') return 1;
+        const s = String(p).toLowerCase();
+        if (s.includes('crit') || s.includes('crít')) return 4;
+        if (s.includes('alt')) return 3;
+        if (s.includes('med')) return 2;
+        if (s.includes('baj')) return 1;
+        return 2;
+      };
+
+      list.sort((a, b) => {
+        const wa = getWeight(a.prioridad);
+        const wb = getWeight(b.prioridad);
+        if (wb !== wa) return wb - wa;
+        const da = new Date(a.fechaCreacion || a.fechaRecibido || 0).getTime();
+        const db = new Date(b.fechaCreacion || b.fechaRecibido || 0).getTime();
+        return db - da;
+      });
     } else {
       list.sort((a, b) => {
         const da = new Date(a.fechaCreacion || a.fechaRecibido || 0).getTime();
@@ -84,7 +113,7 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
     }
 
     return list;
-  }, [reportes, filterEstado, filterCategoria, filterSector, ordenarPor, busqueda]);
+  }, [reportes, filterEstado, filterCategoria, filterPrioridad, filterSector, ordenarPor, busqueda]);
 
   const getTiempoTranscurrido = (fecha?: string) => {
     if (!fecha) return 'hace 30min';
@@ -99,6 +128,7 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
   const handleResetFilters = () => {
     setFilterEstado('todos');
     setFilterCategoria('todas');
+    setFilterPrioridad('todas');
     setFilterSector('todos');
     setOrdenarPor('recientes');
     setBusqueda('');
@@ -154,7 +184,7 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
         </div>
       </div>
 
-      {/* Barra de Filtros Exacta de Figma: "Filtrar por :" y "Ordenar por :" */}
+      {/* Barra de Filtros: "Filtrar por :" y "Ordenar por :" */}
       <div
         style={{
           display: 'flex',
@@ -165,7 +195,7 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
         }}
       >
         {/* Filtrar por : */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <span
             style={{
               fontSize: '13.5px',
@@ -198,6 +228,37 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
               <option value="pendiente">Pendiente</option>
               <option value="en proceso">En proceso</option>
               <option value="resuelto">Resuelto</option>
+            </select>
+            <ChevronDown
+              size={14}
+              color="#64748B"
+              style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+            />
+          </div>
+
+          {/* Prioridad Dropdown */}
+          <div style={{ position: 'relative' }}>
+            <select
+              value={filterPrioridad}
+              onChange={(e) => setFilterPrioridad(e.target.value)}
+              style={{
+                appearance: 'none',
+                padding: '7px 28px 7px 14px',
+                borderRadius: '20px',
+                border: filterPrioridad !== 'todas' ? '1px solid #FCA5A5' : '1px solid #CBD5E1',
+                backgroundColor: filterPrioridad !== 'todas' ? '#FEF2F2' : '#FFFFFF',
+                color: filterPrioridad !== 'todas' ? '#991B1B' : '#19244E',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              <option value="todas">Prioridad (Todas)</option>
+              <option value="critica">🔴 Crítica</option>
+              <option value="alta">🟠 Alta</option>
+              <option value="media">🟡 Media</option>
+              <option value="baja">🟢 Baja</option>
             </select>
             <ChevronDown
               size={14}
@@ -326,7 +387,7 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
             </button>
           </div>
 
-          {(filterEstado !== 'todos' || filterCategoria !== 'todas' || filterSector !== 'todos' || busqueda) && (
+          {(filterEstado !== 'todos' || filterCategoria !== 'todas' || filterPrioridad !== 'todas' || filterSector !== 'todos' || busqueda) && (
             <button
               onClick={handleResetFilters}
               title="Restablecer filtros"
@@ -349,7 +410,7 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
         </div>
       </div>
 
-      {/* Tabla Oficial de Figma: ID, Categoria, Tiempo, Estado, Sector, Acciones */}
+      {/* Tabla Oficial: ID, Categoría, Prioridad, Tiempo, Estado, Sector, Acciones */}
       <div
         style={{
           backgroundColor: '#FFFFFF',
@@ -378,8 +439,9 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
                 background: 'var(--gradient-table-header, linear-gradient(180deg, #F8FAFD 0%, #EDF3FC 100%))',
               }}
             >
-              <th style={{ padding: '14px 20px', width: '70px' }}>ID</th>
+              <th style={{ padding: '14px 20px', width: '60px' }}>ID</th>
               <th style={{ padding: '14px 20px' }}>Categoría</th>
+              <th style={{ padding: '14px 20px', width: '130px' }}>Prioridad</th>
               <th style={{ padding: '14px 20px' }}>Tiempo</th>
               <th style={{ padding: '14px 20px' }}>Estado</th>
               <th style={{ padding: '14px 20px' }}>Sector</th>
@@ -392,7 +454,7 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
             {filteredReportes.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   style={{
                     padding: '40px',
                     textAlign: 'center',
@@ -411,9 +473,6 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
                   rep.estatus === EstatusReporte.Cerrado ||
                   String(rep.estatus).toLowerCase().includes('resuelto');
 
-                // Clic según comentarios de Figma (#3 y #4):
-                // Reporte completado: abre programación de supervisión
-                // Reporte pendiente: va a seguimiento detallado para asignar
                 const handleRowClick = () => {
                   if (isResuelto) {
                     onOpenSupervisionModal(rep);
@@ -483,6 +542,17 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
                       </div>
                     </td>
 
+                    {/* Prioridad con Badge Reactivo e Info IA */}
+                    <td style={{ padding: '14px 20px' }}>
+                      <PrioridadBadge
+                        prioridad={rep.prioridad}
+                        scorePrioridad={rep.scorePrioridad}
+                        justificacionPrioridad={rep.justificacionPrioridad}
+                        size="sm"
+                        showScore={true}
+                      />
+                    </td>
+
                     {/* Tiempo */}
                     <td style={{ padding: '14px 20px', color: '#64748B', fontSize: '13.5px' }}>
                       {getTiempoTranscurrido(rep.fechaCreacion || rep.fechaRecibido)}
@@ -498,7 +568,7 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
                       {sectorDisplay}
                     </td>
 
-                    {/* Acciones Oficiales de Figma (ClipboardList, Users, Sparkles, ClipboardCheck) */}
+                    {/* Acciones */}
                     <td
                       style={{ padding: '14px 20px', textAlign: 'center' }}
                       onClick={(e) => e.stopPropagation()}
@@ -511,7 +581,7 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
                           gap: '10px',
                         }}
                       >
-                        {/* Ver Detalle / Seguimiento (Figma ClipboardList) */}
+                        {/* Ver Detalle / Seguimiento */}
                         <button
                           onClick={handleRowClick}
                           title="Ver detalle del reporte"
@@ -539,7 +609,7 @@ export const ReportesScreen: React.FC<ReportesScreenProps> = ({
                           <ClipboardList size={18} />
                         </button>
 
-                        {/* Asignar Cuadrilla (Figma Users) */}
+                        {/* Asignar Cuadrilla */}
                         <button
                           onClick={() => onOpenAsignarModal(rep)}
                           title="Asignar cuadrilla"

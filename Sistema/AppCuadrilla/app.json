@@ -1,0 +1,69 @@
+{
+  "expo": {
+    "name": "ARJE Cuadrilla",
+    "slug": "arje-cuadrilla",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#253C96"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.arje.cuadrilla",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Esta app necesita acceder a tu ubicación para reportar tu posición durante las intervenciones",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Esta app necesita acceder a tu ubicación en segundo plano para enviar coordenadas periódicas al servidor",
+        "NSCameraUsageDescription": "Esta app necesita acceder a la cámara para capturar evidencias de resolución",
+        "NSPhotoLibraryUsageDescription": "Esta app necesita acceder a la galería para seleccionar fotos de evidencias"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#253C96"
+      },
+      "package": "com.arje.cuadrilla",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permitir a ARJE Cuadrilla acceder a la ubicación en todo momento para seguimiento de intervenciones"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permitir a ARJE Cuadrilla acceder a la cámara para evidencias"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permitir a ARJE Cuadrilla acceder a la galería para evidencias"
+        }
+      ]
+    ],
+    "scheme": "arje-cuadrilla",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

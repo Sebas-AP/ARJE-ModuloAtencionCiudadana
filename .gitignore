@@ -10,3 +10,4 @@
 /docs
 /mise.toml
 /run-tunnel.sh
+node_modules

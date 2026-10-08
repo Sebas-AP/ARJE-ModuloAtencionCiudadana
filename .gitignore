@@ -1,13 +1,45 @@
-/.idea
+# .NET / Build outputs
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Node / Frontends
+node_modules/
+dist/
+.expo/
+.expo-shared/
+web-build/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDEs y OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs y bases de datos locales temporales
+*.log
+api.log
+
+# Documento interno de planeación
+/PLAN_PROYECTO.md
+
+# Archivos de análisis / diagramas pesados excluidos
 /Analisis incial.pdf
 /Analisis_Sistema_Reportes_Agua_Potable.docx
 /DiagramaAppMovilCiudadano.png
-/DiagramaAppMovilCuadrilla}.png
+/DiagramaAppMovilCuadrilla.png
 /DiagramaPanelAdmin.png
 /Formato_Avance_Semanal_Residentes_Evolsoft.docx
 /Formato_Avance_Semanal_Residentes_Evolsoft_Semana2.docx
 /Graficas de ejemplo
+/Sistema Arje_ Reportes.fig
 /docs
 /mise.toml
 /run-tunnel.sh
-node_modules

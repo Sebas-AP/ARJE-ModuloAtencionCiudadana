@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,7 @@ namespace ARJE.Api.Controllers;
 
 [ApiController]
 [Route("api/evidencias")]
+[Authorize]
 public class EvidenciasController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
@@ -32,6 +34,7 @@ public class EvidenciasController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [AllowAnonymous]
     [OutputCache(Tags = new[] { "evidencias" })]
     public async Task<ActionResult<EvidenciaDTO>> Get(int id)
     {

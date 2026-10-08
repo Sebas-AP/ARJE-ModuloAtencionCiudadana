@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,7 @@ namespace ARJE.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class CustomBaseController<TEntidad, TCreacionDTO, TLecturaDTO> : ControllerBase
     where TEntidad : class, IId
     where TCreacionDTO : class

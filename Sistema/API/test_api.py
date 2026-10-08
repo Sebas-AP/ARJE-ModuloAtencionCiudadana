@@ -61,9 +61,9 @@ class ARJEApiTester:
         return result
 
     def test_health(self) -> bool:
-        """Verifica que la API esté corriendo"""
+        """Verifica que la API esté corriendo mediante endpoint público de landing"""
         try:
-            resp = self._request('GET', '/api/cuadrillas')
+            resp = self._request('GET', '/api/reportes/landing')
             return resp.status_code == 200
         except Exception as e:
             print(f"API no disponible: {e}")
@@ -199,9 +199,19 @@ class ARJEApiTester:
 
         # LOGIN with new user
         if self.token:
-            # Test GET usuario
+            # Test GET /api/usuarios/me
+            resp = self._request('GET', '/api/usuarios/me')
+            self._record('/api/usuarios/me', 'GET', resp)
+
+            # Test GET usuario por ID
             resp = self._request('GET', '/api/usuarios/1')
             self._record('/api/usuarios/1', 'GET', resp)
+
+        # Probar login de cuadrilla
+        resp = self._request('POST', '/api/cuadrillas/login', json={"usuario": "cuadrilla_norte", "password": "Password123!"})
+        if resp.status_code == 200:
+            self._record('/api/cuadrillas/login', 'POST', resp)
+
 
     def verify_database(self):
         """Verifica los datos directamente en SQL Server"""
@@ -270,12 +280,14 @@ def run_tests(base_url: str = "http://localhost:5170") -> bool:
 
     print("API disponible. Iniciando pruebas...")
 
-    # Run all tests
+    # Run auth first to obtain token
+    tester.test_usuarios_auth()
+
+    # Run authenticated tests
     cuadrillas_result = tester.test_cuadrillas_crud()
     reportes_result = tester.test_reportes_crud()
     tester.test_ubicaciones(reportes_result.get('created_ids', []), cuadrillas_result.get('created_ids', []))
     tester.test_evidencias(reportes_result.get('created_ids', []))
-    tester.test_usuarios_auth()
 
     # Verify database
     tester.verify_database()
@@ -294,7 +306,7 @@ def start_api_background():
 
     # Check if already running
     try:
-        resp = requests.get("http://localhost:5170/api/cuadrillas", timeout=2)
+        resp = requests.get("http://localhost:5170/api/reportes/landing", timeout=2)
         if resp.status_code == 200:
             print("API ya está corriendo en localhost:5170")
             return None
@@ -313,7 +325,7 @@ def start_api_background():
     # Wait for API to start
     for i in range(30):
         try:
-            resp = requests.get("http://localhost:5170/api/cuadrillas", timeout=1)
+            resp = requests.get("http://localhost:5170/api/reportes/landing", timeout=1)
             if resp.status_code == 200:
                 print(f"API iniciada (PID: {proc.pid})")
                 return proc

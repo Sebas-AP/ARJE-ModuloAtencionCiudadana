@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ARJE.Api.Servicios;
 using ARJE.Api.Entidades.Enums;
@@ -7,6 +8,7 @@ namespace ARJE.Api.Controllers;
 
 [ApiController]
 [Route("api/clasificacion")]
+[AllowAnonymous]
 public class ClasificacionController : ControllerBase
 {
     private readonly IClasificadorService _clasificador;

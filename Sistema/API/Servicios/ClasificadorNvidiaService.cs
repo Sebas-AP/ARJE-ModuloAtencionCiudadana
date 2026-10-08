@@ -41,19 +41,38 @@ public class ClasificadorNvidiaService : IClasificadorService
         { "Uso indevido", TipoProblema.UsoIndebido }
     };
 
+    private readonly string? _apiKey;
+
     public ClasificadorNvidiaService(HttpClient httpClient, IConfiguration configuration, ILogger<ClasificadorNvidiaService> logger)
     {
         _httpClient = httpClient;
         _configuration = configuration;
         _logger = logger;
 
-        var apiKey = _configuration["NvidiaApiKey"] ?? "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";
-        _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+        _apiKey = _configuration["NvidiaApiKey"];
+        if (string.IsNullOrWhiteSpace(_apiKey))
+        {
+            _apiKey = Environment.GetEnvironmentVariable("NVIDIA_API_KEY");
+        }
+
+        if (!string.IsNullOrWhiteSpace(_apiKey))
+        {
+            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
+        }
+        else
+        {
+            _logger.LogInformation("NvidiaApiKey no configurada. El servicio operará en modo heurístico de respaldo.");
+        }
+
         _httpClient.BaseAddress = new Uri("https://integrate.api.nvidia.com/v1/");
     }
 
     public async Task<ClasificacionResult> ClasificarReporteAsync(string descripcion)
     {
+        if (string.IsNullOrWhiteSpace(_apiKey))
+        {
+            return ClasificacionFallback(descripcion);
+        }
         try
         {
             var prompt = ConstruirPrompt(descripcion);

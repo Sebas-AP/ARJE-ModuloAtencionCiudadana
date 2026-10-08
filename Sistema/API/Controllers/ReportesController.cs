@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,7 @@ namespace ARJE.Api.Controllers;
 
 [ApiController]
 [Route("api/reportes")]
+[Authorize]
 public class ReportesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
@@ -101,6 +103,7 @@ public class ReportesController : ControllerBase
     }
 
     [HttpGet("landing")]
+    [AllowAnonymous]
     [OutputCache(Tags = new[] { "reportes" })]
     public async Task<ActionResult<LandingPageDTO>> GetLanding()
     {
@@ -130,6 +133,7 @@ public class ReportesController : ControllerBase
     }
 
     [HttpGet("{id:int}", Name = "ObtenerReporte")]
+    [AllowAnonymous]
     [OutputCache(Tags = new[] { "reportes" })]
     public async Task<ActionResult<ReporteDetalleDTO>> Get(int id)
     {
@@ -151,6 +155,7 @@ public class ReportesController : ControllerBase
     }
 
     [HttpPost]
+    [AllowAnonymous]
     public async Task<ActionResult> Post([FromBody] ReporteCreacionDTO creacionDTO)
     {
         var reporte = _mapper.Map<Reporte>(creacionDTO);
@@ -416,6 +421,7 @@ public class ReportesController : ControllerBase
     }
 
     [HttpGet("{id:int}/evidencias")]
+    [AllowAnonymous]
     [OutputCache(Tags = new[] { "reportes" })]
     public async Task<ActionResult<List<EvidenciaDTO>>> GetEvidencias(int id)
     {

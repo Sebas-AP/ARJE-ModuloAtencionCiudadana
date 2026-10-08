@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,7 @@ namespace ARJE.Api.Controllers;
 
 [ApiController]
 [Route("api/reportes/{idReporte:int}/ubicaciones")]
+[Authorize]
 public class SeguimientosUbicacionController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

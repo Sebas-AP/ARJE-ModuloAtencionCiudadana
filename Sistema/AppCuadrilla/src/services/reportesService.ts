@@ -5,17 +5,19 @@ import {
   subirEvidencia,
 } from './api';
 import { ReporteDTO, ActualizarEstatusDTO } from '../types';
+import { isActiveAssignedStatus } from './fieldApiContract';
 
 export const reportesService = {
   async getAsignados(idCuadrilla: number): Promise<ReporteDTO[]> {
-    return getReportesAsignados(idCuadrilla);
+    const reportes = await getReportesAsignados(idCuadrilla);
+    return reportes.filter((reporte) => isActiveAssignedStatus(reporte.estatus));
   },
 
   async getDetalle(id: number): Promise<ReporteDTO> {
     return getReporteDetalle(id);
   },
 
-  async actualizarEstatus(id: number, data: ActualizarEstatusDTO): Promise<ReporteDTO> {
+  async actualizarEstatus(id: number, data: ActualizarEstatusDTO): Promise<void> {
     return actualizarEstatusReporte(id, data);
   },
 
@@ -26,7 +28,6 @@ export const reportesService = {
     mimeType: string
   ): Promise<any> {
     const formData = new FormData();
-    formData.append('idReporte', String(idReporte));
     formData.append('tipo', '2'); // 2 = Resolucion
     formData.append('archivo', {
       uri,
@@ -34,6 +35,6 @@ export const reportesService = {
       type: mimeType,
     } as any);
 
-    return subirEvidencia(formData);
+    return subirEvidencia(idReporte, formData);
   },
 };

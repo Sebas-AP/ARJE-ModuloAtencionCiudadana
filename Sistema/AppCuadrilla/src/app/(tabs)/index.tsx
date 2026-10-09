@@ -15,14 +15,14 @@ export default function ReportesScreen() {
 
   const cargarReportes = useCallback(async () => {
     try {
-      const user = await authService.getCurrentUser();
-      if (!user?.idCuadrilla) {
+      const cuadrilla = await authService.getCurrentCuadrilla();
+      if (!cuadrilla) {
         Alert.alert('Error', 'No se encontró la cuadrilla asignada');
         return;
       }
 
-      setIdCuadrilla(user.idCuadrilla);
-      const data = await reportesService.getAsignados(user.idCuadrilla);
+      setIdCuadrilla(cuadrilla.id);
+      const data = await reportesService.getAsignados(cuadrilla.id);
       setReportes(data);
     } catch (error: any) {
       Alert.alert('Error', error.message || 'No se pudieron cargar los reportes');

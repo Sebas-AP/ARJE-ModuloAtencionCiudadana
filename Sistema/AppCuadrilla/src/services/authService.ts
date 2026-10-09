@@ -1,39 +1,39 @@
-import { login, getAuthToken, setAuthToken, clearAuthToken } from './api';
-import { UsuarioDTO, LoginResponseDTO } from '../types';
+import { clearAuthToken, getAuthToken, getCuadrillaActual, loginCuadrilla, setAuthToken } from './api';
+import { CuadrillaDTO, CuadrillaLoginResponseDTO } from '../types';
+import { createCuadrillaSession } from './fieldApiContract';
 
-let currentUser: UsuarioDTO | null = null;
+let currentCuadrilla: CuadrillaDTO | null = null;
 
 export const authService = {
-  async login(usuario: string, password: string): Promise<LoginResponseDTO> {
-    const response = await login(usuario, password);
+  async login(usuario: string, password: string): Promise<CuadrillaLoginResponseDTO> {
+    const response = createCuadrillaSession(await loginCuadrilla(usuario, password));
     await setAuthToken(response.token);
-    currentUser = response.usuario;
+    currentCuadrilla = response.cuadrilla;
     return response;
   },
 
   async logout(): Promise<void> {
     await clearAuthToken();
-    currentUser = null;
+    currentCuadrilla = null;
   },
 
-  async getCurrentUser(): Promise<UsuarioDTO | null> {
-    if (currentUser) return currentUser;
+  async getCurrentCuadrilla(): Promise<CuadrillaDTO | null> {
+    if (currentCuadrilla) return currentCuadrilla;
 
     const token = await getAuthToken();
     if (!token) return null;
 
     try {
-      const { apiRequest } = await import('./api');
-      const user = await apiRequest<UsuarioDTO>('/usuarios/me');
-      currentUser = user;
-      return user;
+      const cuadrilla = await getCuadrillaActual();
+      currentCuadrilla = cuadrilla;
+      return cuadrilla;
     } catch {
       return null;
     }
   },
 
-  getCurrentUserSync(): UsuarioDTO | null {
-    return currentUser;
+  getCurrentCuadrillaSync(): CuadrillaDTO | null {
+    return currentCuadrilla;
   },
 
   async isAuthenticated(): Promise<boolean> {
@@ -41,9 +41,9 @@ export const authService = {
     return !!token;
   },
 
-  setCurrentUser(user: UsuarioDTO | null) {
-    currentUser = user;
+  setCurrentCuadrilla(cuadrilla: CuadrillaDTO | null) {
+    currentCuadrilla = cuadrilla;
   },
 };
 
-export { currentUser as currentUserRef };
+export { currentCuadrilla as currentCuadrillaRef };

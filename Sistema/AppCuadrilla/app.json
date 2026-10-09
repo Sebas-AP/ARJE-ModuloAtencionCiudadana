@@ -45,7 +45,9 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Permitir a ARJE Cuadrilla acceder a la ubicación en todo momento para seguimiento de intervenciones"
+          "locationAlwaysAndWhenInUsePermission": "Permitir a ARJE Cuadrilla acceder a la ubicación en todo momento para seguimiento de intervenciones",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
         }
       ],
       [

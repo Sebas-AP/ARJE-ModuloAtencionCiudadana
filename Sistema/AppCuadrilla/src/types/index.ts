@@ -1,19 +1,3 @@
-export interface UsuarioDTO {
-  id: number;
-  nombre: string;
-  usuario: string;
-  rol: 'Administrador' | 'Cuadrilla';
-  activo: boolean;
-  correo?: string;
-  idCuadrilla?: number;
-  cuadrillaNombre?: string;
-}
-
-export interface LoginResponseDTO {
-  token: string;
-  usuario: UsuarioDTO;
-}
-
 export interface EvidenciaDTO {
   id: number;
   tipo: 1 | 2; // 1 = Inicial, 2 = Resolucion
@@ -84,6 +68,11 @@ export interface CuadrillaDTO {
   activo?: boolean;
   disponible?: boolean;
   especialidades?: string[];
+}
+
+export interface CuadrillaLoginResponseDTO {
+  token: string;
+  cuadrilla: CuadrillaDTO;
 }
 
 export type EstatusReporte =

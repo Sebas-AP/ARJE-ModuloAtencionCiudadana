@@ -1,26 +1,8 @@
 import { Tabs } from 'expo-router';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from 'react-native';
-import { authService } from '../../services/authService';
-import { useLocation } from '../../hooks/useLocation';
 
 export default function TabsLayout() {
-  const colorScheme = useColorScheme();
-  const { location, iniciarSeguimiento } = useLocation();
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const user = await authService.getCurrentUser();
-      if (!user) {
-        // La navegación se maneja desde el _layout principal
-      } else if (user.idCuadrilla && location) {
-        // Iniciar seguimiento si hay reporte activo (se hace en cada pantalla)
-      }
-    };
-    checkAuth();
-  }, []);
-
   return (
     <Tabs
       screenOptions={{

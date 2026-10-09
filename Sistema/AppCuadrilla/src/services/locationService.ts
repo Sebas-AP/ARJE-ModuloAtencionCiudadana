@@ -1,8 +1,10 @@
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
+import * as SecureStore from 'expo-secure-store';
 import { enviarUbicacion } from './api';
 
 export const LOCATION_TASK = 'background-location-task';
+const ACTIVE_REPORTE_KEY = 'arje_active_reporte_id';
 
 TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   if (error) {
@@ -30,18 +32,23 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   }
 });
 
-let activeReporteId: number | null = null;
+export const setActiveReporteId = async (id: number | null): Promise<void> => {
+  if (id === null) {
+    await SecureStore.deleteItemAsync(ACTIVE_REPORTE_KEY);
+    return;
+  }
 
-export const setActiveReporteId = (id: number | null) => {
-  activeReporteId = id;
+  await SecureStore.setItemAsync(ACTIVE_REPORTE_KEY, String(id));
 };
 
 const getActiveReporteId = async (): Promise<number | null> => {
-  return activeReporteId;
+  const value = await SecureStore.getItemAsync(ACTIVE_REPORTE_KEY);
+  const idReporte = value ? Number(value) : NaN;
+  return Number.isInteger(idReporte) && idReporte > 0 ? idReporte : null;
 };
 
 export const startLocationTracking = async (idReporte: number): Promise<void> => {
-  activeReporteId = idReporte;
+  await setActiveReporteId(idReporte);
 
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== 'granted') {
@@ -75,7 +82,7 @@ export const stopLocationTracking = async (): Promise<void> => {
   if (isRegistered) {
     await Location.stopLocationUpdatesAsync(LOCATION_TASK);
   }
-  activeReporteId = null;
+  await setActiveReporteId(null);
 };
 
 export const getCurrentLocation = async (): Promise<{ latitude: number; longitude: number } | null> => {
@@ -97,7 +104,7 @@ export const getCurrentLocation = async (): Promise<{ latitude: number; longitud
 
 export const watchLocation = (
   callback: (location: { latitude: number; longitude: number }) => void
-): Location.LocationSubscription => {
+): Promise<Location.LocationSubscription> => {
   return Location.watchPositionAsync(
     {
       accuracy: Location.Accuracy.High,

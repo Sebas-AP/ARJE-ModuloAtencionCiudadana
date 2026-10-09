@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
-import { SplashScreen } from 'expo-splash-screen';
-import { authService } from './services/authService';
+import * as SplashScreen from 'expo-splash-screen';
+import { authService } from '../services/authService';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -11,7 +11,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     const loadUser = async () => {
-      const currentUser = await authService.getCurrentUser();
+      const currentUser = await authService.getCurrentCuadrilla();
       setUser(currentUser);
       setUserLoaded(true);
       SplashScreen.hideAsync();

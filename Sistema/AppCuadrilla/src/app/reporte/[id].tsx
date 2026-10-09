@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity, Image, Platform, KeyboardAvoidingView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { authService } from '../../services/authService';
 import { reportesService } from '../../services/reportesService';
-import { locationService } from '../../services/locationService';
 import { useLocation } from '../../hooks/useLocation';
 import { StatusSelector } from '../../components/StatusSelector';
 import { EvidenciaUploader } from '../../components/EvidenciaUploader';
@@ -49,21 +47,10 @@ export default function ReporteDetalleScreen() {
 
     setGuardando(true);
     try {
-      const data: any = { estatus: nuevoEstatus };
-      
-      if (nuevoEstatus === 4) { // EnProceso
-        const user = await authService.getCurrentUser();
-        if (user?.idCuadrilla) {
-          data.idCuadrillaAsignada = user.idCuadrilla;
-        }
-      }
-      
-      if (nuevoEstatus === 5) { // Completado
-        data.comentariosResolucion = 'Reporte completado por cuadrilla móvil';
-      }
+      const data = { estatus: nuevoEstatus };
 
-      const actualizado = await reportesService.actualizarEstatus(reporteId, data);
-      setReporte(actualizado);
+      await reportesService.actualizarEstatus(reporteId, data);
+      await cargarReporte();
       Alert.alert('Éxito', 'Estado actualizado correctamente');
     } catch (error: any) {
       Alert.alert('Error', error.message || 'No se pudo actualizar el estado');
@@ -181,9 +168,9 @@ export default function ReporteDetalleScreen() {
           {ubicacionActual && (
             <View style={styles.ubicacionActual}>
               <Text style={styles.ubicacionActualLabel}>Tu ubicación actual:</Text>
-              <View style={styles.ubicacionActualCoords}>
-                <Text>{ubicacionActual.latitude.toFixed(6)}, {ubicacionActual.longitude.toFixed(6)}</Text>
-              </View>
+              <Text style={styles.ubicacionActualCoords}>
+                {ubicacionActual.latitude.toFixed(6)}, {ubicacionActual.longitude.toFixed(6)}
+              </Text>
             </View>
           )}
         </View>

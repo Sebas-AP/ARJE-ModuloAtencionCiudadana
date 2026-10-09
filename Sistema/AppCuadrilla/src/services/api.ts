@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
+import { buildAssignedReportsPath, buildLocationBatch, fieldApiPaths } from './fieldApiContract';
 
-const API_BASE_URL = 'http://10.0.2.2:5000/api';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.2.2:5170/api';
 
 export const getAuthToken = async (): Promise<string | null> => {
   return await SecureStore.getItemAsync('arje_token');
@@ -70,8 +71,8 @@ export const apiRequestMultipart = async <T>(
   return response.json();
 };
 
-export const login = async (usuario: string, password: string) => {
-  return apiRequest<{ token: string; usuario: any }>('/usuarios/login', {
+export const loginCuadrilla = async (usuario: string, password: string) => {
+  return apiRequest<{ token: string; cuadrilla: any }>('/cuadrillas/login', {
     method: 'POST',
     body: JSON.stringify({ usuario, password }),
     requiresAuth: false,
@@ -79,7 +80,7 @@ export const login = async (usuario: string, password: string) => {
 };
 
 export const getReportesAsignados = async (idCuadrilla: number) => {
-  return apiRequest<any[]>(`/reportes?idCuadrillaAsignada=${idCuadrilla}&estatus=2`);
+  return apiRequest<any[]>(buildAssignedReportsPath(idCuadrilla));
 };
 
 export const getReporteDetalle = async (id: number) => {
@@ -87,14 +88,14 @@ export const getReporteDetalle = async (id: number) => {
 };
 
 export const actualizarEstatusReporte = async (id: number, data: any) => {
-  return apiRequest<any>(`/reportes/${id}`, {
+  return apiRequest<void>(fieldApiPaths.estatus(id), {
     method: 'PUT',
-    body: JSON.stringify(data),
+    body: JSON.stringify(data.estatus),
   });
 };
 
-export const subirEvidencia = async (formData: FormData) => {
-  return apiRequestMultipart<any>('/evidencias', formData);
+export const subirEvidencia = async (idReporte: number, formData: FormData) => {
+  return apiRequestMultipart<any>(fieldApiPaths.evidencias(idReporte), formData);
 };
 
 export const enviarUbicacion = async (data: {
@@ -102,11 +103,13 @@ export const enviarUbicacion = async (data: {
   latitud: number;
   longitud: number;
 }) => {
-  return apiRequest<any>('/seguimientos-ubicacion', {
+  return apiRequest<any>(fieldApiPaths.ubicaciones(data.idReporte), {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify(buildLocationBatch(data)),
   });
 };
+
+export const getCuadrillaActual = async () => apiRequest<any>('/cuadrillas/me');
 
 export const getCuadrillas = async () => {
   return apiRequest<any[]>('/cuadrillas');

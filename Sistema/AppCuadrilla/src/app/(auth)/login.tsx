@@ -61,7 +61,7 @@ export default function LoginScreen() {
               onChangeText={setUsuario}
               placeholder="Ingrese su usuario"
               autoCapitalize="none"
-              autoCompleteType="username"
+              autoComplete="username"
               textContentType="username"
             />
           </View>
@@ -74,7 +74,7 @@ export default function LoginScreen() {
               onChangeText={setPassword}
               placeholder="Ingrese su contraseña"
               secureTextEntry
-              autoCompleteType="password"
+              autoComplete="current-password"
               textContentType="password"
             />
           </View>

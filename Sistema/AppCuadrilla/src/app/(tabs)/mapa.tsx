@@ -19,14 +19,14 @@ export default function MapaScreen() {
 
   const cargarDatos = async () => {
     try {
-      const user = await authService.getCurrentUser();
-      if (!user?.idCuadrilla) {
+      const cuadrilla = await authService.getCurrentCuadrilla();
+      if (!cuadrilla) {
         setError('No se encontró cuadrilla asignada');
         setLoading(false);
         return;
       }
 
-      const reportes = await reportesService.getAsignados(user.idCuadrilla);
+      const reportes = await reportesService.getAsignados(cuadrilla.id);
       if (reportes.length > 0) {
         const reporteActivo = reportes.find(r => r.estatus === 4 || r.estatus === 3) || reportes[0];
         setReporte(reporteActivo);

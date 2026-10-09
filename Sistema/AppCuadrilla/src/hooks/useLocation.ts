@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
-import { watchLocation, getCurrentLocation, startLocationTracking, stopLocationTracking, setActiveReporteId } from '../services/locationService';
+import { watchLocation, getCurrentLocation, startLocationTracking, stopLocationTracking } from '../services/locationService';
 
 export const useLocation = (idReporte?: number) => {
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -47,7 +47,6 @@ export const useLocation = (idReporte?: number) => {
     }
 
     try {
-      setActiveReporteId(idReporte);
       await startLocationTracking(idReporte);
       setTracking(true);
       setError(null);
@@ -66,12 +65,15 @@ export const useLocation = (idReporte?: number) => {
 
     obtenerUbicacionActual();
 
-    const subscription = watchLocation((loc) => {
+    let subscription: Location.LocationSubscription | null = null;
+    void watchLocation((loc) => {
       setLocation(loc);
+    }).then((activeSubscription) => {
+      subscription = activeSubscription;
     });
 
     return () => {
-      subscription.remove();
+      subscription?.remove();
     };
   }, [idReporte, obtenerUbicacionActual]);
 

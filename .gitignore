@@ -41,5 +41,6 @@ api.log
 /Graficas de ejemplo
 /Sistema Arje_ Reportes.fig
 /docs
+.worktrees/
 /mise.toml
 /run-tunnel.sh

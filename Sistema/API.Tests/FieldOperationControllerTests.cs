@@ -119,6 +119,27 @@ public class FieldOperationControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task Administrative_supervision_preserves_out_of_service_after_last_report_completion()
+    {
+        var report = await AddReport(EstatusReporte.EnProceso, resolution: true);
+        Assert.IsType<NoContentResult>(await Reports().PutEstatus(report.Id, EstatusReporte.Completado));
+        context.ChangeTracker.Clear();
+        Assert.Equal(EstatusCuadrilla.Disponible, (await context.Cuadrillas.FindAsync(1))!.EstatusDisponibilidad);
+
+        var cuadrillas = Authenticate(new CuadrillasController(context, mapper, cache, null!));
+        Assert.IsType<NoContentResult>(await cuadrillas.PutDisponibilidad(1,
+            new CuadrillaDisponibilidadDTO { EstatusDisponibilidad = EstatusCuadrilla.FueraServicio }));
+        context.ChangeTracker.Clear();
+        Assert.Equal(EstatusCuadrilla.FueraServicio, (await context.Cuadrillas.FindAsync(1))!.EstatusDisponibilidad);
+
+        Assert.IsType<NoContentResult>(await Reports("7", "Usuario", "Administrador")
+            .PutEstatus(report.Id, EstatusReporte.EnSupervision));
+        context.ChangeTracker.Clear();
+        Assert.Equal(EstatusReporte.EnSupervision, (await context.Reportes.FindAsync(report.Id))!.Estatus);
+        Assert.Equal(EstatusCuadrilla.FueraServicio, (await context.Cuadrillas.FindAsync(1))!.EstatusDisponibilidad);
+    }
+
+    [Fact]
     public async Task Location_rejects_foreign_cuadrilla_without_writing_points()
     {
         var report = await AddReport(EstatusReporte.EnProceso);

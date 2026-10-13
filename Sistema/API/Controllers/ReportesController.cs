@@ -391,7 +391,10 @@ public class ReportesController : ControllerBase
                     .Select(r => r.Estatus)
                     .ToListAsync();
                 cuadrilla.EstatusDisponibilidad = _fieldOperationPolicy.ResolveAvailability(
-                    EstatusCuadrilla.Disponible, otrosEstatus.Append(nuevoEstatus));
+                    cuadrilla.EstatusDisponibilidad == EstatusCuadrilla.FueraServicio
+                        ? EstatusCuadrilla.FueraServicio
+                        : EstatusCuadrilla.Disponible,
+                    otrosEstatus.Append(nuevoEstatus));
             }
         }
 

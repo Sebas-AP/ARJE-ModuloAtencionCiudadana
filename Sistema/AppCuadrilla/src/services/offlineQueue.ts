@@ -18,6 +18,14 @@ export type QueueStore = {
 };
 
 const QUEUE_KEY = 'field-operations-queue';
+const pendingMutations = new WeakMap<QueueStore, Promise<void>>();
+
+function serializeMutation<T>(store: QueueStore, mutation: () => Promise<T>): Promise<T> {
+  const previous = pendingMutations.get(store) ?? Promise.resolve();
+  const result = previous.then(mutation);
+  pendingMutations.set(store, result.then(() => {}, () => {}));
+  return result;
+}
 
 function newId(): string {
   const runtime = globalThis as { crypto?: { randomUUID?: () => string } };
@@ -37,18 +45,24 @@ export function createOfflineQueue(store: QueueStore) {
   return {
     async enqueue(data: OperationData): Promise<QueuedOperation> {
       const operation = { ...data, id: newId(), createdAt: new Date().toISOString(), attempts: 0, terminal: false } as QueuedOperation;
-      await save([...await list(), operation]);
-      return operation;
+      return serializeMutation(store, async () => {
+        await save([...await list(), operation]);
+        return operation;
+      });
     },
     list,
     async markFailed(id: string, lastError: string, terminal: boolean): Promise<void> {
-      const operations = await list();
-      await save(operations.map((operation) => operation.id === id
-        ? { ...operation, attempts: operation.attempts + 1, lastError, terminal }
-        : operation));
+      return serializeMutation(store, async () => {
+        const operations = await list();
+        await save(operations.map((operation) => operation.id === id
+          ? { ...operation, attempts: operation.attempts + 1, lastError, terminal }
+          : operation));
+      });
     },
     async remove(id: string): Promise<void> {
-      await save((await list()).filter((operation) => operation.id !== id));
+      return serializeMutation(store, async () => {
+        await save((await list()).filter((operation) => operation.id !== id));
+      });
     },
   };
 }

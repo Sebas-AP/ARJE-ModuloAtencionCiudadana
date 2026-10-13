@@ -1,7 +1,46 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createMemoryQueue, createOfflineQueue, type QueueStore } from '../src/services/offlineQueue.ts';
+import { asyncStorageQueueStore, createMemoryQueue, createOfflineQueue, loadValidOperations, type QueueStore } from '../src/services/offlineQueue.ts';
+
+test('malformed saved JSON recovers as an empty queue', () => {
+  assert.deepEqual(loadValidOperations('{malformed'), []);
+});
+
+test('unknown operation kinds are discarded', () => {
+  assert.deepEqual(loadValidOperations('[{"kind":"unknown"}]'), []);
+});
+
+test('saved queue keeps valid operations and discards invalid fields', () => {
+  const valid = { kind: 'location', reportId: 8, latitud: 21.8, longitud: -102.3, id: 'a', createdAt: '2026-10-12T00:00:00.000Z', attempts: 0, terminal: false };
+  const invalid = [
+    { ...valid, id: 'bad-report', reportId: 0 },
+    { ...valid, id: 'bad-coordinate', latitud: null },
+    { ...valid, id: 'bad-attempts', attempts: -1 },
+    { ...valid, id: 'bad-terminal', terminal: 'false' },
+  ];
+  assert.deepEqual(loadValidOperations(JSON.stringify([valid, ...invalid])), [valid]);
+});
+
+test('AsyncStorage queue persists across instances using its durable key', async () => {
+  const values = new Map<string, string>();
+  const runtime = globalThis as { window?: unknown };
+  const previousWindow = runtime.window;
+  runtime.window = { localStorage: {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => { values.set(key, value); },
+  } };
+
+  try {
+    const first = createOfflineQueue(asyncStorageQueueStore);
+    const operation = await first.enqueue({ kind: 'status', reportId: 19, status: 3 });
+    assert.deepEqual((await createOfflineQueue(asyncStorageQueueStore).list()).map(({ id }) => id), [operation.id]);
+    assert.ok(values.has('arje_field_operation_queue'));
+  } finally {
+    if (previousWindow === undefined) delete runtime.window;
+    else runtime.window = previousWindow;
+  }
+});
 
 function createYieldingStore(): QueueStore {
   const values = new Map<string, string>();

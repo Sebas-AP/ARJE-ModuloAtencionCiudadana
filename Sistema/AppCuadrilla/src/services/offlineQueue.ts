@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 type OperationData =
   | { kind: 'location'; reportId: number; latitud: number; longitud: number }
   | { kind: 'status'; reportId: number; status: 3 | 4 | 5 }
@@ -17,8 +19,68 @@ export type QueueStore = {
   setItem(key: string, value: string): Promise<void>;
 };
 
-const QUEUE_KEY = 'field-operations-queue';
+const QUEUE_KEY = 'arje_field_operation_queue';
 const pendingMutations = new WeakMap<QueueStore, Promise<void>>();
+const storage = typeof AsyncStorage.getItem === 'function'
+  ? AsyncStorage
+  : (AsyncStorage as unknown as { default: typeof AsyncStorage }).default;
+
+export const asyncStorageQueueStore: QueueStore = {
+  getItem: (key) => storage.getItem(key),
+  setItem: (key, value) => storage.setItem(key, value),
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
+function isNonemptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+function isQueuedOperation(value: unknown): value is QueuedOperation {
+  if (!isRecord(value)
+    || !isNonemptyString(value.id)
+    || !isNonemptyString(value.createdAt)
+    || !Number.isSafeInteger(value.attempts)
+    || (value.attempts as number) < 0
+    || typeof value.terminal !== 'boolean'
+    || (value.lastError !== undefined && typeof value.lastError !== 'string')) {
+    return false;
+  }
+
+  switch (value.kind) {
+    case 'location':
+      return isPositiveInteger(value.reportId)
+        && typeof value.latitud === 'number' && Number.isFinite(value.latitud)
+        && typeof value.longitud === 'number' && Number.isFinite(value.longitud);
+    case 'status':
+      return isPositiveInteger(value.reportId) && [3, 4, 5].includes(value.status as number);
+    case 'evidence':
+      return isPositiveInteger(value.reportId)
+        && isNonemptyString(value.uri)
+        && isNonemptyString(value.name)
+        && isNonemptyString(value.mimeType);
+    case 'availability':
+      return [1, 2, 3].includes(value.availability as number);
+    default:
+      return false;
+  }
+}
+
+export function loadValidOperations(raw: string | null): QueuedOperation[] {
+  if (raw === null) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(isQueuedOperation) : [];
+  } catch {
+    return [];
+  }
+}
 
 function serializeMutation<T>(store: QueueStore, mutation: () => Promise<T>): Promise<T> {
   const previous = pendingMutations.get(store) ?? Promise.resolve();
@@ -35,7 +97,7 @@ function newId(): string {
 export function createOfflineQueue(store: QueueStore) {
   async function list(): Promise<QueuedOperation[]> {
     const saved = await store.getItem(QUEUE_KEY);
-    return saved === null ? [] : JSON.parse(saved) as QueuedOperation[];
+    return loadValidOperations(saved);
   }
 
   async function save(operations: QueuedOperation[]): Promise<void> {

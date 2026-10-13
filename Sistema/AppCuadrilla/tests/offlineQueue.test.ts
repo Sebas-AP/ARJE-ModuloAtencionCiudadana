@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { asyncStorageQueueStore, createMemoryQueue, createOfflineQueue, loadValidOperations, type QueueStore } from '../src/services/offlineQueue.ts';
+import { groupLocations, syncPendingOperations, type SyncDependencies } from '../src/services/syncService.ts';
+import { subscribeToConnectivity, type ConnectivityState } from '../src/services/connectivityService.ts';
 
 test('malformed saved JSON recovers as an empty queue', () => {
   assert.deepEqual(loadValidOperations('{malformed'), []);
@@ -125,4 +127,196 @@ test('concurrent failure and removal preserve both mutations', async () => {
   assert.deepEqual((await first.list()).map(({ id, attempts, lastError }) => ({ id, attempts, lastError })), [
     { id: evidence.id, attempts: 1, lastError: 'sin red' },
   ]);
+});
+
+function senders(overrides: Partial<Omit<SyncDependencies, 'queue'>> = {}): Omit<SyncDependencies, 'queue'> {
+  return {
+    sendLocations: async () => {},
+    sendStatus: async () => {},
+    sendEvidence: async () => {},
+    sendAvailability: async () => {},
+    ...overrides,
+  };
+}
+
+test('batch sends consecutive locations for one report and removes only confirmed points', async () => {
+  const queue = createMemoryQueue();
+  await queue.enqueue({ kind: 'location', reportId: 5, latitud: 1, longitud: 2 });
+  await queue.enqueue({ kind: 'location', reportId: 5, latitud: 3, longitud: 4 });
+  const sentBatches: unknown[] = [];
+
+  const result = await syncPendingOperations({ queue, ...senders({
+    sendLocations: async (batch) => { sentBatches.push(batch); },
+  }) });
+
+  assert.deepEqual(sentBatches, [{ reportId: 5, ubicaciones: [{ latitud: 1, longitud: 2 }, { latitud: 3, longitud: 4 }] }]);
+  assert.deepEqual(result, { sent: 2, pending: 0, failed: 0, requiresAuthentication: false });
+  assert.deepEqual(await queue.list(), []);
+});
+
+test('groupLocations preserves FIFO boundaries between reports and operation kinds', async () => {
+  const queue = createMemoryQueue();
+  await queue.enqueue({ kind: 'location', reportId: 5, latitud: 1, longitud: 2 });
+  await queue.enqueue({ kind: 'location', reportId: 6, latitud: 3, longitud: 4 });
+  await queue.enqueue({ kind: 'status', reportId: 5, status: 3 });
+  await queue.enqueue({ kind: 'location', reportId: 5, latitud: 5, longitud: 6 });
+  const operations = await queue.list();
+
+  assert.deepEqual(groupLocations(operations).map((group) => group.map(({ id }) => id)),
+    operations.map(({ id }) => [id]));
+});
+
+test('sync sends mixed operations in FIFO order without merging locations across status', async () => {
+  const queue = createMemoryQueue();
+  await queue.enqueue({ kind: 'location', reportId: 5, latitud: 1, longitud: 2 });
+  await queue.enqueue({ kind: 'status', reportId: 5, status: 3 });
+  await queue.enqueue({ kind: 'location', reportId: 5, latitud: 3, longitud: 4 });
+  const calls: string[] = [];
+
+  const result = await syncPendingOperations({ queue, ...senders({
+    sendLocations: async (batch) => { calls.push(`location:${batch.ubicaciones[0].latitud}`); },
+    sendStatus: async (operation) => { calls.push(`status:${operation.status}`); },
+  }) });
+
+  assert.deepEqual(calls, ['location:1', 'status:3', 'location:3']);
+  assert.equal(result.sent, 3);
+  assert.equal(result.pending, 0);
+});
+
+test('concurrent sync requests do not send the same queued operation twice', async () => {
+  const queue = createMemoryQueue();
+  await queue.enqueue({ kind: 'location', reportId: 5, latitud: 1, longitud: 2 });
+  let releaseSend: (() => void) | undefined;
+  const sending = new Promise<void>((resolve) => { releaseSend = resolve; });
+  let sends = 0;
+  const dependencies = { queue, ...senders({
+    sendLocations: async () => { sends++; await sending; },
+  }) };
+
+  const first = syncPendingOperations(dependencies);
+  const second = syncPendingOperations(dependencies);
+  releaseSend?.();
+  const results = await Promise.all([first, second]);
+
+  assert.equal(sends, 1);
+  assert.deepEqual(results.map(({ pending }) => pending), [0, 0]);
+});
+
+for (const failure of [new Error('Network request failed'), new Error('API Error 503: unavailable')]) {
+  test(`transient ${failure.message} retains the batch and stops later sends`, async () => {
+    const queue = createMemoryQueue();
+    await queue.enqueue({ kind: 'location', reportId: 5, latitud: 1, longitud: 2 });
+    await queue.enqueue({ kind: 'location', reportId: 5, latitud: 3, longitud: 4 });
+    await queue.enqueue({ kind: 'status', reportId: 5, status: 3 });
+    let statusCalls = 0;
+
+    const result = await syncPendingOperations({ queue, ...senders({
+      sendLocations: async () => { throw failure; },
+      sendStatus: async () => { statusCalls++; },
+    }) });
+
+    assert.deepEqual(result, { sent: 0, pending: 3, failed: 0, requiresAuthentication: false });
+    assert.equal(statusCalls, 0);
+    assert.deepEqual((await queue.list()).map(({ attempts, terminal }) => ({ attempts, terminal })), [
+      { attempts: 1, terminal: false }, { attempts: 1, terminal: false }, { attempts: 0, terminal: false },
+    ]);
+  });
+}
+
+for (const status of [401, 403]) {
+  test(`${status} keeps the operation and requires authentication`, async () => {
+    const queue = createMemoryQueue();
+    await queue.enqueue({ kind: 'status', reportId: 5, status: 3 });
+
+    const result = await syncPendingOperations({ queue, ...senders({
+      sendStatus: async () => { throw new Error(`API Error ${status}: forbidden`); },
+    }) });
+
+    assert.deepEqual(result, { sent: 0, pending: 1, failed: 0, requiresAuthentication: true });
+    assert.deepEqual((await queue.list()).map(({ attempts, terminal }) => ({ attempts, terminal })),
+      [{ attempts: 1, terminal: false }]);
+  });
+}
+
+for (const status of [400, 409]) {
+  test(`${status} marks a rejected status terminal and stops dependent report operations`, async () => {
+    const queue = createMemoryQueue();
+    await queue.enqueue({ kind: 'status', reportId: 5, status: 3 });
+    await queue.enqueue({ kind: 'evidence', reportId: 5, uri: 'file://photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg' });
+    await queue.enqueue({ kind: 'status', reportId: 6, status: 3 });
+    const sentReports: number[] = [];
+
+    const result = await syncPendingOperations({ queue, ...senders({
+      sendStatus: async (operation) => {
+        if (operation.reportId === 5) throw new Error(`API Error ${status}: invalid transition`);
+        sentReports.push(operation.reportId);
+      },
+      sendEvidence: async (operation) => { sentReports.push(operation.reportId); },
+    }) });
+
+    assert.deepEqual(sentReports, [6]);
+    assert.deepEqual(result, { sent: 1, pending: 2, failed: 1, requiresAuthentication: false });
+    assert.deepEqual((await queue.list()).map(({ kind, attempts, terminal }) => ({ kind, attempts, terminal })), [
+      { kind: 'status', attempts: 1, terminal: true },
+      { kind: 'evidence', attempts: 0, terminal: false },
+    ]);
+  });
+}
+
+test('a terminal status remains reported and blocks its dependent operations on the next sync', async () => {
+  const queue = createMemoryQueue();
+  await queue.enqueue({ kind: 'status', reportId: 5, status: 3 });
+  await queue.enqueue({ kind: 'location', reportId: 5, latitud: 1, longitud: 2 });
+  await syncPendingOperations({ queue, ...senders({
+    sendStatus: async () => { throw new Error('API Error 400: invalid transition'); },
+  }) });
+  let locationCalls = 0;
+
+  const result = await syncPendingOperations({ queue, ...senders({
+    sendLocations: async () => { locationCalls++; },
+  }) });
+
+  assert.equal(locationCalls, 0);
+  assert.deepEqual(result, { sent: 0, pending: 2, failed: 1, requiresAuthentication: false });
+});
+
+test('a failed location batch survives a fresh queue instance', async () => {
+  const values = new Map<string, string>();
+  const store: QueueStore = {
+    getItem: async (key) => values.get(key) ?? null,
+    setItem: async (key, value) => { values.set(key, value); },
+  };
+  const queue = createOfflineQueue(store);
+  await queue.enqueue({ kind: 'location', reportId: 5, latitud: 1, longitud: 2 });
+  await queue.enqueue({ kind: 'location', reportId: 5, latitud: 3, longitud: 4 });
+  await syncPendingOperations({ queue, ...senders({
+    sendLocations: async () => { throw new Error('Network request failed'); },
+  }) });
+  const restored = createOfflineQueue(store);
+
+  assert.deepEqual((await restored.list()).map(({ kind, attempts, terminal }) => ({ kind, attempts, terminal })), [
+    { kind: 'location', attempts: 1, terminal: false },
+    { kind: 'location', attempts: 1, terminal: false },
+  ]);
+});
+
+test('connectivity subscription reports reachability, handles unknown state, and unsubscribes', () => {
+  const states: boolean[] = [];
+  let listener: ((state: ConnectivityState) => void) | undefined;
+  let unsubscribed = false;
+  const unsubscribe = subscribeToConnectivity((online) => { states.push(online); }, {
+    addEventListener: (callback) => {
+      listener = callback;
+      return () => { unsubscribed = true; };
+    },
+  });
+
+  assert.ok(listener);
+  listener({ isConnected: true, isInternetReachable: null });
+  listener({ isConnected: true, isInternetReachable: false });
+  listener({ isConnected: null, isInternetReachable: null });
+  listener({ isConnected: true, isInternetReachable: true });
+  assert.deepEqual(states, [true, false, false, true]);
+  unsubscribe();
+  assert.equal(unsubscribed, true);
 });

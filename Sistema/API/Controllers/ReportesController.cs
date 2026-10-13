@@ -22,6 +22,7 @@ public class ReportesController : ControllerBase
     private readonly IOutputCacheStore _outputCacheStore;
     private readonly IAlmacenadorArchivos _almacenadorArchivos;
     private readonly IClasificadorService _clasificador;
+    private readonly FieldOperationPolicy _fieldOperationPolicy = new();
     private const string ContenedorEvidencias = "evidencias";
 
     public ReportesController(
@@ -352,35 +353,45 @@ public class ReportesController : ControllerBase
     [HttpPut("{id:int}/estatus")]
     public async Task<ActionResult> PutEstatus(int id, [FromBody] EstatusReporte nuevoEstatus)
     {
-        var reporte = await _context.Reportes.FindAsync(id);
+        var reporte = await _context.Reportes
+            .Include(r => r.Evidencias)
+            .FirstOrDefaultAsync(r => r.Id == id);
         if (reporte == null)
         {
             return NotFound();
         }
 
-        var estatusAnterior = reporte.Estatus;
-        reporte.Estatus = nuevoEstatus;
-
-        if (nuevoEstatus == EstatusReporte.Asignado && reporte.IdCuadrillaAsignada.HasValue)
+        if (_fieldOperationPolicy.IsCuadrilla(User))
         {
-            var cuadrilla = await _context.Cuadrillas.FindAsync(reporte.IdCuadrillaAsignada.Value);
-            if (cuadrilla != null)
+            if (!_fieldOperationPolicy.CanAccessAssignedReport(reporte, User))
             {
-                cuadrilla.EstatusDisponibilidad = EstatusCuadrilla.Ocupada;
+                return Forbid();
+            }
+
+            if (!_fieldOperationPolicy.IsAllowedTransition(reporte.Estatus, nuevoEstatus))
+            {
+                return BadRequest(new { mensaje = "La transición de estatus solicitada no está permitida." });
             }
         }
 
-        if (estatusAnterior == EstatusReporte.Asignado && nuevoEstatus != EstatusReporte.Asignado && reporte.IdCuadrillaAsignada.HasValue)
+        if (nuevoEstatus == EstatusReporte.Completado && !_fieldOperationPolicy.EnsureCanComplete(reporte).IsAllowed)
+        {
+            return BadRequest(new { mensaje = "Se requiere evidencia de resolución para completar el reporte." });
+        }
+
+        reporte.Estatus = nuevoEstatus;
+
+        if (reporte.IdCuadrillaAsignada.HasValue)
         {
             var cuadrilla = await _context.Cuadrillas.FindAsync(reporte.IdCuadrillaAsignada.Value);
             if (cuadrilla != null)
             {
-                var tieneOtrosAsignados = await _context.Reportes
-                    .AnyAsync(r => r.IdCuadrillaAsignada == reporte.IdCuadrillaAsignada && r.Estatus == EstatusReporte.Asignado && r.Id != id);
-                if (!tieneOtrosAsignados)
-                {
-                    cuadrilla.EstatusDisponibilidad = EstatusCuadrilla.Disponible;
-                }
+                var otrosEstatus = await _context.Reportes
+                    .Where(r => r.IdCuadrillaAsignada == reporte.IdCuadrillaAsignada && r.Id != id)
+                    .Select(r => r.Estatus)
+                    .ToListAsync();
+                cuadrilla.EstatusDisponibilidad = _fieldOperationPolicy.ResolveAvailability(
+                    EstatusCuadrilla.Disponible, otrosEstatus.Append(nuevoEstatus));
             }
         }
 
@@ -398,6 +409,11 @@ public class ReportesController : ControllerBase
         if (reporte == null)
         {
             return NotFound();
+        }
+
+        if (_fieldOperationPolicy.IsCuadrilla(User) && !_fieldOperationPolicy.CanAccessAssignedReport(reporte, User))
+        {
+            return Forbid();
         }
 
         var urlArchivo = await _almacenadorArchivos.GuardarArchivo(ContenedorEvidencias, creacionDTO.Archivo);

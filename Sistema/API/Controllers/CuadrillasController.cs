@@ -18,6 +18,7 @@ namespace ARJE.Api.Controllers;
 public class CuadrillasController : CustomBaseController<Cuadrilla, CuadrillaCreacionDTO, CuadrillaDTO>
 {
     private readonly IJwtService _jwtService;
+    private readonly FieldOperationPolicy _fieldOperationPolicy = new();
 
     public CuadrillasController(
         ApplicationDbContext context,
@@ -87,13 +88,24 @@ public class CuadrillasController : CustomBaseController<Cuadrilla, CuadrillaCre
     [HttpPut("{id:int}/disponibilidad")]
     public async Task<ActionResult> PutDisponibilidad(int id, [FromBody] CuadrillaDisponibilidadDTO disponibilidadDTO)
     {
+        if (_fieldOperationPolicy.IsCuadrilla(User) &&
+            (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var authenticatedId) || authenticatedId != id))
+        {
+            return Forbid();
+        }
+
         var cuadrilla = await _context.Cuadrillas.FindAsync(id);
         if (cuadrilla == null)
         {
             return NotFound();
         }
 
-        cuadrilla.EstatusDisponibilidad = disponibilidadDTO.EstatusDisponibilidad;
+        var estatusReportes = await _context.Reportes
+            .Where(r => r.IdCuadrillaAsignada == id)
+            .Select(r => r.Estatus)
+            .ToListAsync();
+        cuadrilla.EstatusDisponibilidad = _fieldOperationPolicy.ResolveAvailability(
+            disponibilidadDTO.EstatusDisponibilidad, estatusReportes);
         await _context.SaveChangesAsync();
         await _outputCacheStore.EvictByTagAsync("cuadrillas", default);
 

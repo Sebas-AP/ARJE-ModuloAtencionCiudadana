@@ -7,6 +7,7 @@ using ARJE.Api.Entidades;
 using ARJE.Api.Entidades.Enums;
 using ARJE.Api.DTOs.SeguimientoUbicacion;
 using ARJE.Api.Utilidades;
+using ARJE.Api.Servicios;
 
 namespace ARJE.Api.Controllers;
 
@@ -18,6 +19,7 @@ public class SeguimientosUbicacionController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
     private readonly IOutputCacheStore _outputCacheStore;
+    private readonly FieldOperationPolicy _fieldOperationPolicy = new();
 
     public SeguimientosUbicacionController(
         ApplicationDbContext context,
@@ -36,6 +38,11 @@ public class SeguimientosUbicacionController : ControllerBase
         if (reporte == null)
         {
             return NotFound("Reporte no encontrado");
+        }
+
+        if (_fieldOperationPolicy.IsCuadrilla(User) && !_fieldOperationPolicy.CanAccessAssignedReport(reporte, User))
+        {
+            return Forbid();
         }
 
         if (reporte.Estatus != EstatusReporte.LevantandoInformacion && reporte.Estatus != EstatusReporte.EnProceso)

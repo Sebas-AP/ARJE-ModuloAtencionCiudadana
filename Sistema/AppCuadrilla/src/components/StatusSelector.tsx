@@ -1,36 +1,36 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { EstatusReporteLabels, EstatusReporteColors } from '../types';
-
-type EstatusPermitido = 2 | 3 | 4 | 5; // Asignado, LevantandoInformacion, EnProceso, Completado
+import { getAllowedNextStatuses, type FieldStatus } from '../services/fieldUiPolicy';
 
 interface StatusSelectorProps {
   currentEstatus: number;
-  onChange: (estatus: number) => void;
+  onChange: (estatus: FieldStatus) => void;
+  hasResolutionEvidence: boolean;
   disabled?: boolean;
 }
-
-const ESTATUS_OPCIONES: EstatusPermitido[] = [2, 3, 4, 5];
 
 export const StatusSelector: React.FC<StatusSelectorProps> = ({
   currentEstatus,
   onChange,
+  hasResolutionEvidence,
   disabled = false,
 }) => {
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Estado del reporte</Text>
+      <Text style={styles.label}>Estado actual: {EstatusReporteLabels[currentEstatus] || currentEstatus}</Text>
       <View style={styles.options}>
-        {ESTATUS_OPCIONES.map((estatus) => (
+        {getAllowedNextStatuses(currentEstatus).map((estatus) => (
           <TouchableOpacity
             key={estatus}
             style={[
               styles.option,
-              currentEstatus === estatus && styles.optionSelected,
-              disabled && styles.optionDisabled,
+              (disabled || (estatus === 5 && !hasResolutionEvidence)) && styles.optionDisabled,
             ]}
-            onPress={() => !disabled && onChange(estatus)}
-            disabled={disabled}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: disabled || (estatus === 5 && !hasResolutionEvidence) }}
+            onPress={() => onChange(estatus)}
+            disabled={disabled || (estatus === 5 && !hasResolutionEvidence)}
           >
             <View
               style={[
@@ -41,7 +41,6 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({
             <Text
               style={[
                 styles.optionText,
-                currentEstatus === estatus && styles.optionTextSelected,
                 disabled && styles.optionTextDisabled,
               ]}
             >
@@ -50,6 +49,12 @@ export const StatusSelector: React.FC<StatusSelectorProps> = ({
           </TouchableOpacity>
         ))}
       </View>
+      {currentEstatus === 4 && !hasResolutionEvidence && (
+        <Text style={styles.hint}>Guarda evidencia de resolución antes de completar el reporte.</Text>
+      )}
+      {getAllowedNextStatuses(currentEstatus).length === 0 && (
+        <Text style={styles.hint}>No hay cambios de estado disponibles para la cuadrilla.</Text>
+      )}
     </View>
   );
 };
@@ -81,10 +86,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     minWidth: 100,
   },
-  optionSelected: {
-    borderColor: '#253C96',
-    backgroundColor: '#EFF6FF',
-  },
+  hint: { marginTop: 8, fontSize: 12, color: '#64748B' },
   optionDisabled: {
     opacity: 0.5,
   },
@@ -97,10 +99,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#475569',
-  },
-  optionTextSelected: {
-    color: '#253C96',
-    fontWeight: '700',
   },
   optionTextDisabled: {
     color: '#94A3B8',

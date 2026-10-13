@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { reportesService } from '../services/reportesService';
+import { getOperationFeedback, operationFeedbackMessages } from '../services/fieldUiPolicy';
+import type { SyncResult } from '../services/syncService';
 
 interface EvidenciaUploaderProps {
   idReporte: number;
-  onSuccess?: () => void;
+  onSuccess?: (result: SyncResult) => void;
   disabled?: boolean;
 }
 
@@ -59,7 +61,7 @@ export const EvidenciaUploader: React.FC<EvidenciaUploaderProps> = ({
   };
 
   const subirEvidencia = async () => {
-    if (!imagen || subiendo) return;
+    if (!imagen || subiendo || disabled) return;
 
     setSubiendo(true);
     try {
@@ -68,14 +70,14 @@ export const EvidenciaUploader: React.FC<EvidenciaUploaderProps> = ({
       const fileName = `evidencia_${idReporte}_${Date.now()}.${extension}`;
       const mimeType = `image/${extension === 'jpg' ? 'jpeg' : extension}`;
 
-      await reportesService.subirEvidenciaResolucion(idReporte, imagen, fileName, mimeType);
+      const result = await reportesService.subirEvidenciaResolucion(idReporte, imagen, fileName, mimeType);
       
-      Alert.alert('Éxito', 'Evidencia de resolución subida correctamente');
+      Alert.alert('Evidencia', operationFeedbackMessages[getOperationFeedback(result)]);
       setImagen(null);
-      onSuccess?.();
-    } catch (error: any) {
+      onSuccess?.(result);
+    } catch (error: unknown) {
       console.error('Error subiendo evidencia:', error);
-      Alert.alert('Error', error.message || 'No se pudo subir la evidencia');
+      Alert.alert('Error', error instanceof Error ? error.message : 'No se pudo guardar la evidencia');
     } finally {
       setSubiendo(false);
     }
@@ -118,7 +120,7 @@ export const EvidenciaUploader: React.FC<EvidenciaUploaderProps> = ({
             <TouchableOpacity
               style={[styles.uploadButton, subiendo && styles.uploadButtonLoading]}
               onPress={subirEvidencia}
-              disabled={subiendo}
+              disabled={disabled || subiendo}
             >
               {subiendo ? (
                 <>
@@ -134,7 +136,7 @@ export const EvidenciaUploader: React.FC<EvidenciaUploaderProps> = ({
       )}
 
       <Text style={styles.hint}>
-        La evidencia será enviada al servidor y asociada al reporte como prueba de resolución.
+        La evidencia se guarda en el dispositivo y se enviará al servidor cuando se pueda sincronizar.
       </Text>
     </View>
   );

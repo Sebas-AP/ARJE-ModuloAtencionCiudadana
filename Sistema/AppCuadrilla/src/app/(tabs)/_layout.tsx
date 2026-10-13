@@ -1,9 +1,18 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { SyncStatus } from '../../components/SyncStatus';
+import { useFieldSync } from '../../hooks/useFieldSync';
 
 export default function TabsLayout() {
+  const sync = useFieldSync();
   return (
+    <View style={{ flex: 1 }}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: '#EFF6FF' }}>
+        <SyncStatus {...sync} onRetry={() => { void sync.syncNow(); }} />
+      </SafeAreaView>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -29,6 +38,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Reportes',
+          tabBarBadge: sync.pendingCount || undefined,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'document-text-outline' : 'document-text'} size={24} color={color} />
           ),
@@ -44,5 +54,6 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+    </View>
   );
 }

@@ -1,24 +1,25 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Alert, ActivityIndicator, Platform, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useLocation } from '../../hooks/useLocation';
 import { authService } from '../../services/authService';
 import { reportesService } from '../../services/reportesService';
-import { ReporteDTO } from '../../types';
+import { ReporteDTO, EstatusReporteLabels } from '../../types';
 
 export default function MapaScreen() {
-  const [mapReady, setMapReady] = useState(false);
   const [reporte, setReporte] = useState<ReporteDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const mapRef = useRef<MapView>(null);
 
-  const { location, iniciarSeguimiento, tracking } = useLocation();
+  const { location, iniciarSeguimiento, detenerSeguimiento, tracking, error: trackingError } = useLocation(reporte?.id);
 
-  const cargarDatos = async () => {
+  const cargarDatos = useCallback(async () => {
     try {
+      setError(null);
       const cuadrilla = await authService.getCurrentCuadrilla();
       if (!cuadrilla) {
         setError('No se encontró cuadrilla asignada');
@@ -27,20 +28,18 @@ export default function MapaScreen() {
       }
 
       const reportes = await reportesService.getAsignados(cuadrilla.id);
-      if (reportes.length > 0) {
-        const reporteActivo = reportes.find(r => r.estatus === 4 || r.estatus === 3) || reportes[0];
-        setReporte(reporteActivo);
-      }
-    } catch (err: any) {
-      setError(err.message);
+      const reporteActivo = reportes.find(r => r.estatus === 4 || r.estatus === 3) || reportes[0];
+      setReporte(reporteActivo ?? null);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'No se pudieron cargar los reportes');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useFocusEffect(useCallback(() => { void cargarDatos(); }, [cargarDatos]));
 
   useEffect(() => {
-    cargarDatos();
-    
     // Obtener ubicación inicial
     Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
       .then(loc => setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude }))
@@ -73,10 +72,6 @@ export default function MapaScreen() {
         latitudeDelta: 0.5,
         longitudeDelta: 0.5,
       };
-
-  const handleMapReady = () => {
-    setMapReady(true);
-  };
 
   const centrarEnReporte = () => {
     if (reporte && mapRef.current) {
@@ -129,7 +124,6 @@ export default function MapaScreen() {
         initialRegion={region}
         showsUserLocation={true}
         showsMyLocationButton={true}
-        onMapReady={handleMapReady}
         customMapStyle={mapStyle}
       >
         {/* Marcador del reporte */}
@@ -172,6 +166,7 @@ export default function MapaScreen() {
               <View style={styles.infoItem}>
                 <Text style={styles.infoLabel}>{reporte.categoria || 'Sin categoría'}</Text>
                 <Text style={styles.infoValue}>{reporte.folio || `REP-${reporte.id}`}</Text>
+                <Text style={styles.infoLabel}>{EstatusReporteLabels[reporte.estatus]}</Text>
               </View>
               <TouchableOpacity style={styles.centerButton} onPress={centrarEnReporte}>
                 <Text style={styles.centerButtonText}>Centrar reporte</Text>
@@ -205,9 +200,9 @@ export default function MapaScreen() {
             ]}
             onPress={() => {
               if (tracking) {
-                // El hook maneja el stop
+                void detenerSeguimiento();
               } else {
-                iniciarSeguimiento();
+                void iniciarSeguimiento();
               }
             }}
           >
@@ -219,6 +214,7 @@ export default function MapaScreen() {
             </Text>
           </TouchableOpacity>
         )}
+        {trackingError && <Text style={styles.errorText}>{trackingError}</Text>}
       </View>
     </View>
   );

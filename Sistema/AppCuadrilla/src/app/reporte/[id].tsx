@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity, Image, Platform, KeyboardAvoidingView } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { reportesService } from '../../services/reportesService';
 import { useLocation } from '../../hooks/useLocation';
 import { StatusSelector } from '../../components/StatusSelector';
 import { EvidenciaUploader } from '../../components/EvidenciaUploader';
+import { SyncStatus } from '../../components/SyncStatus';
+import { useFieldSync } from '../../hooks/useFieldSync';
+import { getAllowedNextStatuses, getOperationFeedback, hasResolutionEvidence, operationFeedbackMessages, type FieldStatus } from '../../services/fieldUiPolicy';
+import type { SyncResult } from '../../services/syncService';
 import { ReporteDTO, EstatusReporteLabels, EstatusReporteColors, PrioridadColors } from '../../types';
 
 export default function ReporteDetalleScreen() {
-  const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const reporteId = parseInt(id || '0', 10);
 
@@ -16,25 +19,30 @@ export default function ReporteDetalleScreen() {
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [ubicacionActual, setUbicacionActual] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [seguimientoActivo, setSeguimientoActivo] = useState(false);
+  const [evidenceConfirmed, setEvidenceConfirmed] = useState(false);
+  const sync = useFieldSync();
 
   const { location, iniciarSeguimiento, detenerSeguimiento, tracking } = useLocation(reporteId);
 
-  const cargarReporte = async () => {
+  const cargarReporte = useCallback(async () => {
     try {
       const data = await reportesService.getDetalle(reporteId);
       setReporte(data);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'No se pudo cargar el reporte');
-      router.back();
+    } catch (error: unknown) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'No se pudo cargar el reporte');
     } finally {
       setLoading(false);
     }
-  };
+  }, [reporteId]);
 
   useEffect(() => {
-    cargarReporte();
-  }, []);
+    void cargarReporte();
+    setEvidenceConfirmed(false);
+  }, [cargarReporte]);
+
+  useEffect(() => {
+    if (!sync.isLoading && sync.pendingCount === 0 && sync.isOnline) void cargarReporte();
+  }, [sync.isLoading, sync.pendingCount, sync.isOnline, cargarReporte]);
 
   useEffect(() => {
     if (location) {
@@ -42,18 +50,24 @@ export default function ReporteDetalleScreen() {
     }
   }, [location]);
 
-  const handleActualizarEstatus = async (nuevoEstatus: number) => {
-    if (!reporte) return;
+  const pendingStatus = sync.operations.some((operation) => operation.kind === 'status' && operation.reportId === reporteId);
+  const resolutionReady = evidenceConfirmed || hasResolutionEvidence(reporteId, reporte?.evidencias ?? [], sync.operations);
+
+  const handleActualizarEstatus = async (nuevoEstatus: FieldStatus) => {
+    if (!reporte || guardando || pendingStatus || sync.isLoading || sync.error
+      || !getAllowedNextStatuses(reporte.estatus).includes(nuevoEstatus)
+      || (nuevoEstatus === 5 && !resolutionReady)) return;
 
     setGuardando(true);
     try {
       const data = { estatus: nuevoEstatus };
 
-      await reportesService.actualizarEstatus(reporteId, data);
-      await cargarReporte();
-      Alert.alert('Éxito', 'Estado actualizado correctamente');
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'No se pudo actualizar el estado');
+      const result = await reportesService.actualizarEstatus(reporteId, data);
+      await sync.refresh();
+      if (getOperationFeedback(result) === 'synced') await cargarReporte();
+      Alert.alert('Estado del reporte', operationFeedbackMessages[getOperationFeedback(result)]);
+    } catch (error: unknown) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'No se pudo guardar el estado');
     } finally {
       setGuardando(false);
     }
@@ -62,21 +76,21 @@ export default function ReporteDetalleScreen() {
   const toggleSeguimiento = async () => {
     if (tracking) {
       await detenerSeguimiento();
-      setSeguimientoActivo(false);
     } else {
       try {
         await iniciarSeguimiento();
-        setSeguimientoActivo(true);
-      } catch (error: any) {
-        Alert.alert('Error', error.message);
+      } catch (error: unknown) {
+        Alert.alert('Error', error instanceof Error ? error.message : 'No se pudo iniciar el seguimiento');
       }
     }
   };
 
-  const handleEvidenciaExitosa = () => {
-    if (reporte) {
-      setReporte({ ...reporte, totalEvidencias: (reporte.totalEvidencias || 0) + 1 });
+  const handleEvidenciaExitosa = (result: SyncResult) => {
+    void sync.refresh();
+    if (getOperationFeedback(result) === 'synced') {
+      setEvidenceConfirmed(true);
     }
+    if (sync.isOnline) void cargarReporte();
   };
 
   if (loading) {
@@ -89,7 +103,17 @@ export default function ReporteDetalleScreen() {
   }
 
   if (!reporte) {
-    return null;
+    return (
+      <View style={styles.container}>
+        <SyncStatus {...sync} onRetry={() => { void sync.syncNow(); }} />
+        <View style={styles.section}>
+          <Text style={styles.infoValue}>No se pudo cargar el reporte. Necesitas conexión para consultar el detalle.</Text>
+          <TouchableOpacity accessibilityRole="button" style={styles.seguimientoButton} onPress={() => { void cargarReporte(); }}>
+            <Text style={styles.seguimientoButtonText}>Reintentar carga</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   }
 
   const prioridad = (reporte.prioridad || 'Media') as keyof typeof PrioridadColors;
@@ -104,6 +128,7 @@ export default function ReporteDetalleScreen() {
       keyboardVerticalOffset={0}
     >
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <SyncStatus {...sync} onRetry={() => { void sync.syncNow(); }} />
         {/* Header del reporte */}
         <View style={styles.header}>
           <View style={styles.headerTop}>
@@ -180,8 +205,10 @@ export default function ReporteDetalleScreen() {
           <StatusSelector
             currentEstatus={reporte.estatus}
             onChange={handleActualizarEstatus}
-            disabled={guardando}
+            hasResolutionEvidence={resolutionReady}
+            disabled={guardando || pendingStatus || sync.isLoading || !!sync.error}
           />
+          {pendingStatus && <Text style={styles.infoValue}>Hay un cambio de estado pendiente o rechazado. Sincroniza y revisa el resultado antes de continuar.</Text>}
         </View>
 
         {/* Evidencias existentes */}
@@ -220,18 +247,18 @@ export default function ReporteDetalleScreen() {
           <TouchableOpacity
             style={[
               styles.seguimientoButton,
-              seguimientoActivo && styles.seguimientoButtonActive,
+              tracking && styles.seguimientoButtonActive,
             ]}
             onPress={toggleSeguimiento}
             disabled={guardando}
           >
             <Text style={[
               styles.seguimientoButtonText,
-              seguimientoActivo && styles.seguimientoButtonTextActive,
+              tracking && styles.seguimientoButtonTextActive,
             ]}>
-              {seguimientoActivo ? '⏹ Detener seguimiento GPS' : '▶ Iniciar seguimiento GPS'}
+              {tracking ? '⏹ Detener seguimiento GPS' : '▶ Iniciar seguimiento GPS'}
             </Text>
-            {seguimientoActivo && <Text style={styles.seguimientoIndicator}>● EN VIVO</Text>}
+            {tracking && <Text style={styles.seguimientoIndicator}>● EN VIVO</Text>}
           </TouchableOpacity>
           
           <Text style={styles.seguimientoHint}>

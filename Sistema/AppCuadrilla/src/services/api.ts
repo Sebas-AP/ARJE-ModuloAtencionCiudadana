@@ -1,5 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { buildAssignedReportsPath, buildLocationBatch, fieldApiPaths } from './fieldApiContract';
+import type { CuadrillaLoginPayload } from './fieldApiContract';
+import type { ActualizarEstatusDTO, CuadrillaDTO, EvidenciaDTO, ReporteDTO } from '../types';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.2.2:5170/api';
 
@@ -72,7 +74,7 @@ export const apiRequestMultipart = async <T>(
 };
 
 export const loginCuadrilla = async (usuario: string, password: string) => {
-  return apiRequest<{ token: string; cuadrilla: any }>('/cuadrillas/login', {
+  return apiRequest<CuadrillaLoginPayload>('/cuadrillas/login', {
     method: 'POST',
     body: JSON.stringify({ usuario, password }),
     requiresAuth: false,
@@ -80,14 +82,14 @@ export const loginCuadrilla = async (usuario: string, password: string) => {
 };
 
 export const getReportesAsignados = async (idCuadrilla: number) => {
-  return apiRequest<any[]>(buildAssignedReportsPath(idCuadrilla));
+  return apiRequest<ReporteDTO[]>(buildAssignedReportsPath(idCuadrilla));
 };
 
 export const getReporteDetalle = async (id: number) => {
-  return apiRequest<any>(`/reportes/${id}`);
+  return apiRequest<ReporteDTO>(`/reportes/${id}`);
 };
 
-export const actualizarEstatusReporte = async (id: number, data: any) => {
+export const actualizarEstatusReporte = async (id: number, data: ActualizarEstatusDTO) => {
   return apiRequest<void>(fieldApiPaths.estatus(id), {
     method: 'PUT',
     body: JSON.stringify(data.estatus),
@@ -95,7 +97,7 @@ export const actualizarEstatusReporte = async (id: number, data: any) => {
 };
 
 export const subirEvidencia = async (idReporte: number, formData: FormData) => {
-  return apiRequestMultipart<any>(fieldApiPaths.evidencias(idReporte), formData);
+  return apiRequestMultipart<EvidenciaDTO>(fieldApiPaths.evidencias(idReporte), formData);
 };
 
 export const enviarUbicacion = async (data: {
@@ -103,14 +105,27 @@ export const enviarUbicacion = async (data: {
   latitud: number;
   longitud: number;
 }) => {
-  return apiRequest<any>(fieldApiPaths.ubicaciones(data.idReporte), {
+  return enviarUbicaciones(data.idReporte, [data]);
+};
+
+export const enviarUbicaciones = async (
+  idReporte: number,
+  ubicaciones: { latitud: number; longitud: number }[],
+) => {
+  return apiRequest<void>(fieldApiPaths.ubicaciones(idReporte), {
     method: 'POST',
-    body: JSON.stringify(buildLocationBatch(data)),
+    body: JSON.stringify(buildLocationBatch(ubicaciones)),
   });
 };
 
-export const getCuadrillaActual = async () => apiRequest<any>('/cuadrillas/me');
+export const updateAvailability = (id: number, estatusDisponibilidad: 1 | 2 | 3) =>
+  apiRequest<void>(fieldApiPaths.disponibilidad(id), {
+    method: 'PUT',
+    body: JSON.stringify({ estatusDisponibilidad }),
+  });
+
+export const getCuadrillaActual = async () => apiRequest<CuadrillaDTO>('/cuadrillas/me');
 
 export const getCuadrillas = async () => {
-  return apiRequest<any[]>('/cuadrillas');
+  return apiRequest<CuadrillaDTO[]>('/cuadrillas');
 };

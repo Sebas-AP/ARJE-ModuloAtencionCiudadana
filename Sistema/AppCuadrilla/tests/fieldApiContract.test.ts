@@ -24,13 +24,24 @@ test('usa las rutas vigentes para estatus, evidencia y ubicaciones en lote', () 
   assert.equal(fieldApiPaths.estatus(25), '/reportes/25/estatus');
   assert.equal(fieldApiPaths.evidencias(25), '/reportes/25/evidencias');
   assert.equal(fieldApiPaths.ubicaciones(25), '/reportes/25/ubicaciones');
+  assert.equal(fieldApiPaths.disponibilidad(8), '/cuadrillas/8/disponibilidad');
 });
 
 test('envuelve cada ubicación en el lote requerido por la API', () => {
   assert.deepEqual(
-    buildLocationBatch({ latitud: 21.8853, longitud: -102.2916 }),
+    buildLocationBatch([{ latitud: 21.8853, longitud: -102.2916 }]),
     { ubicaciones: [{ latitud: 21.8853, longitud: -102.2916 }] },
   );
+});
+
+test('conserva todos los puntos de un lote de ubicación', () => {
+  assert.deepEqual(buildLocationBatch([
+    { latitud: 21.8, longitud: -102.3 },
+    { latitud: 21.9, longitud: -102.4 },
+  ]), { ubicaciones: [
+    { latitud: 21.8, longitud: -102.3 },
+    { latitud: 21.9, longitud: -102.4 },
+  ] });
 });
 
 test('normaliza la respuesta de login de cuadrilla sin depender del perfil administrativo', () => {

@@ -1,7 +1,7 @@
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
-import { enviarUbicacion } from './api';
+import { fieldOperationQueue } from './fieldOperationsService';
 
 export const LOCATION_TASK = 'background-location-task';
 const ACTIVE_REPORTE_KEY = 'arje_active_reporte_id';
@@ -14,20 +14,21 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
 
   if (data) {
     const { locations } = data as { locations: Location.LocationObject[] };
-    const location = locations[0];
 
     try {
       const idReporte = await getActiveReporteId();
       if (idReporte) {
-        await enviarUbicacion({
-          idReporte,
-          latitud: location.coords.latitude,
-          longitud: location.coords.longitude,
-        });
-        console.log('Location sent:', location.coords.latitude, location.coords.longitude);
+        for (const location of locations) {
+          await fieldOperationQueue.enqueue({
+            kind: 'location',
+            reportId: idReporte,
+            latitud: location.coords.latitude,
+            longitud: location.coords.longitude,
+          });
+        }
       }
     } catch (err) {
-      console.error('Error sending location:', err);
+      console.error('Error storing location:', err);
     }
   }
 });

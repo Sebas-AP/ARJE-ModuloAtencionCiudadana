@@ -1,11 +1,11 @@
 import {
   getReportesAsignados,
   getReporteDetalle,
-  actualizarEstatusReporte,
-  subirEvidencia,
 } from './api';
 import { ReporteDTO, ActualizarEstatusDTO } from '../types';
 import { isActiveAssignedStatus } from './fieldApiContract';
+import { queueEvidence, queueStatus } from './fieldOperationsService';
+import type { SyncResult } from './syncService';
 
 export const reportesService = {
   async getAsignados(idCuadrilla: number): Promise<ReporteDTO[]> {
@@ -17,8 +17,11 @@ export const reportesService = {
     return getReporteDetalle(id);
   },
 
-  async actualizarEstatus(id: number, data: ActualizarEstatusDTO): Promise<void> {
-    return actualizarEstatusReporte(id, data);
+  async actualizarEstatus(id: number, data: ActualizarEstatusDTO): Promise<SyncResult> {
+    if (data.estatus !== 3 && data.estatus !== 4 && data.estatus !== 5) {
+      throw new Error('Estatus operativo inválido');
+    }
+    return queueStatus(id, data.estatus);
   },
 
   async subirEvidenciaResolucion(
@@ -26,15 +29,7 @@ export const reportesService = {
     uri: string,
     fileName: string,
     mimeType: string
-  ): Promise<any> {
-    const formData = new FormData();
-    formData.append('tipo', '2'); // 2 = Resolucion
-    formData.append('archivo', {
-      uri,
-      name: fileName,
-      type: mimeType,
-    } as any);
-
-    return subirEvidencia(idReporte, formData);
+  ): Promise<SyncResult> {
+    return queueEvidence(idReporte, uri, fileName, mimeType);
   },
 };

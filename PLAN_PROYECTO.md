@@ -25,6 +25,6 @@ Las tareas 1–7 del plan `2026-10-12-app-cuadrilla-operacion-confiable` están 
 1. Ejecutar en dispositivo el recorrido: autenticar → desconectar → guardar estado, evidencia y ubicación → reiniciar → reconectar → reintentar → confirmar en API un lote válido antes de completar. Verificar permisos y conservación de la URI de evidencia. Registrar dispositivo, sistema operativo y resultado por paso.
 2. Decidir cómo editar, descartar o escalar operaciones rechazadas con 400/409. Hoy permanecen en la cola y no se reintentan automáticamente; un estado rechazado bloquea nuevos cambios del reporte.
 3. Definir propiedad de la cola entre cuentas en dispositivos compartidos y tratamiento de duplicados GPS si ocurre una interrupción después de que la API acepte un lote.
-4. Validar los flujos de UI de Android/iOS y GPS en segundo plano. Comprobar que la primera carga de reportes sin conexión informa que requiere red, como indica el código actual.
+4. Validar los flujos de UI de Android/iOS y GPS en segundo plano. Las lecturas iniciales de datos del servidor requieren conexión; sin ella, la lista puede mostrar un error genérico o contenido vacío. Las operaciones en cola se conservan localmente.
 
 La guía operativa y los límites técnicos están en [Sistema/AppCuadrilla/README.md](Sistema/AppCuadrilla/README.md).

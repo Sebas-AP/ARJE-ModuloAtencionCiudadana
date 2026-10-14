@@ -290,6 +290,36 @@ test('sync runs one follow-up pass when work is enqueued during an active send',
   assert.deepEqual(await queue.list(), []);
 });
 
+test('sync stops the captured owner snapshot after the active owner changes', async () => {
+  const queue = createMemoryQueue();
+  await queue.enqueue({ kind: 'status', reportId: 5, status: 3 });
+  await queue.enqueue({ kind: 'status', reportId: 6, status: 3 });
+  let releaseSend!: () => void;
+  let signalStarted!: () => void;
+  const sending = new Promise<void>((resolve) => { releaseSend = resolve; });
+  const started = new Promise<void>((resolve) => { signalStarted = resolve; });
+  const sentReports: number[] = [];
+
+  const sync = syncPendingOperations({ queue, ...senders({
+    sendStatus: async (operation) => {
+      sentReports.push(operation.reportId);
+      signalStarted();
+      await sending;
+    },
+  }) });
+  await started;
+  queue.setActiveOwner(2);
+  releaseSend();
+  await sync;
+
+  assert.deepEqual(sentReports, [5]);
+  assert.deepEqual(await queue.list(), []);
+  queue.setActiveOwner(1);
+  assert.deepEqual((await queue.list()).map(({ reportId, attempts }) => ({ reportId, attempts })), [
+    { reportId: 5, attempts: 0 }, { reportId: 6, attempts: 0 },
+  ]);
+});
+
 test('classifies API errors created in another JavaScript realm', async () => {
   const queue = createMemoryQueue();
   await queue.enqueue({ kind: 'status', reportId: 5, status: 3 });

@@ -19,6 +19,7 @@ export interface SyncResult {
 
 export interface SyncDependencies {
   queue: {
+    getActiveOwner(): number | null;
     list(): Promise<QueuedOperation[]>;
     markFailed(id: string, lastError: string, terminal: boolean): Promise<void>;
     remove(id: string): Promise<void>;
@@ -94,6 +95,7 @@ async function sendGroup(group: QueuedOperation[], dependencies: SyncDependencie
 
 async function runSync(
   dependencies: SyncDependencies,
+  ownerCuadrillaId: number | null,
   onSnapshot: (operations: QueuedOperation[]) => void = () => {},
 ): Promise<SyncResult> {
   const blockedReports = new Set<number>();
@@ -104,6 +106,9 @@ async function runSync(
 
   for (const group of groupLocations(operations)) {
     const first = group[0];
+    if (ownerCuadrillaId === null
+      || first.ownerCuadrillaId !== ownerCuadrillaId
+      || dependencies.queue.getActiveOwner() !== ownerCuadrillaId) break;
     if (first.terminal) {
       if (first.kind === 'status') blockedReports.add(first.reportId);
       continue;
@@ -113,6 +118,7 @@ async function runSync(
     try {
       await sendGroup(group, dependencies);
     } catch (error) {
+      if (dependencies.queue.getActiveOwner() !== ownerCuadrillaId) break;
       const status = errorStatus(error);
       if (status === 401 || status === 403) {
         for (const operation of group) await dependencies.queue.markFailed(operation.id, errorMessage(error), false);
@@ -125,6 +131,7 @@ async function runSync(
       if (first.kind === 'status') blockedReports.add(first.reportId);
       continue;
     }
+    if (dependencies.queue.getActiveOwner() !== ownerCuadrillaId) break;
     for (const operation of group) await dependencies.queue.remove(operation.id);
     sent += group.length;
   }
@@ -141,11 +148,13 @@ async function runSync(
 async function runRequestedSyncs(dependencies: SyncDependencies): Promise<SyncResult> {
   let result!: SyncResult;
   let hasUnprocessedOperations: boolean;
+  const ownerCuadrillaId = dependencies.queue.getActiveOwner();
   do {
     let processedIds = new Set<string>();
-    result = await runSync(dependencies, (operations) => {
+    result = await runSync(dependencies, ownerCuadrillaId, (operations) => {
       processedIds = new Set(operations.map((operation) => operation.id));
     });
+    if (dependencies.queue.getActiveOwner() !== ownerCuadrillaId) return result;
     const remaining = await dependencies.queue.list();
     hasUnprocessedOperations = remaining.some((operation) => !processedIds.has(operation.id));
   } while (hasUnprocessedOperations);

@@ -7,6 +7,7 @@ type AvailabilityOperation = Extract<QueuedOperation, { kind: 'availability' }>;
 
 export interface LocationBatch {
   reportId: number;
+  ownerCuadrillaId: number;
   ubicaciones: { latitud: number; longitud: number }[];
 }
 
@@ -32,6 +33,7 @@ export interface SyncDependencies {
 
 interface ActiveSync {
   current: Promise<SyncResult>;
+  ownerCuadrillaId: number | null;
 }
 
 const activeSyncs = new WeakMap<SyncDependencies['queue'], ActiveSync>();
@@ -75,6 +77,7 @@ async function sendGroup(group: QueuedOperation[], dependencies: SyncDependencie
     case 'location':
       await dependencies.sendLocations({
         reportId: first.reportId,
+        ownerCuadrillaId: first.ownerCuadrillaId,
         ubicaciones: group.map((operation) => {
           const point = operation as LocationOperation;
           return { latitud: point.latitud, longitud: point.longitud };
@@ -163,9 +166,13 @@ async function runRequestedSyncs(dependencies: SyncDependencies): Promise<SyncRe
 
 export function syncPendingOperations(dependencies: SyncDependencies): Promise<SyncResult> {
   const active = activeSyncs.get(dependencies.queue);
-  if (active) return active.current;
+  if (active) {
+    return active.ownerCuadrillaId === dependencies.queue.getActiveOwner()
+      ? active.current
+      : active.current.then(() => syncPendingOperations(dependencies));
+  }
 
-  const next = {} as ActiveSync;
+  const next = { ownerCuadrillaId: dependencies.queue.getActiveOwner() } as ActiveSync;
   const current = runRequestedSyncs(dependencies);
   next.current = current;
   activeSyncs.set(dependencies.queue, next);

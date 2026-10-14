@@ -19,15 +19,31 @@ export const clearAuthToken = async (): Promise<void> => {
 
 interface RequestOptions extends RequestInit {
   requiresAuth?: boolean;
+  session?: AuthSessionSnapshot;
+}
+
+export interface AuthSessionSnapshot {
+  token: string;
+  isCurrent(): boolean;
+}
+
+async function resolveRequestToken(requiresAuth: boolean, session?: AuthSessionSnapshot): Promise<string | null> {
+  if (!session) return requiresAuth ? getAuthToken() : null;
+
+  const currentToken = await getAuthToken();
+  if (currentToken !== session.token || !session.isCurrent()) {
+    throw new Error('La sesión cambió antes de enviar la operación.');
+  }
+  return session.token;
 }
 
 export const apiRequest = async <T>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> => {
-  const { requiresAuth = true, headers, ...fetchOptions } = options;
+  const { requiresAuth = true, headers, session, ...fetchOptions } = options;
 
-  const token = requiresAuth ? await getAuthToken() : null;
+  const token = await resolveRequestToken(requiresAuth, session);
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...fetchOptions,
@@ -53,9 +69,10 @@ export const apiRequest = async <T>(
 export const apiRequestMultipart = async <T>(
   endpoint: string,
   formData: FormData,
-  requiresAuth = true
+  requiresAuth = true,
+  session?: AuthSessionSnapshot,
 ): Promise<T> => {
-  const token = requiresAuth ? await getAuthToken() : null;
+  const token = await resolveRequestToken(requiresAuth, session);
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     method: 'POST',
@@ -89,39 +106,43 @@ export const getReporteDetalle = async (id: number) => {
   return apiRequest<ReporteDTO>(`/reportes/${id}`);
 };
 
-export const actualizarEstatusReporte = async (id: number, data: ActualizarEstatusDTO) => {
+export const actualizarEstatusReporte = async (id: number, data: ActualizarEstatusDTO, session?: AuthSessionSnapshot) => {
   return apiRequest<void>(fieldApiPaths.estatus(id), {
     method: 'PUT',
     body: JSON.stringify(data.estatus),
+    session,
   });
 };
 
-export const subirEvidencia = async (idReporte: number, formData: FormData) => {
-  return apiRequestMultipart<EvidenciaDTO>(fieldApiPaths.evidencias(idReporte), formData);
+export const subirEvidencia = async (idReporte: number, formData: FormData, session?: AuthSessionSnapshot) => {
+  return apiRequestMultipart<EvidenciaDTO>(fieldApiPaths.evidencias(idReporte), formData, true, session);
 };
 
 export const enviarUbicacion = async (data: {
   idReporte: number;
   latitud: number;
   longitud: number;
-}) => {
-  return enviarUbicaciones(data.idReporte, [data]);
+}, session?: AuthSessionSnapshot) => {
+  return enviarUbicaciones(data.idReporte, [data], session);
 };
 
 export const enviarUbicaciones = async (
   idReporte: number,
   ubicaciones: { latitud: number; longitud: number }[],
+  session?: AuthSessionSnapshot,
 ) => {
   return apiRequest<void>(fieldApiPaths.ubicaciones(idReporte), {
     method: 'POST',
     body: JSON.stringify(buildLocationBatch(ubicaciones)),
+    session,
   });
 };
 
-export const updateAvailability = (id: number, estatusDisponibilidad: 1 | 2 | 3) =>
+export const updateAvailability = (id: number, estatusDisponibilidad: 1 | 2 | 3, session?: AuthSessionSnapshot) =>
   apiRequest<void>(fieldApiPaths.disponibilidad(id), {
     method: 'PUT',
     body: JSON.stringify({ estatusDisponibilidad }),
+    session,
   });
 
 export const getCuadrillaActual = async () => apiRequest<CuadrillaDTO>('/cuadrillas/me');

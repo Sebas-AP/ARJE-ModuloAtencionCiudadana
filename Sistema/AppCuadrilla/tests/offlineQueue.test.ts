@@ -188,7 +188,7 @@ test('batch sends consecutive locations for one report and removes only confirme
     sendLocations: async (batch) => { sentBatches.push(batch); },
   }) });
 
-  assert.deepEqual(sentBatches, [{ reportId: 5, ubicaciones: [{ latitud: 1, longitud: 2 }, { latitud: 3, longitud: 4 }] }]);
+  assert.deepEqual(sentBatches, [{ reportId: 5, ownerCuadrillaId: 1, ubicaciones: [{ latitud: 1, longitud: 2 }, { latitud: 3, longitud: 4 }] }]);
   assert.deepEqual(result, { sent: 2, pending: 0, failed: 0, requiresAuthentication: false });
   assert.deepEqual(await queue.list(), []);
 });
@@ -318,6 +318,38 @@ test('sync stops the captured owner snapshot after the active owner changes', as
   assert.deepEqual((await queue.list()).map(({ reportId, attempts }) => ({ reportId, attempts })), [
     { reportId: 5, attempts: 0 }, { reportId: 6, attempts: 0 },
   ]);
+});
+
+test('a new owner sync waits for and then replaces an active prior-owner sync', async () => {
+  const queue = createMemoryQueue();
+  await queue.enqueue({ kind: 'status', reportId: 5, status: 3 });
+  queue.setActiveOwner(2);
+  await queue.enqueue({ kind: 'status', reportId: 6, status: 3 });
+  queue.setActiveOwner(1);
+  let releaseSend!: () => void;
+  let signalStarted!: () => void;
+  const sending = new Promise<void>((resolve) => { releaseSend = resolve; });
+  const started = new Promise<void>((resolve) => { signalStarted = resolve; });
+  const sentReports: number[] = [];
+  const dependencies = { queue, ...senders({
+    sendStatus: async (operation) => {
+      sentReports.push(operation.reportId);
+      if (operation.ownerCuadrillaId === 1) {
+        signalStarted();
+        await sending;
+      }
+    },
+  }) };
+
+  const first = syncPendingOperations(dependencies);
+  await started;
+  queue.setActiveOwner(2);
+  const second = syncPendingOperations(dependencies);
+  releaseSend();
+  await Promise.all([first, second]);
+
+  assert.deepEqual(sentReports, [5, 6]);
+  assert.deepEqual(await queue.list(), []);
 });
 
 test('classifies API errors created in another JavaScript realm', async () => {

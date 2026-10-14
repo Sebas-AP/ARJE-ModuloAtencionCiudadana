@@ -14,13 +14,21 @@ export function mobileRuntime() {
   const requests: { url: string; options: any }[] = [];
   const cuadrilla = { id: 8, nombre: 'Norte', usuarioApp: 'norte', estatusDisponibilidad: 1, reportesAsignadosCount: 1 };
   let respond = async (_url: string, _options: any): Promise<any> => ({ ok: true, status: 204 });
+  let tokenReads = 0;
+  let onTokenRead: ((read: number) => void | Promise<void>) | undefined;
   const natives: Record<string, any> = {
     '@react-native-async-storage/async-storage': {
       getItem: async (key: string) => storage.get(key) ?? null,
       setItem: async (key: string, value: string) => { storage.set(key, value); },
     },
     'expo-secure-store': {
-      getItemAsync: async (key: string) => secure.get(key) ?? null,
+      getItemAsync: async (key: string) => {
+        if (key === 'arje_token') {
+          tokenReads++;
+          await onTokenRead?.(tokenReads);
+        }
+        return secure.get(key) ?? null;
+      },
       setItemAsync: async (key: string, value: string) => { secure.set(key, value); },
       deleteItemAsync: async (key: string) => { secure.delete(key); },
     },
@@ -71,6 +79,7 @@ export function mobileRuntime() {
   load('fieldOperationsService').setFieldOperationOwner(cuadrilla.id);
   return {
     load, storage, secure, tasks, requests, cuadrilla,
+    onTokenRead: (handler: (read: number) => void | Promise<void>) => { onTokenRead = handler; },
     removeFile: (uri: string) => { files.delete(uri); },
     respondWith: (handler: typeof respond) => { respond = handler; },
     pending: () => JSON.parse(storage.get('arje_field_operation_queue') ?? '[]'),

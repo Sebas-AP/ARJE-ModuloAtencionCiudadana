@@ -203,6 +203,24 @@ test('changing sessions never sends the prior cuadrilla operations and availabil
   ]);
 });
 
+test('a field operation refuses a changed token immediately before transport', async () => {
+  const app = mobileRuntime();
+  const operations = app.load('fieldOperationsService');
+  await operations.fieldOperationQueue.enqueue({ kind: 'status', reportId: 19, status: 3 });
+  app.onTokenRead((read) => {
+    if (read === 2) {
+      operations.setFieldOperationOwner(9);
+      app.secure.set('arje_token', 'other-session-token');
+    }
+  });
+
+  await operations.syncFieldOperations();
+
+  assert.equal(app.requests.length, 0);
+  operations.setFieldOperationOwner(8);
+  assert.equal(JSON.stringify((await operations.fieldOperationQueue.list()).map(({ reportId }: any) => reportId)), '[19]');
+});
+
 test('simultaneous application sync triggers share the same in-flight send', async () => {
   const app = mobileRuntime();
   const operations = app.load('fieldOperationsService');

@@ -1,9 +1,11 @@
 import {
   actualizarEstatusReporte,
   enviarUbicaciones,
+  getAuthToken,
   subirEvidencia,
   updateAvailability,
 } from './api';
+import type { AuthSessionSnapshot } from './api';
 import { asyncStorageQueueStore, createOfflineQueue } from './offlineQueue';
 import { syncPendingOperations } from './syncService';
 import { assertPersistedEvidence, persistEvidence, removePersistedEvidence } from './evidenceStorage';
@@ -19,18 +21,32 @@ export function setFieldOperationOwner(cuadrillaId: number | null): void {
   fieldOperationQueue.setActiveOwner(cuadrillaId);
 }
 
+async function captureOperationSession(ownerCuadrillaId: number): Promise<AuthSessionSnapshot> {
+  const token = await getAuthToken();
+  if (!token || fieldOperationQueue.getActiveOwner() !== ownerCuadrillaId) {
+    throw new Error('La sesión cambió antes de enviar la operación.');
+  }
+  return {
+    token,
+    isCurrent: () => fieldOperationQueue.getActiveOwner() === ownerCuadrillaId,
+  };
+}
+
 export const syncFieldOperations = () => syncPendingOperations({
   queue: fieldOperationQueue,
-  sendLocations: ({ reportId, ubicaciones }) => enviarUbicaciones(reportId, ubicaciones),
-  sendStatus: ({ reportId, status }) => actualizarEstatusReporte(reportId, { estatus: status }),
-  sendEvidence: async ({ reportId, uri, name, mimeType }) => {
+  sendLocations: async ({ reportId, ownerCuadrillaId, ubicaciones }) =>
+    enviarUbicaciones(reportId, ubicaciones, await captureOperationSession(ownerCuadrillaId)),
+  sendStatus: async ({ reportId, status, ownerCuadrillaId }) =>
+    actualizarEstatusReporte(reportId, { estatus: status }, await captureOperationSession(ownerCuadrillaId)),
+  sendEvidence: async ({ reportId, uri, name, mimeType, ownerCuadrillaId }) => {
     await assertPersistedEvidence(uri);
     const formData = new FormData();
     formData.append('tipo', '2');
     formData.append('archivo', { uri, name, type: mimeType } as any);
-    return subirEvidencia(reportId, formData);
+    return subirEvidencia(reportId, formData, await captureOperationSession(ownerCuadrillaId));
   },
-  sendAvailability: ({ availability, targetCuadrillaId }) => updateAvailability(targetCuadrillaId, availability),
+  sendAvailability: async ({ availability, targetCuadrillaId, ownerCuadrillaId }) =>
+    updateAvailability(targetCuadrillaId, availability, await captureOperationSession(ownerCuadrillaId)),
 });
 
 export async function queueStatus(reportId: number, status: 3 | 4 | 5) {

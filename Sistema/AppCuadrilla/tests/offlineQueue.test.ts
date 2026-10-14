@@ -14,8 +14,35 @@ test('unknown operation kinds are discarded', () => {
   assert.deepEqual(loadValidOperations('[{"kind":"unknown"}]'), []);
 });
 
+test('legacy operations without an owner are discarded during the safe migration', () => {
+  const legacy = { kind: 'status', reportId: 8, status: 3, id: 'legacy', createdAt: '2026-10-12T00:00:00.000Z', attempts: 0, terminal: false };
+  assert.deepEqual(loadValidOperations(JSON.stringify([legacy])), []);
+});
+
+test('operations require an owner and availability preserves its destination', async () => {
+  const queue = createOfflineQueue({ getItem: async () => null, setItem: async () => {} });
+  await assert.rejects(queue.enqueue({ kind: 'status', reportId: 8, status: 3 }), /sesión activa/);
+  queue.setActiveOwner(7);
+  const availability = await queue.enqueue({ kind: 'availability', availability: 2, targetCuadrillaId: 7 });
+  assert.equal(availability.ownerCuadrillaId, 7);
+  assert.equal(availability.targetCuadrillaId, 7);
+});
+
+test('a queue only exposes and mutates operations for its active owner', async () => {
+  const queue = createMemoryQueue();
+  queue.setActiveOwner(7);
+  const own = await queue.enqueue({ kind: 'status', reportId: 8, status: 3 });
+  queue.setActiveOwner(9);
+  const other = await queue.enqueue({ kind: 'status', reportId: 9, status: 3 });
+  assert.deepEqual((await queue.list()).map(({ id }) => id), [other.id]);
+  await queue.remove(own.id);
+  assert.deepEqual((await queue.list()).map(({ id }) => id), [other.id]);
+  queue.setActiveOwner(7);
+  assert.deepEqual((await queue.list()).map(({ id }) => id), [own.id]);
+});
+
 test('saved queue keeps valid operations and discards invalid fields', () => {
-  const valid = { kind: 'location', reportId: 8, latitud: 21.8, longitud: -102.3, id: 'a', createdAt: '2026-10-12T00:00:00.000Z', attempts: 0, terminal: false };
+  const valid = { kind: 'location', reportId: 8, latitud: 21.8, longitud: -102.3, ownerCuadrillaId: 1, id: 'a', createdAt: '2026-10-12T00:00:00.000Z', attempts: 0, terminal: false };
   const invalid = [
     { ...valid, id: 'bad-report', reportId: 0 },
     { ...valid, id: 'bad-coordinate', latitud: null },
@@ -36,8 +63,11 @@ test('AsyncStorage queue persists across instances using its durable key', async
 
   try {
     const first = createOfflineQueue(asyncStorageQueueStore);
+    first.setActiveOwner(1);
     const operation = await first.enqueue({ kind: 'status', reportId: 19, status: 3 });
-    assert.deepEqual((await createOfflineQueue(asyncStorageQueueStore).list()).map(({ id }) => id), [operation.id]);
+    const second = createOfflineQueue(asyncStorageQueueStore);
+    second.setActiveOwner(1);
+    assert.deepEqual((await second.list()).map(({ id }) => id), [operation.id]);
     assert.ok(values.has('arje_field_operation_queue'));
   } finally {
     if (previousWindow === undefined) delete runtime.window;
@@ -87,23 +117,29 @@ test('persists operations across queue instances and removes only the chosen one
     setItem: async (key, value) => { values.set(key, value); },
   };
   const first = createOfflineQueue(store);
-  const evidence = await first.enqueue({ kind: 'evidence', reportId: 8, uri: 'file://photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg' });
-  const availability = await first.enqueue({ kind: 'availability', availability: 2 });
+  first.setActiveOwner(1);
+  const evidence = await first.enqueue({ kind: 'evidence', reportId: 8, uri: 'file://photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', storage: 'persistent' });
+  const availability = await first.enqueue({ kind: 'availability', availability: 2, targetCuadrillaId: 1 });
   await first.markFailed(evidence.id, 'archivo no disponible', true);
 
   const second = createOfflineQueue(store);
+  second.setActiveOwner(1);
   assert.deepEqual((await second.list()).map(({ kind, attempts, terminal }) => ({ kind, attempts, terminal })), [
     { kind: 'evidence', attempts: 1, terminal: true },
     { kind: 'availability', attempts: 0, terminal: false },
   ]);
   await second.remove(evidence.id);
-  assert.deepEqual((await createOfflineQueue(store).list()).map(({ id }) => id), [availability.id]);
+  const third = createOfflineQueue(store);
+  third.setActiveOwner(1);
+  assert.deepEqual((await third.list()).map(({ id }) => id), [availability.id]);
 });
 
 test('concurrent enqueue from two queue instances preserves both operations', async () => {
   const store = createYieldingStore();
   const first = createOfflineQueue(store);
   const second = createOfflineQueue(store);
+  first.setActiveOwner(1);
+  second.setActiveOwner(1);
 
   await Promise.all([
     first.enqueue({ kind: 'location', reportId: 8, latitud: 21.8, longitud: -102.3 }),
@@ -117,8 +153,10 @@ test('concurrent failure and removal preserve both mutations', async () => {
   const store = createYieldingStore();
   const first = createOfflineQueue(store);
   const second = createOfflineQueue(store);
-  const evidence = await first.enqueue({ kind: 'evidence', reportId: 8, uri: 'file://photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg' });
-  const availability = await first.enqueue({ kind: 'availability', availability: 2 });
+  first.setActiveOwner(1);
+  second.setActiveOwner(1);
+  const evidence = await first.enqueue({ kind: 'evidence', reportId: 8, uri: 'file://photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', storage: 'persistent' });
+  const availability = await first.enqueue({ kind: 'availability', availability: 2, targetCuadrillaId: 1 });
 
   await Promise.all([
     first.markFailed(evidence.id, 'sin red', false),
@@ -281,7 +319,7 @@ for (const status of [400, 409]) {
   test(`${status} marks a rejected status terminal and stops dependent report operations`, async () => {
     const queue = createMemoryQueue();
     await queue.enqueue({ kind: 'status', reportId: 5, status: 3 });
-    await queue.enqueue({ kind: 'evidence', reportId: 5, uri: 'file://photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg' });
+    await queue.enqueue({ kind: 'evidence', reportId: 5, uri: 'file://photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', storage: 'persistent' });
     await queue.enqueue({ kind: 'status', reportId: 6, status: 3 });
     const sentReports: number[] = [];
 
@@ -326,12 +364,14 @@ test('a failed location batch survives a fresh queue instance', async () => {
     setItem: async (key, value) => { values.set(key, value); },
   };
   const queue = createOfflineQueue(store);
+  queue.setActiveOwner(1);
   await queue.enqueue({ kind: 'location', reportId: 5, latitud: 1, longitud: 2 });
   await queue.enqueue({ kind: 'location', reportId: 5, latitud: 3, longitud: 4 });
   await syncPendingOperations({ queue, ...senders({
     sendLocations: async () => { throw new Error('Network request failed'); },
   }) });
   const restored = createOfflineQueue(store);
+  restored.setActiveOwner(1);
 
   assert.deepEqual((await restored.list()).map(({ kind, attempts, terminal }) => ({ kind, attempts, terminal })), [
     { kind: 'location', attempts: 1, terminal: false },

@@ -3,8 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 type OperationData =
   | { kind: 'location'; reportId: number; latitud: number; longitud: number }
   | { kind: 'status'; reportId: number; status: 3 | 4 | 5 }
-  | { kind: 'evidence'; reportId: number; uri: string; name: string; mimeType: string }
-  | { kind: 'availability'; availability: 1 | 2 | 3 };
+  | { kind: 'evidence'; reportId: number; uri: string; name: string; mimeType: string; storage: 'persistent' }
+  | { kind: 'availability'; availability: 1 | 2 | 3; targetCuadrillaId: number };
 
 export type QueuedOperation = OperationData & {
   id: string;
@@ -12,6 +12,7 @@ export type QueuedOperation = OperationData & {
   attempts: number;
   lastError?: string;
   terminal: boolean;
+  ownerCuadrillaId: number;
 };
 
 export type QueueStore = {
@@ -49,6 +50,7 @@ function isQueuedOperation(value: unknown): value is QueuedOperation {
     || !Number.isSafeInteger(value.attempts)
     || (value.attempts as number) < 0
     || typeof value.terminal !== 'boolean'
+    || !isPositiveInteger(value.ownerCuadrillaId)
     || (value.lastError !== undefined && typeof value.lastError !== 'string')) {
     return false;
   }
@@ -64,9 +66,12 @@ function isQueuedOperation(value: unknown): value is QueuedOperation {
       return isPositiveInteger(value.reportId)
         && isNonemptyString(value.uri)
         && isNonemptyString(value.name)
-        && isNonemptyString(value.mimeType);
+        && isNonemptyString(value.mimeType)
+        && value.storage === 'persistent';
     case 'availability':
-      return [1, 2, 3].includes(value.availability as number);
+      return [1, 2, 3].includes(value.availability as number)
+        && isPositiveInteger(value.targetCuadrillaId)
+        && value.targetCuadrillaId === value.ownerCuadrillaId;
     default:
       return false;
   }
@@ -94,10 +99,21 @@ function newId(): string {
   return runtime.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-export function createOfflineQueue(store: QueueStore) {
+export function createOfflineQueue(
+  store: QueueStore,
+  options: { onRemove?: (operation: QueuedOperation) => Promise<void> } = {},
+) {
+  let activeOwnerCuadrillaId: number | null = null;
   async function list(): Promise<QueuedOperation[]> {
     const saved = await store.getItem(QUEUE_KEY);
-    return loadValidOperations(saved);
+    const operations = loadValidOperations(saved);
+    return activeOwnerCuadrillaId === null
+      ? []
+      : operations.filter((operation) => operation.ownerCuadrillaId === activeOwnerCuadrillaId);
+  }
+
+  async function listAll(): Promise<QueuedOperation[]> {
+    return loadValidOperations(await store.getItem(QUEUE_KEY));
   }
 
   async function save(operations: QueuedOperation[]): Promise<void> {
@@ -106,24 +122,46 @@ export function createOfflineQueue(store: QueueStore) {
 
   return {
     async enqueue(data: OperationData): Promise<QueuedOperation> {
-      const operation = { ...data, id: newId(), createdAt: new Date().toISOString(), attempts: 0, terminal: false } as QueuedOperation;
+      if (activeOwnerCuadrillaId === null) {
+        throw new Error('No se puede guardar una operación sin una sesión activa de cuadrilla. Inicia sesión e inténtalo de nuevo.');
+      }
+      const operation = {
+        ...data,
+        ownerCuadrillaId: activeOwnerCuadrillaId,
+        id: newId(),
+        createdAt: new Date().toISOString(),
+        attempts: 0,
+        terminal: false,
+      } as QueuedOperation;
       return serializeMutation(store, async () => {
-        await save([...await list(), operation]);
+        await save([...await listAll(), operation]);
         return operation;
       });
     },
     list,
+    setActiveOwner(ownerCuadrillaId: number | null): void {
+      activeOwnerCuadrillaId = ownerCuadrillaId;
+    },
+    getActiveOwner(): number | null {
+      return activeOwnerCuadrillaId;
+    },
     async markFailed(id: string, lastError: string, terminal: boolean): Promise<void> {
       return serializeMutation(store, async () => {
-        const operations = await list();
+        const operations = await listAll();
         await save(operations.map((operation) => operation.id === id
+          && operation.ownerCuadrillaId === activeOwnerCuadrillaId
           ? { ...operation, attempts: operation.attempts + 1, lastError, terminal }
           : operation));
       });
     },
     async remove(id: string): Promise<void> {
       return serializeMutation(store, async () => {
-        await save((await list()).filter((operation) => operation.id !== id));
+        const operations = await listAll();
+        const target = operations.find((operation) => operation.id === id
+          && operation.ownerCuadrillaId === activeOwnerCuadrillaId);
+        if (!target) return;
+        await save(operations.filter((operation) => operation.id !== id));
+        await options.onRemove?.(target);
       });
     },
   };
@@ -131,8 +169,10 @@ export function createOfflineQueue(store: QueueStore) {
 
 export function createMemoryQueue() {
   const values = new Map<string, string>();
-  return createOfflineQueue({
+  const queue = createOfflineQueue({
     getItem: async (key) => values.get(key) ?? null,
     setItem: async (key, value) => { values.set(key, value); },
   });
+  queue.setActiveOwner(1);
+  return queue;
 }

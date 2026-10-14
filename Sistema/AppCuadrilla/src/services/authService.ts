@@ -1,7 +1,7 @@
 import { clearAuthToken, getAuthToken, getCuadrillaActual, loginCuadrilla, setAuthToken } from './api';
 import { CuadrillaDTO, CuadrillaLoginResponseDTO } from '../types';
 import { createCuadrillaSession } from './fieldApiContract';
-import { syncFieldOperations } from './fieldOperationsService';
+import { setFieldOperationOwner, syncFieldOperations } from './fieldOperationsService';
 
 let currentCuadrilla: CuadrillaDTO | null = null;
 
@@ -18,11 +18,13 @@ export const authService = {
     const response = createCuadrillaSession(await loginCuadrilla(usuario, password));
     await setAuthToken(response.token);
     currentCuadrilla = response.cuadrilla;
+    setFieldOperationOwner(response.cuadrilla.id);
     await syncAfterSession();
     return response;
   },
 
   async logout(): Promise<void> {
+    setFieldOperationOwner(null);
     await clearAuthToken();
     currentCuadrilla = null;
   },
@@ -36,6 +38,7 @@ export const authService = {
     try {
       const cuadrilla = await getCuadrillaActual();
       currentCuadrilla = cuadrilla;
+      setFieldOperationOwner(cuadrilla.id);
       await syncAfterSession();
       return cuadrilla;
     } catch {
@@ -54,6 +57,7 @@ export const authService = {
 
   setCurrentCuadrilla(cuadrilla: CuadrillaDTO | null) {
     currentCuadrilla = cuadrilla;
+    setFieldOperationOwner(cuadrilla?.id ?? null);
   },
 };
 

@@ -32,21 +32,46 @@ test('unsupported field status is rejected before persistence or HTTP', async ()
   assert.equal(app.requests.length, 0);
 });
 
-test('evidence is saved with local metadata before multipart upload', async () => {
+test('evidence is copied to durable storage before multipart upload and removed after confirmation', async () => {
   const app = mobileRuntime();
   app.respondWith(async (url, options) => {
     assert.equal(url.endsWith('/reportes/19/evidencias'), true);
-    assert.equal(app.pending()[0].uri, 'file://photo.jpg');
+    const durableUri = app.pending()[0].uri;
+    assert.match(durableUri, /^file:\/\/documents\/arje-evidence\//);
     assert.equal(options.method, 'POST');
     assert.equal(options.headers['Content-Type'], undefined);
     assert.deepEqual(JSON.parse(JSON.stringify(options.body.fields)), [
-      ['tipo', '2'], ['archivo', { uri: 'file://photo.jpg', name: 'photo.jpg', type: 'image/jpeg' }],
+      ['tipo', '2'], ['archivo', { uri: durableUri, name: 'photo.jpg', type: 'image/jpeg' }],
     ]);
     return { ok: true, status: 200, json: async () => ({ id: 50 }) };
   });
   await app.load('reportesService').reportesService.subirEvidenciaResolucion(19, 'file://photo.jpg', 'photo.jpg', 'image/jpeg');
   assert.equal(app.requests.length, 1);
   assert.deepEqual(app.pending(), []);
+});
+
+test('missing evidence is rejected before it can be queued as a valid upload', async () => {
+  const app = mobileRuntime();
+  await assert.rejects(
+    app.load('reportesService').reportesService.subirEvidenciaResolucion(19, 'file://missing.jpg', 'missing.jpg', 'image/jpeg'),
+    /ya no está disponible/,
+  );
+  assert.deepEqual(app.pending(), []);
+  assert.equal(app.requests.length, 0);
+});
+
+test('a lost durable evidence stays pending with an actionable recovery message', async () => {
+  const app = mobileRuntime();
+  app.respondWith(async () => { throw new Error('Network request failed'); });
+  await app.load('reportesService').reportesService.subirEvidenciaResolucion(19, 'file://photo.jpg', 'photo.jpg', 'image/jpeg');
+  const [operation] = app.pending();
+  app.removeFile(operation.uri);
+  app.respondWith(async () => ({ ok: true, status: 200, json: async () => ({ id: 1 }) }));
+
+  await app.load('fieldOperationsService').syncFieldOperations();
+  assert.match(app.pending()[0].lastError, /ya no está disponible/);
+  assert.equal(app.pending()[0].terminal, false);
+  assert.equal(app.requests.length, 1);
 });
 
 test('background task persists every GPS point without direct network access', async () => {
@@ -82,7 +107,7 @@ for (const trigger of ['login', 'restore']) {
   test(`${trigger} flushes existing durable operations after establishing the session`, async () => {
     const app = mobileRuntime();
     app.storage.set('arje_field_operation_queue', JSON.stringify([{
-      kind: 'status', reportId: 19, status: 3, id: 'pending', createdAt: '2026-10-12', attempts: 0, terminal: false,
+      kind: 'status', reportId: 19, status: 3, ownerCuadrillaId: 8, id: 'pending', createdAt: '2026-10-12', attempts: 0, terminal: false,
     }]));
     app.respondWith(async (url, options) => {
       if (url.endsWith('/cuadrillas/login')) return { ok: true, status: 200, json: async () => ({ token: 'new-token', cuadrilla: app.cuadrilla }) };
@@ -116,6 +141,29 @@ test('availability and GPS use existing API contracts through the shared queue',
     { path: '/api/cuadrillas/8/disponibilidad', method: 'PUT', payload: { estatusDisponibilidad: 2 } },
   ]);
   assert.deepEqual(app.pending(), []);
+});
+
+test('changing sessions never sends the prior cuadrilla operations and availability keeps its original target', async () => {
+  const app = mobileRuntime();
+  const operations = app.load('fieldOperationsService');
+  const auth = app.load('authService').authService;
+  app.respondWith(async () => { throw new Error('Network request failed'); });
+  await operations.queueAvailability(2);
+  operations.setFieldOperationOwner(8);
+  await operations.fieldOperationQueue.enqueue({ kind: 'status', reportId: 19, status: 3 });
+  app.requests.length = 0;
+  auth.setCurrentCuadrilla({ ...app.cuadrilla, id: 9 });
+  app.respondWith(async () => ({ ok: true, status: 204 }));
+
+  await operations.syncFieldOperations();
+  assert.equal(app.requests.length, 0);
+  assert.deepEqual(app.pending().map(({ ownerCuadrillaId }: any) => ownerCuadrillaId), [8, 8]);
+
+  operations.setFieldOperationOwner(8);
+  await operations.syncFieldOperations();
+  assert.deepEqual(app.requests.map(({ url }) => new URL(url).pathname), [
+    '/api/cuadrillas/8/disponibilidad', '/api/reportes/19/estatus',
+  ]);
 });
 
 test('simultaneous application sync triggers share the same in-flight send', async () => {

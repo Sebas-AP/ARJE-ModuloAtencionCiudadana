@@ -9,6 +9,7 @@ import ts from 'typescript';
 export function mobileRuntime() {
   const storage = new Map<string, string>();
   const secure = new Map<string, string>([['arje_token', 'test-token']]);
+  const files = new Set<string>(['file://photo.jpg']);
   const tasks = new Map<string, (body: any) => Promise<void>>();
   const requests: { url: string; options: any }[] = [];
   const cuadrilla = { id: 8, nombre: 'Norte', usuarioApp: 'norte', estatusDisponibilidad: 1, reportesAsignadosCount: 1 };
@@ -25,6 +26,16 @@ export function mobileRuntime() {
     },
     'expo-task-manager': { defineTask: (name: string, task: (body: any) => Promise<void>) => tasks.set(name, task) },
     'expo-location': {},
+    'expo-file-system': {
+      documentDirectory: 'file://documents/',
+      getInfoAsync: async (uri: string) => ({ exists: files.has(uri), isDirectory: false }),
+      makeDirectoryAsync: async () => {},
+      copyAsync: async ({ from, to }: { from: string; to: string }) => {
+        if (!files.has(from)) throw new Error('source missing');
+        files.add(to);
+      },
+      deleteAsync: async (uri: string) => { files.delete(uri); },
+    },
   };
   const cache = new Map<string, { exports: any }>();
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../src/services');
@@ -48,8 +59,10 @@ export function mobileRuntime() {
     }, { filename: path });
     return module.exports;
   }
+  load('fieldOperationsService').setFieldOperationOwner(cuadrilla.id);
   return {
     load, storage, secure, tasks, requests, cuadrilla,
+    removeFile: (uri: string) => { files.delete(uri); },
     respondWith: (handler: typeof respond) => { respond = handler; },
     pending: () => JSON.parse(storage.get('arje_field_operation_queue') ?? '[]'),
   };

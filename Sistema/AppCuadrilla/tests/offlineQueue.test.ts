@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { runInNewContext } from 'node:vm';
 
 import { asyncStorageQueueStore, createMemoryQueue, createOfflineQueue, loadValidOperations, type QueueStore } from '../src/services/offlineQueue.ts';
 import { groupLocations, syncPendingOperations, type SyncDependencies } from '../src/services/syncService.ts';
@@ -200,6 +201,44 @@ test('concurrent sync requests do not send the same queued operation twice', asy
 
   assert.equal(sends, 1);
   assert.deepEqual(results.map(({ pending }) => pending), [0, 0]);
+});
+
+test('sync runs one follow-up pass when work is enqueued during an active send', async () => {
+  const queue = createMemoryQueue();
+  await queue.enqueue({ kind: 'location', reportId: 5, latitud: 1, longitud: 2 });
+  let releaseSend!: () => void;
+  let signalStarted!: () => void;
+  const sending = new Promise<void>((resolve) => { releaseSend = resolve; });
+  const started = new Promise<void>((resolve) => { signalStarted = resolve; });
+  const calls: string[] = [];
+  const dependencies = { queue, ...senders({
+    sendLocations: async () => { calls.push('location'); signalStarted(); await sending; },
+    sendStatus: async () => { calls.push('status'); },
+  }) };
+
+  const first = syncPendingOperations(dependencies);
+  await started;
+  await queue.enqueue({ kind: 'status', reportId: 5, status: 3 });
+  const trigger = syncPendingOperations(dependencies);
+  releaseSend();
+  await Promise.all([first, trigger]);
+
+  assert.deepEqual(calls, ['location', 'status']);
+  assert.deepEqual(await queue.list(), []);
+});
+
+test('classifies API errors created in another JavaScript realm', async () => {
+  const queue = createMemoryQueue();
+  await queue.enqueue({ kind: 'status', reportId: 5, status: 3 });
+  const foreignApiError = runInNewContext("new Error('API Error 409: invalid transition')");
+
+  const result = await syncPendingOperations({ queue, ...senders({
+    sendStatus: async () => { throw foreignApiError; },
+  }) });
+
+  assert.deepEqual(result, { sent: 0, pending: 1, failed: 1, requiresAuthentication: false });
+  assert.deepEqual((await queue.list()).map(({ attempts, terminal }) => ({ attempts, terminal })),
+    [{ attempts: 1, terminal: true }]);
 });
 
 for (const failure of [new Error('Network request failed'), new Error('API Error 503: unavailable')]) {

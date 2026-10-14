@@ -200,6 +200,7 @@ public class ReportesController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Administrador")]
     public async Task<ActionResult> Put(int id, [FromBody] ReporteCreacionDTO creacionDTO)
     {
         var reporte = await _context.Reportes.FindAsync(id);
@@ -216,6 +217,7 @@ public class ReportesController : ControllerBase
     }
 
     [HttpPut("{id:int}/categoria")]
+    [Authorize(Roles = "Administrador")]
     public async Task<ActionResult> PutCategoria(int id, [FromBody] ActualizarCategoriaDTO dto)
     {
         var reporte = await _context.Reportes.FindAsync(id);
@@ -246,6 +248,7 @@ public class ReportesController : ControllerBase
     }
 
     [HttpPut("{id:int}/prioridad")]
+    [Authorize(Roles = "Administrador")]
     public async Task<ActionResult> PutPrioridad(int id, [FromBody] ActualizarPrioridadDTO dto)
     {
         var reporte = await _context.Reportes.FindAsync(id);
@@ -267,6 +270,7 @@ public class ReportesController : ControllerBase
     }
 
     [HttpPost("{id:int}/revaluar-prioridad")]
+    [Authorize(Roles = "Administrador")]
     public async Task<ActionResult<ReporteDetalleDTO>> RevaluarPrioridad(int id)
     {
         var reporte = await _context.Reportes
@@ -297,6 +301,7 @@ public class ReportesController : ControllerBase
     }
 
     [HttpPut("{id:int}/asignar")]
+    [Authorize(Roles = "Administrador")]
     public async Task<ActionResult> AsignarCuadrilla(int id, [FromBody] AsignarCuadrillaDTO dto)
     {
         var reporte = await _context.Reportes.FindAsync(id);
@@ -327,6 +332,7 @@ public class ReportesController : ControllerBase
     }
 
     [HttpPut("{id:int}/supervision")]
+    [Authorize(Roles = "Administrador")]
     public async Task<ActionResult> ProgramarSupervision(int id, [FromBody] ProgramarSupervisionDTO dto)
     {
         var reporte = await _context.Reportes.FindAsync(id);
@@ -368,7 +374,7 @@ public class ReportesController : ControllerBase
                 return Forbid();
             }
 
-            if (!_fieldOperationPolicy.IsAllowedTransition(reporte.Estatus, nuevoEstatus))
+            if (reporte.Estatus != nuevoEstatus && !_fieldOperationPolicy.IsAllowedTransition(reporte.Estatus, nuevoEstatus))
             {
                 return BadRequest(new { mensaje = "La transición de estatus solicitada no está permitida." });
             }
@@ -377,6 +383,11 @@ public class ReportesController : ControllerBase
         if (nuevoEstatus == EstatusReporte.Completado && !_fieldOperationPolicy.EnsureCanComplete(reporte).IsAllowed)
         {
             return BadRequest(new { mensaje = "Se requiere evidencia de resolución para completar el reporte." });
+        }
+
+        if (reporte.Estatus == nuevoEstatus)
+        {
+            return NoContent();
         }
 
         reporte.Estatus = nuevoEstatus;
@@ -459,6 +470,7 @@ public class ReportesController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Administrador")]
     public async Task<ActionResult> Delete(int id)
     {
         var reporte = await _context.Reportes

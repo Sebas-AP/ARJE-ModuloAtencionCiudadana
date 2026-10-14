@@ -54,6 +54,34 @@ public class FieldOperationControllerTests : IDisposable
     }
 
     [Theory]
+    [InlineData(EstatusReporte.Asignado)]
+    [InlineData(EstatusReporte.LevantandoInformacion)]
+    [InlineData(EstatusReporte.EnProceso)]
+    [InlineData(EstatusReporte.Completado)]
+    public async Task Status_retry_of_current_state_succeeds_for_assigned_cuadrilla(EstatusReporte status)
+    {
+        var report = await AddReport(status, resolution: true);
+        context.ChangeTracker.Clear();
+        Assert.IsType<NoContentResult>(await Reports().PutEstatus(report.Id, status));
+        context.ChangeTracker.Clear();
+        Assert.Equal(status, (await context.Reportes.FindAsync(report.Id))!.Estatus);
+    }
+
+    [Fact]
+    public async Task Status_retry_still_rejects_foreign_cuadrilla()
+    {
+        var report = await AddReport(EstatusReporte.EnProceso);
+        Assert.IsType<ForbidResult>(await Reports("2").PutEstatus(report.Id, EstatusReporte.EnProceso));
+    }
+
+    [Fact]
+    public async Task Completion_retry_still_requires_resolution_evidence()
+    {
+        var report = await AddReport(EstatusReporte.Completado);
+        Assert.IsType<BadRequestObjectResult>(await Reports().PutEstatus(report.Id, EstatusReporte.Completado));
+    }
+
+    [Theory]
     [InlineData(EstatusReporte.Asignado, EstatusReporte.Completado)]
     [InlineData(EstatusReporte.EnProceso, EstatusReporte.Asignado)]
     [InlineData(EstatusReporte.Completado, EstatusReporte.EnProceso)]

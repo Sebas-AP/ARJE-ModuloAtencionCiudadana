@@ -74,21 +74,58 @@ test('a lost durable evidence stays pending with an actionable recovery message'
   assert.equal(app.requests.length, 1);
 });
 
-test('background task persists every GPS point without direct network access', async () => {
+test('background task queues every GPS point for its session owner and requests one sync', async () => {
   const app = mobileRuntime();
   const location = app.load('locationService');
+  await location.setLocationSessionOwner(8);
   await location.setActiveReporteId(19);
+  app.respondWith(async (url) => {
+    assert.equal(url.endsWith('/reportes/19/ubicaciones'), true);
+    assert.deepEqual(app.pending().map(({ reportId, latitud, longitud, ownerCuadrillaId }: any) => ({ reportId, latitud, longitud, ownerCuadrillaId })), [
+      { reportId: 19, latitud: 21.8, longitud: -102.3, ownerCuadrillaId: 8 },
+      { reportId: 19, latitud: 21.9, longitud: -102.4, ownerCuadrillaId: 8 },
+    ]);
+    return { ok: true, status: 204 };
+  });
   await app.tasks.get(location.LOCATION_TASK)!({ data: { locations: [
     { coords: { latitude: 21.8, longitude: -102.3 } },
     { coords: { latitude: 21.9, longitude: -102.4 } },
   ] } });
-  assert.deepEqual(app.pending().map(({ reportId, latitud, longitud }: any) => ({ reportId, latitud, longitud })), [
-    { reportId: 19, latitud: 21.8, longitud: -102.3 },
-    { reportId: 19, latitud: 21.9, longitud: -102.4 },
-  ]);
-  assert.equal(app.requests.length, 0);
+  assert.deepEqual(app.pending(), []);
+  assert.equal(app.requests.length, 1);
   await app.tasks.get(location.LOCATION_TASK)!({ data: { locations: [] } });
-  assert.equal(app.pending().length, 2);
+  assert.equal(app.requests.length, 1);
+});
+
+test('background task drops locations when the tracked owner no longer matches the session', async () => {
+  const app = mobileRuntime();
+  const location = app.load('locationService');
+  await location.setLocationSessionOwner(8);
+  await location.setActiveReporteId(19);
+  await location.setLocationSessionOwner(9);
+
+  await app.tasks.get(location.LOCATION_TASK)!({ data: { locations: [
+    { coords: { latitude: 21.8, longitude: -102.3 } },
+  ] } });
+
+  assert.deepEqual(app.pending(), []);
+  assert.equal(app.requests.length, 0);
+});
+
+test('logout clears active tracking before a later background location can be queued', async () => {
+  const app = mobileRuntime();
+  const location = app.load('locationService');
+  const auth = app.load('authService').authService;
+  await location.setLocationSessionOwner(8);
+  await location.setActiveReporteId(19);
+
+  await auth.logout();
+  await app.tasks.get(location.LOCATION_TASK)!({ data: { locations: [
+    { coords: { latitude: 21.8, longitude: -102.3 } },
+  ] } });
+
+  assert.deepEqual(app.pending(), []);
+  assert.equal(app.requests.length, 0);
 });
 
 for (const trigger of ['login', 'restore']) {

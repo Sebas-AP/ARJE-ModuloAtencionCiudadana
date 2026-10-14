@@ -2,6 +2,7 @@ import { clearAuthToken, getAuthToken, getCuadrillaActual, loginCuadrilla, setAu
 import { CuadrillaDTO, CuadrillaLoginResponseDTO } from '../types';
 import { createCuadrillaSession } from './fieldApiContract';
 import { setFieldOperationOwner, syncFieldOperations } from './fieldOperationsService';
+import { clearLocationSession, setLocationSessionOwner, stopLocationTracking } from './locationService';
 
 let currentCuadrilla: CuadrillaDTO | null = null;
 
@@ -15,15 +16,19 @@ async function syncAfterSession(): Promise<void> {
 
 export const authService = {
   async login(usuario: string, password: string): Promise<CuadrillaLoginResponseDTO> {
+    await clearLocationSession();
+    setFieldOperationOwner(null);
     const response = createCuadrillaSession(await loginCuadrilla(usuario, password));
     await setAuthToken(response.token);
     currentCuadrilla = response.cuadrilla;
     setFieldOperationOwner(response.cuadrilla.id);
+    await setLocationSessionOwner(response.cuadrilla.id);
     await syncAfterSession();
     return response;
   },
 
   async logout(): Promise<void> {
+    await clearLocationSession();
     setFieldOperationOwner(null);
     await clearAuthToken();
     currentCuadrilla = null;
@@ -39,6 +44,7 @@ export const authService = {
       const cuadrilla = await getCuadrillaActual();
       currentCuadrilla = cuadrilla;
       setFieldOperationOwner(cuadrilla.id);
+      await setLocationSessionOwner(cuadrilla.id);
       await syncAfterSession();
       return cuadrilla;
     } catch {
@@ -56,8 +62,13 @@ export const authService = {
   },
 
   setCurrentCuadrilla(cuadrilla: CuadrillaDTO | null) {
+    const changedSession = currentCuadrilla?.id !== cuadrilla?.id;
     currentCuadrilla = cuadrilla;
     setFieldOperationOwner(cuadrilla?.id ?? null);
+    void setLocationSessionOwner(cuadrilla?.id ?? null);
+    if (changedSession) {
+      void stopLocationTracking();
+    }
   },
 };
 

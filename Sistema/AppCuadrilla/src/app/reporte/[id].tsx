@@ -25,7 +25,7 @@ export default function ReporteDetalleScreen() {
   const operationsRef = useRef(sync.operations);
   operationsRef.current = sync.operations;
 
-  const { location, iniciarSeguimiento, detenerSeguimiento, tracking } = useLocation(reporteId);
+  const { location, iniciarSeguimiento, detenerSeguimiento, tracking, canTrack } = useLocation(reporteId, reporte?.estatus);
 
   const cargarReporte = useCallback(async () => {
     try {
@@ -265,7 +265,7 @@ export default function ReporteDetalleScreen() {
               tracking && styles.seguimientoButtonActive,
             ]}
             onPress={toggleSeguimiento}
-            disabled={guardando}
+            disabled={guardando || !canTrack}
           >
             <Text style={[
               styles.seguimientoButtonText,
@@ -277,7 +277,9 @@ export default function ReporteDetalleScreen() {
           </TouchableOpacity>
           
           <Text style={styles.seguimientoHint}>
-            Envía tu ubicación al servidor cada 5 minutos mientras atiendes el reporte.
+            {canTrack
+              ? 'Envía tu ubicación al servidor cada 5 minutos mientras atiendes el reporte.'
+              : 'El seguimiento GPS sólo está disponible durante levantamiento o mientras el reporte está en proceso.'}
           </Text>
         </View>
 

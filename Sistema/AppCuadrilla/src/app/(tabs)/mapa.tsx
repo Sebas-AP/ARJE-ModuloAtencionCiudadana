@@ -15,7 +15,7 @@ export default function MapaScreen() {
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const mapRef = useRef<MapView>(null);
 
-  const { location, iniciarSeguimiento, detenerSeguimiento, tracking, error: trackingError } = useLocation(reporte?.id);
+  const { location, iniciarSeguimiento, detenerSeguimiento, tracking, canTrack, error: trackingError } = useLocation(reporte?.id, reporte?.estatus);
 
   const cargarDatos = useCallback(async () => {
     try {
@@ -205,6 +205,7 @@ export default function MapaScreen() {
                 void iniciarSeguimiento();
               }
             }}
+            disabled={!canTrack}
           >
             <Text style={[
               styles.trackingButtonText,

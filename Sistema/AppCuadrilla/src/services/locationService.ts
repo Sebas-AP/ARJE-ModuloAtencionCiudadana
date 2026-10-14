@@ -1,10 +1,35 @@
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
-import { fieldOperationQueue } from './fieldOperationsService';
+import { fieldOperationQueue, setFieldOperationOwner, syncFieldOperations } from './fieldOperationsService';
 
 export const LOCATION_TASK = 'background-location-task';
-const ACTIVE_REPORTE_KEY = 'arje_active_reporte_id';
+const ACTIVE_TRACKING_KEY = 'arje_active_location_tracking';
+const LOCATION_SESSION_OWNER_KEY = 'arje_location_session_owner';
+let locationSessionOwner: number | null | undefined;
+
+type ActiveTracking = {
+  reportId: number;
+  ownerCuadrillaId: number;
+};
+
+function parsePositiveInteger(value: string | null): number | null {
+  const parsed = value ? Number(value) : NaN;
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parseActiveTracking(value: string | null): ActiveTracking | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<ActiveTracking>;
+    return Number.isInteger(parsed.reportId) && (parsed.reportId as number) > 0
+      && Number.isInteger(parsed.ownerCuadrillaId) && (parsed.ownerCuadrillaId as number) > 0
+      ? { reportId: parsed.reportId as number, ownerCuadrillaId: parsed.ownerCuadrillaId as number }
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   if (error) {
@@ -16,16 +41,23 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
     const { locations } = data as { locations: Location.LocationObject[] };
 
     try {
-      const idReporte = await getActiveReporteId();
-      if (idReporte) {
+      const tracking = await getActiveTracking();
+      const sessionOwner = await getLocationSessionOwner();
+      if (tracking && sessionOwner === tracking.ownerCuadrillaId && locations.length > 0) {
+        // A headless task has no in-memory auth state; re-establish only the owner
+        // persisted by the authenticated session before queueing its coordinates.
+        setFieldOperationOwner(sessionOwner);
         for (const location of locations) {
           await fieldOperationQueue.enqueue({
             kind: 'location',
-            reportId: idReporte,
+            reportId: tracking.reportId,
             latitud: location.coords.latitude,
             longitud: location.coords.longitude,
           });
         }
+        // Sync once for the entire batch. The sync path does not emit locations,
+        // so this cannot recursively trigger this background task.
+        await syncFieldOperations();
       }
     } catch (err) {
       console.error('Error storing location:', err);
@@ -33,24 +65,41 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   }
 });
 
+export const setLocationSessionOwner = async (ownerCuadrillaId: number | null): Promise<void> => {
+  // Keep the foreground process safe immediately; persistence is for a later
+  // headless TaskManager invocation.
+  locationSessionOwner = ownerCuadrillaId;
+  if (ownerCuadrillaId === null) {
+    await SecureStore.deleteItemAsync(LOCATION_SESSION_OWNER_KEY);
+    return;
+  }
+  await SecureStore.setItemAsync(LOCATION_SESSION_OWNER_KEY, String(ownerCuadrillaId));
+};
+
+const getLocationSessionOwner = async (): Promise<number | null> => {
+  if (locationSessionOwner !== undefined) return locationSessionOwner;
+  locationSessionOwner = parsePositiveInteger(await SecureStore.getItemAsync(LOCATION_SESSION_OWNER_KEY));
+  return locationSessionOwner;
+};
+
 export const setActiveReporteId = async (id: number | null): Promise<void> => {
   if (id === null) {
-    await SecureStore.deleteItemAsync(ACTIVE_REPORTE_KEY);
+    await SecureStore.deleteItemAsync(ACTIVE_TRACKING_KEY);
     return;
   }
 
-  await SecureStore.setItemAsync(ACTIVE_REPORTE_KEY, String(id));
+  const ownerCuadrillaId = fieldOperationQueue.getActiveOwner();
+  if (ownerCuadrillaId === null) {
+    throw new Error('No se puede iniciar seguimiento GPS sin una sesión activa de cuadrilla.');
+  }
+  await SecureStore.setItemAsync(ACTIVE_TRACKING_KEY, JSON.stringify({ reportId: id, ownerCuadrillaId }));
 };
 
-const getActiveReporteId = async (): Promise<number | null> => {
-  const value = await SecureStore.getItemAsync(ACTIVE_REPORTE_KEY);
-  const idReporte = value ? Number(value) : NaN;
-  return Number.isInteger(idReporte) && idReporte > 0 ? idReporte : null;
+const getActiveTracking = async (): Promise<ActiveTracking | null> => {
+  return parseActiveTracking(await SecureStore.getItemAsync(ACTIVE_TRACKING_KEY));
 };
 
 export const startLocationTracking = async (idReporte: number): Promise<void> => {
-  await setActiveReporteId(idReporte);
-
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== 'granted') {
     throw new Error('Permiso de ubicación denegado');
@@ -60,6 +109,8 @@ export const startLocationTracking = async (idReporte: number): Promise<void> =>
   if (backgroundStatus !== 'granted') {
     throw new Error('Permiso de ubicación en segundo plano denegado');
   }
+
+  await setActiveReporteId(idReporte);
 
   const isRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK);
   if (isRegistered) {
@@ -84,6 +135,11 @@ export const stopLocationTracking = async (): Promise<void> => {
     await Location.stopLocationUpdatesAsync(LOCATION_TASK);
   }
   await setActiveReporteId(null);
+};
+
+export const clearLocationSession = async (): Promise<void> => {
+  await setLocationSessionOwner(null);
+  await stopLocationTracking();
 };
 
 export const getCurrentLocation = async (): Promise<{ latitude: number; longitude: number } | null> => {

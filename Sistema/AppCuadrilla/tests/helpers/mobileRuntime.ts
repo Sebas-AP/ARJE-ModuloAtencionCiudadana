@@ -24,8 +24,17 @@ export function mobileRuntime() {
       setItemAsync: async (key: string, value: string) => { secure.set(key, value); },
       deleteItemAsync: async (key: string) => { secure.delete(key); },
     },
-    'expo-task-manager': { defineTask: (name: string, task: (body: any) => Promise<void>) => tasks.set(name, task) },
-    'expo-location': {},
+    'expo-task-manager': {
+      defineTask: (name: string, task: (body: any) => Promise<void>) => tasks.set(name, task),
+      isTaskRegisteredAsync: async (name: string) => tasks.has(name),
+    },
+    'expo-location': {
+      Accuracy: { High: 6 },
+      requestForegroundPermissionsAsync: async () => ({ status: 'granted' }),
+      requestBackgroundPermissionsAsync: async () => ({ status: 'granted' }),
+      startLocationUpdatesAsync: async () => {},
+      stopLocationUpdatesAsync: async () => {},
+    },
     'expo-file-system': {
       documentDirectory: 'file://documents/',
       getInfoAsync: async (uri: string) => ({ exists: files.has(uri), isDirectory: false }),

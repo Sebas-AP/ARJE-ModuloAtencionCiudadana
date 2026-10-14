@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
 import { watchLocation, getCurrentLocation, startLocationTracking, stopLocationTracking } from '../services/locationService';
 
-export const useLocation = (idReporte?: number) => {
+export const useLocation = (idReporte?: number, estatusReporte?: number) => {
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tracking, setTracking] = useState(false);
+  const canTrack = estatusReporte === 3 || estatusReporte === 4;
 
   const requestPermissions = useCallback(async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -36,6 +37,10 @@ export const useLocation = (idReporte?: number) => {
       setError('No hay reporte activo para seguimiento');
       return;
     }
+    if (!canTrack) {
+      setError('El seguimiento GPS sólo está disponible mientras el reporte está en levantamiento o en proceso.');
+      return;
+    }
 
     const hasPermission = await requestPermissions();
     if (!hasPermission) return;
@@ -53,7 +58,7 @@ export const useLocation = (idReporte?: number) => {
     } catch (err: any) {
       setError(err.message);
     }
-  }, [idReporte, requestPermissions]);
+  }, [idReporte, canTrack, requestPermissions]);
 
   const detenerSeguimiento = useCallback(async () => {
     await stopLocationTracking();
@@ -77,10 +82,17 @@ export const useLocation = (idReporte?: number) => {
     };
   }, [idReporte, obtenerUbicacionActual]);
 
+  useEffect(() => {
+    if (tracking && !canTrack) {
+      void detenerSeguimiento();
+    }
+  }, [tracking, canTrack, detenerSeguimiento]);
+
   return {
     location,
     error,
     tracking,
+    canTrack,
     obtenerUbicacionActual,
     iniciarSeguimiento,
     detenerSeguimiento,

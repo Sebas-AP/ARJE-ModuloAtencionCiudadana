@@ -160,8 +160,11 @@ export function createOfflineQueue(
         const target = operations.find((operation) => operation.id === id
           && operation.ownerCuadrillaId === activeOwnerCuadrillaId);
         if (!target) return;
-        await save(operations.filter((operation) => operation.id !== id));
+        // Preserve the durable queue entry until its companion resource is
+        // released. If cleanup fails, the terminal operation stays visible and
+        // can be discarded again instead of orphaning an evidence file.
         await options.onRemove?.(target);
+        await save(operations.filter((operation) => operation.id !== id));
       });
     },
   };

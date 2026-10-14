@@ -155,6 +155,28 @@ test('discarding terminal evidence invokes its durable cleanup exactly once', as
   assert.deepEqual(await queue.list(), []);
 });
 
+test('failed evidence cleanup keeps the terminal operation recoverable for a later discard', async () => {
+  const values = new Map<string, string>();
+  let cleanupAttempts = 0;
+  const queue = createOfflineQueue({
+    getItem: async (key) => values.get(key) ?? null,
+    setItem: async (key, value) => { values.set(key, value); },
+  }, {
+    onRemove: async () => {
+      cleanupAttempts++;
+      throw new Error('No se pudo borrar la evidencia local');
+    },
+  });
+  queue.setActiveOwner(1);
+  const evidence = await queue.enqueue({ kind: 'evidence', reportId: 8, uri: 'file://documents/evidence.jpg', name: 'evidence.jpg', mimeType: 'image/jpeg', storage: 'persistent' });
+  await queue.markFailed(evidence.id, 'La evidencia ya no está disponible.', true);
+
+  await assert.rejects(queue.remove(evidence.id), /No se pudo borrar la evidencia local/);
+
+  assert.equal(cleanupAttempts, 1);
+  assert.deepEqual((await queue.list()).map(({ id, terminal }) => ({ id, terminal })), [{ id: evidence.id, terminal: true }]);
+});
+
 test('concurrent enqueue from two queue instances preserves both operations', async () => {
   const store = createYieldingStore();
   const first = createOfflineQueue(store);

@@ -154,7 +154,7 @@ export function createOfflineQueue(
           : operation));
       });
     },
-    async remove(id: string): Promise<void> {
+    async discard(id: string): Promise<void> {
       return serializeMutation(store, async () => {
         const operations = await listAll();
         const target = operations.find((operation) => operation.id === id
@@ -165,6 +165,22 @@ export function createOfflineQueue(
         // can be discarded again instead of orphaning an evidence file.
         await options.onRemove?.(target);
         await save(operations.filter((operation) => operation.id !== id));
+      });
+    },
+    async removeConfirmed(id: string): Promise<void> {
+      return serializeMutation(store, async () => {
+        const operations = await listAll();
+        const target = operations.find((operation) => operation.id === id
+          && operation.ownerCuadrillaId === activeOwnerCuadrillaId);
+        if (!target) return;
+        // The server has already accepted this operation. Remove it first so a
+        // local cleanup error cannot ever resend (and duplicate) remote data.
+        await save(operations.filter((operation) => operation.id !== id));
+        try {
+          await options.onRemove?.(target);
+        } catch (error) {
+          console.warn('No se pudo limpiar el recurso local tras la sincronización confirmada:', error);
+        }
       });
     },
   };

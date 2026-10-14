@@ -23,7 +23,7 @@ export interface SyncDependencies {
     getActiveOwner(): number | null;
     list(): Promise<QueuedOperation[]>;
     markFailed(id: string, lastError: string, terminal: boolean): Promise<void>;
-    remove(id: string): Promise<void>;
+    removeConfirmed(id: string): Promise<void>;
   };
   sendLocations(batch: LocationBatch): Promise<unknown>;
   sendStatus(operation: StatusOperation): Promise<unknown>;
@@ -135,7 +135,7 @@ async function runSync(
       continue;
     }
     if (dependencies.queue.getActiveOwner() !== ownerCuadrillaId) break;
-    for (const operation of group) await dependencies.queue.remove(operation.id);
+    for (const operation of group) await dependencies.queue.removeConfirmed(operation.id);
     sent += group.length;
   }
 

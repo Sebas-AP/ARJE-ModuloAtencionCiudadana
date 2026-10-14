@@ -35,7 +35,7 @@ test('a queue only exposes and mutates operations for its active owner', async (
   queue.setActiveOwner(9);
   const other = await queue.enqueue({ kind: 'status', reportId: 9, status: 3 });
   assert.deepEqual((await queue.list()).map(({ id }) => id), [other.id]);
-  await queue.remove(own.id);
+  await queue.removeConfirmed(own.id);
   assert.deepEqual((await queue.list()).map(({ id }) => id), [other.id]);
   queue.setActiveOwner(7);
   assert.deepEqual((await queue.list()).map(({ id }) => id), [own.id]);
@@ -128,7 +128,7 @@ test('persists operations across queue instances and removes only the chosen one
     { kind: 'evidence', attempts: 1, terminal: true },
     { kind: 'availability', attempts: 0, terminal: false },
   ]);
-  await second.remove(evidence.id);
+  await second.discard(evidence.id);
   const third = createOfflineQueue(store);
   third.setActiveOwner(1);
   assert.deepEqual((await third.list()).map(({ id }) => id), [availability.id]);
@@ -149,7 +149,7 @@ test('discarding terminal evidence invokes its durable cleanup exactly once', as
   const evidence = await queue.enqueue({ kind: 'evidence', reportId: 8, uri: 'file://documents/evidence.jpg', name: 'evidence.jpg', mimeType: 'image/jpeg', storage: 'persistent' });
   await queue.markFailed(evidence.id, 'La evidencia ya no está disponible.', true);
 
-  await queue.remove(evidence.id);
+  await queue.discard(evidence.id);
 
   assert.deepEqual(removed, ['file://documents/evidence.jpg']);
   assert.deepEqual(await queue.list(), []);
@@ -171,10 +171,40 @@ test('failed evidence cleanup keeps the terminal operation recoverable for a lat
   const evidence = await queue.enqueue({ kind: 'evidence', reportId: 8, uri: 'file://documents/evidence.jpg', name: 'evidence.jpg', mimeType: 'image/jpeg', storage: 'persistent' });
   await queue.markFailed(evidence.id, 'La evidencia ya no está disponible.', true);
 
-  await assert.rejects(queue.remove(evidence.id), /No se pudo borrar la evidencia local/);
+  await assert.rejects(queue.discard(evidence.id), /No se pudo borrar la evidencia local/);
 
   assert.equal(cleanupAttempts, 1);
   assert.deepEqual((await queue.list()).map(({ id, terminal }) => ({ id, terminal })), [{ id: evidence.id, terminal: true }]);
+});
+
+test('confirmed remote evidence is removed even when its local cleanup fails, preventing a duplicate upload', async () => {
+  const values = new Map<string, string>();
+  let cleanupAttempts = 0;
+  const queue = createOfflineQueue({
+    getItem: async (key) => values.get(key) ?? null,
+    setItem: async (key, value) => { values.set(key, value); },
+  }, {
+    onRemove: async () => {
+      cleanupAttempts++;
+      throw new Error('No se pudo borrar la evidencia local');
+    },
+  });
+  queue.setActiveOwner(1);
+  await queue.enqueue({ kind: 'evidence', reportId: 8, uri: 'file://documents/evidence.jpg', name: 'evidence.jpg', mimeType: 'image/jpeg', storage: 'persistent' });
+  let uploads = 0;
+
+  const result = await syncPendingOperations({ queue, ...senders({
+    sendEvidence: async () => { uploads++; },
+  }) });
+
+  assert.deepEqual(result, { sent: 1, pending: 0, failed: 0, requiresAuthentication: false });
+  assert.equal(cleanupAttempts, 1);
+  assert.equal(uploads, 1);
+  assert.deepEqual(await queue.list(), []);
+  await syncPendingOperations({ queue, ...senders({
+    sendEvidence: async () => { uploads++; },
+  }) });
+  assert.equal(uploads, 1);
 });
 
 test('concurrent enqueue from two queue instances preserves both operations', async () => {
@@ -203,7 +233,7 @@ test('concurrent failure and removal preserve both mutations', async () => {
 
   await Promise.all([
     first.markFailed(evidence.id, 'sin red', false),
-    second.remove(availability.id),
+    second.removeConfirmed(availability.id),
   ]);
 
   assert.deepEqual((await first.list()).map(({ id, attempts, lastError }) => ({ id, attempts, lastError })), [

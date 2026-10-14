@@ -56,7 +56,7 @@ export const syncFieldOperations = () => syncPendingOperations({
 });
 
 export async function discardFieldOperation(operationId: string): Promise<void> {
-  await fieldOperationQueue.remove(operationId);
+  await fieldOperationQueue.discard(operationId);
 }
 
 export async function queueStatus(reportId: number, status: 3 | 4 | 5) {

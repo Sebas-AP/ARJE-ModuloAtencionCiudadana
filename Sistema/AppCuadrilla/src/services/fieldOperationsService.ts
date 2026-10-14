@@ -39,7 +39,13 @@ export const syncFieldOperations = () => syncPendingOperations({
   sendStatus: async ({ reportId, status, ownerCuadrillaId }) =>
     actualizarEstatusReporte(reportId, { estatus: status }, await captureOperationSession(ownerCuadrillaId)),
   sendEvidence: async ({ reportId, uri, name, mimeType, ownerCuadrillaId }) => {
-    await assertPersistedEvidence(uri);
+    try {
+      await assertPersistedEvidence(uri);
+    } catch (error) {
+      // A local durable file cannot reappear through another network retry.
+      // Present it as a terminal, actionable rejection instead of retrying forever.
+      throw new Error(`API Error 400: ${error instanceof Error ? error.message : 'La evidencia ya no está disponible.'}`);
+    }
     const formData = new FormData();
     formData.append('tipo', '2');
     formData.append('archivo', { uri, name, type: mimeType } as any);
@@ -48,6 +54,10 @@ export const syncFieldOperations = () => syncPendingOperations({
   sendAvailability: async ({ availability, targetCuadrillaId, ownerCuadrillaId }) =>
     updateAvailability(targetCuadrillaId, availability, await captureOperationSession(ownerCuadrillaId)),
 });
+
+export async function discardFieldOperation(operationId: string): Promise<void> {
+  await fieldOperationQueue.remove(operationId);
+}
 
 export async function queueStatus(reportId: number, status: 3 | 4 | 5) {
   await fieldOperationQueue.enqueue({ kind: 'status', reportId, status });

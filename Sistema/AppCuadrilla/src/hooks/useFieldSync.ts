@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { subscribeToConnectivity } from '../services/connectivityService';
-import { fieldOperationQueue, syncFieldOperations } from '../services/fieldOperationsService';
+import { discardFieldOperation, fieldOperationQueue, syncFieldOperations } from '../services/fieldOperationsService';
 import type { QueuedOperation } from '../services/offlineQueue';
 import type { SyncResult } from '../services/syncService';
+import { getRecoverableOperationCount, getTerminalOperationDetails } from '../services/syncRecoveryPolicy';
 
 export function useFieldSync() {
   const [operations, setOperations] = useState<QueuedOperation[]>([]);
@@ -48,6 +49,15 @@ export function useFieldSync() {
     }
   }, [refresh]);
 
+  const onDiscard = useCallback(async (operationId: string): Promise<void> => {
+    try {
+      await discardFieldOperation(operationId);
+      await refresh();
+    } catch {
+      if (mounted.current) setError('No se pudo descartar la operación. Reintenta antes de continuar.');
+    }
+  }, [refresh]);
+
   useEffect(() => {
     mounted.current = true;
     void refresh();
@@ -67,9 +77,11 @@ export function useFieldSync() {
   }, [refresh, syncNow]);
 
   return {
-    operations, isOnline, isSyncing, isLoading, error, refresh, syncNow,
+    operations, isOnline, isSyncing, isLoading, error, refresh, syncNow, onDiscard,
     pendingCount: operations.length,
     failedCount: operations.filter((operation) => operation.terminal).length,
+    terminalOperations: getTerminalOperationDetails(operations),
+    recoverableCount: getRecoverableOperationCount(operations),
     requiresAuthentication: operations.some((operation) => /^API Error (401|403)\b/.test(operation.lastError ?? '')),
   };
 }

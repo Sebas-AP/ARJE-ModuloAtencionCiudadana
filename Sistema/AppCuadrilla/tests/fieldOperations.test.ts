@@ -60,7 +60,7 @@ test('missing evidence is rejected before it can be queued as a valid upload', a
   assert.equal(app.requests.length, 0);
 });
 
-test('a lost durable evidence stays pending with an actionable recovery message', async () => {
+test('a lost durable evidence becomes terminal with an actionable discard message', async () => {
   const app = mobileRuntime();
   app.respondWith(async () => { throw new Error('Network request failed'); });
   await app.load('reportesService').reportesService.subirEvidenciaResolucion(19, 'file://photo.jpg', 'photo.jpg', 'image/jpeg');
@@ -70,7 +70,7 @@ test('a lost durable evidence stays pending with an actionable recovery message'
 
   await app.load('fieldOperationsService').syncFieldOperations();
   assert.match(app.pending()[0].lastError, /ya no está disponible/);
-  assert.equal(app.pending()[0].terminal, false);
+  assert.equal(app.pending()[0].terminal, true);
   assert.equal(app.requests.length, 1);
 });
 

@@ -134,6 +134,27 @@ test('persists operations across queue instances and removes only the chosen one
   assert.deepEqual((await third.list()).map(({ id }) => id), [availability.id]);
 });
 
+test('discarding terminal evidence invokes its durable cleanup exactly once', async () => {
+  const values = new Map<string, string>();
+  const removed: string[] = [];
+  const queue = createOfflineQueue({
+    getItem: async (key) => values.get(key) ?? null,
+    setItem: async (key, value) => { values.set(key, value); },
+  }, {
+    onRemove: async (operation) => {
+      if (operation.kind === 'evidence') removed.push(operation.uri);
+    },
+  });
+  queue.setActiveOwner(1);
+  const evidence = await queue.enqueue({ kind: 'evidence', reportId: 8, uri: 'file://documents/evidence.jpg', name: 'evidence.jpg', mimeType: 'image/jpeg', storage: 'persistent' });
+  await queue.markFailed(evidence.id, 'La evidencia ya no está disponible.', true);
+
+  await queue.remove(evidence.id);
+
+  assert.deepEqual(removed, ['file://documents/evidence.jpg']);
+  assert.deepEqual(await queue.list(), []);
+});
+
 test('concurrent enqueue from two queue instances preserves both operations', async () => {
   const store = createYieldingStore();
   const first = createOfflineQueue(store);

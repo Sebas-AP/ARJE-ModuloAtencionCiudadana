@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
@@ -94,6 +95,12 @@ public class CuadrillasController : CustomBaseController<Cuadrilla, CuadrillaCre
             return Forbid();
         }
 
+        // The active-report query and availability update must be one serializable
+        // unit.  Besides keeping the read consistent, SQL Server's serializable
+        // range locks on Reportes.IdCuadrillaAsignada prevent an assignment from
+        // being committed between this check and the availability update.
+        await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+
         var cuadrilla = await _context.Cuadrillas.FindAsync(id);
         if (cuadrilla == null)
         {
@@ -107,6 +114,7 @@ public class CuadrillasController : CustomBaseController<Cuadrilla, CuadrillaCre
         cuadrilla.EstatusDisponibilidad = _fieldOperationPolicy.ResolveAvailability(
             disponibilidadDTO.EstatusDisponibilidad, estatusReportes);
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
         await _outputCacheStore.EvictByTagAsync("cuadrillas", default);
 
         return NoContent();

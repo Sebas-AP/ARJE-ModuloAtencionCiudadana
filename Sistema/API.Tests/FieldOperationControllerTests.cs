@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Data;
+using System.Data.Common;
 using ARJE.Api.Controllers;
 using ARJE.Api.DTOs.Cuadrilla;
 using ARJE.Api.DTOs.Evidencia;
@@ -13,6 +15,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -21,6 +24,7 @@ namespace ARJE.Api.Tests;
 public class FieldOperationControllerTests : IDisposable
 {
     private readonly SqliteConnection connection = new("Data Source=:memory:");
+    private readonly TransactionSpy transactionSpy = new();
     private readonly ApplicationDbContext context;
     private readonly IMapper mapper = new MapperConfiguration(c => c.AddProfile<AutoMapperProfiles>()).CreateMapper();
     private readonly ServiceProvider services;
@@ -30,7 +34,9 @@ public class FieldOperationControllerTests : IDisposable
     {
         connection.Open();
         context = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseSqlite(connection).Options);
+            .UseSqlite(connection)
+            .AddInterceptors(transactionSpy)
+            .Options);
         context.Database.EnsureCreated();
         context.Cuadrillas.AddRange(
             new Cuadrilla { Id = 1, Nombre = "One", UsuarioApp = "one", EstatusDisponibilidad = EstatusCuadrilla.Ocupada },
@@ -244,6 +250,17 @@ public class FieldOperationControllerTests : IDisposable
         Assert.Equal(requested, (await context.Cuadrillas.FindAsync(1))!.EstatusDisponibilidad);
     }
 
+    [Fact]
+    public async Task Availability_check_and_update_run_in_a_serializable_transaction()
+    {
+        var controller = Authenticate(new CuadrillasController(context, mapper, cache, null!));
+
+        Assert.IsType<NoContentResult>(await controller.PutDisponibilidad(1,
+            new CuadrillaDisponibilidadDTO { EstatusDisponibilidad = EstatusCuadrilla.Disponible }));
+
+        Assert.Contains(IsolationLevel.Serializable, transactionSpy.IsolationLevels);
+    }
+
     private async Task<Reporte> AddReport(EstatusReporte status, bool resolution = false)
     {
         var report = new Reporte
@@ -295,5 +312,19 @@ public class FieldOperationControllerTests : IDisposable
         public Task<string> GuardarArchivo(string contenedor, IFormFile archivo) => Task.FromResult("/evidencias/resolution.jpg");
         public Task<string> EditarArchivo(string contenedor, IFormFile archivo, string rutaArchivoActual) => throw new NotSupportedException();
         public Task BorrarArchivo(string contenedor, string rutaArchivo) => throw new NotSupportedException();
+    }
+
+    private sealed class TransactionSpy : DbTransactionInterceptor
+    {
+        public List<IsolationLevel> IsolationLevels { get; } = [];
+
+        public override DbTransaction TransactionStarted(
+            DbConnection connection,
+            TransactionEndEventData eventData,
+            DbTransaction result)
+        {
+            IsolationLevels.Add(result.IsolationLevel);
+            return result;
+        }
     }
 }

@@ -1,0 +1,30 @@
+# Estado del proyecto — operación de AppCuadrilla
+
+**Fecha de corte:** 14 de octubre de 2026
+**Documento interno de planeación.** Este corte actualiza únicamente la fase de operación de AppCuadrilla y las validaciones API asociadas. El estado de PanelAdmin, AppCiudadano y el despliegue general no se revaluó aquí.
+
+## Estado de la fase
+
+| Área | Estado verificado | Pendiente |
+| --- | --- | --- |
+| Cola local de AppCuadrilla | Implementada para estados, evidencias, ubicaciones y disponibilidad; pruebas de servicios aprobadas | Validar persistencia y archivos en dispositivo |
+| Sincronización | Reintento por reconexión, sesión y acción manual; clasificación de rechazos y bloqueo de transiciones pendientes implementados | Comprobar flujo completo con API y dispositivo; resolver rechazos terminales en producto |
+| API de operaciones de cuadrilla | Validaciones y pruebas automatizadas implementadas | Validación integrada en entorno de despliegue |
+| Interfaz de campo | Indicador de pendientes/rechazos, siguiente estado permitido, evidencia de resolución, GPS y disponibilidad integrados | QA táctil, permisos y segundo plano en Android/iOS |
+
+Las tareas 1–7 del plan `2026-10-12-app-cuadrilla-operacion-confiable` están implementadas y revisadas en código. La tarea 8 cuenta con verificación automatizada y documentación; su escenario manual en dispositivo sigue **pendiente**. Por ello, la fase no se declara validada para uso de campo.
+
+## Evidencia de verificación de este corte
+
+- AppCuadrilla: `npm test` aprobó 5 archivos de prueba, sin fallos; `npx tsc --noEmit` aprobó; `npx expo lint` aprobó con 3 advertencias por imports sin usar, sin errores.
+- API: `dotnet test Sistema/API.Tests/ARJE.Api.Tests.csproj` aprobó 49 de 49 pruebas; `dotnet build Sistema/API/ARJE.Api.csproj` terminó con 0 errores. NuGet emitió `NU1900` porque no pudo consultar el feed de vulnerabilidades.
+- No se ejecutó `Sistema/API/test_api.py`: ese script modifica una base de datos local o activa. Las pruebas automatizadas anteriores no sustituyen la validación funcional en dispositivo.
+
+## Límites y siguiente fase
+
+1. Ejecutar en dispositivo el recorrido: autenticar → desconectar → guardar estado, evidencia y ubicación → reiniciar → reconectar → reintentar → confirmar en API un lote válido antes de completar. Verificar permisos y conservación de la URI de evidencia. Registrar dispositivo, sistema operativo y resultado por paso.
+2. Decidir cómo editar, descartar o escalar operaciones rechazadas con 400/409. Hoy permanecen en la cola y no se reintentan automáticamente; un estado rechazado bloquea nuevos cambios del reporte.
+3. Definir propiedad de la cola entre cuentas en dispositivos compartidos y tratamiento de duplicados GPS si ocurre una interrupción después de que la API acepte un lote.
+4. Validar los flujos de UI de Android/iOS y GPS en segundo plano. Comprobar que la primera carga de reportes sin conexión informa que requiere red, como indica el código actual.
+
+La guía operativa y los límites técnicos están en [Sistema/AppCuadrilla/README.md](Sistema/AppCuadrilla/README.md).

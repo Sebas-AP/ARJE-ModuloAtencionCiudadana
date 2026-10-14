@@ -26,6 +26,17 @@ export function canSelectAvailable(activeReportCount: number | null): boolean {
   return activeReportCount === 0;
 }
 
+export async function refreshReportAfterStatus(
+  reportId: number,
+  operations: readonly { kind: string; reportId?: number }[],
+  reload: () => Promise<boolean>,
+): Promise<boolean> {
+  if (operations.some((operation) => operation.kind === 'status' && operation.reportId === reportId)) {
+    return false;
+  }
+  return await reload();
+}
+
 export function getOperationFeedback(result: SyncResult): 'synced' | 'pending' | 'rejected' | 'authentication' {
   if (result.requiresAuthentication) return 'authentication';
   if (result.failed > 0) return 'rejected';

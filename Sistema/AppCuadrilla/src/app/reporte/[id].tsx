@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity, Image, Platform, KeyboardAvoidingView } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { reportesService } from '../../services/reportesService';
@@ -7,7 +7,7 @@ import { StatusSelector } from '../../components/StatusSelector';
 import { EvidenciaUploader } from '../../components/EvidenciaUploader';
 import { SyncStatus } from '../../components/SyncStatus';
 import { useFieldSync } from '../../hooks/useFieldSync';
-import { getAllowedNextStatuses, getOperationFeedback, hasResolutionEvidence, operationFeedbackMessages, type FieldStatus } from '../../services/fieldUiPolicy';
+import { getAllowedNextStatuses, getOperationFeedback, hasResolutionEvidence, operationFeedbackMessages, refreshReportAfterStatus, type FieldStatus } from '../../services/fieldUiPolicy';
 import type { SyncResult } from '../../services/syncService';
 import { ReporteDTO, EstatusReporteLabels, EstatusReporteColors, PrioridadColors } from '../../types';
 
@@ -18,9 +18,12 @@ export default function ReporteDetalleScreen() {
   const [reporte, setReporte] = useState<ReporteDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [statusNeedsRefresh, setStatusNeedsRefresh] = useState(false);
   const [ubicacionActual, setUbicacionActual] = useState<{ latitude: number; longitude: number } | null>(null);
   const [evidenceConfirmed, setEvidenceConfirmed] = useState(false);
   const sync = useFieldSync();
+  const operationsRef = useRef(sync.operations);
+  operationsRef.current = sync.operations;
 
   const { location, iniciarSeguimiento, detenerSeguimiento, tracking } = useLocation(reporteId);
 
@@ -28,8 +31,10 @@ export default function ReporteDetalleScreen() {
     try {
       const data = await reportesService.getDetalle(reporteId);
       setReporte(data);
+      return true;
     } catch (error: unknown) {
       Alert.alert('Error', error instanceof Error ? error.message : 'No se pudo cargar el reporte');
+      return false;
     } finally {
       setLoading(false);
     }
@@ -38,11 +43,21 @@ export default function ReporteDetalleScreen() {
   useEffect(() => {
     void cargarReporte();
     setEvidenceConfirmed(false);
+    setStatusNeedsRefresh(false);
   }, [cargarReporte]);
 
+  const pendingStatus = sync.operations.some((operation) => operation.kind === 'status' && operation.reportId === reporteId);
+
   useEffect(() => {
-    if (!sync.isLoading && sync.pendingCount === 0 && sync.isOnline) void cargarReporte();
-  }, [sync.isLoading, sync.pendingCount, sync.isOnline, cargarReporte]);
+    if (pendingStatus) setStatusNeedsRefresh(true);
+    if (!statusNeedsRefresh || guardando || sync.isLoading || sync.error || !sync.isOnline) return;
+    let cancelled = false;
+    // Reconcile on this report's queue changes, not each unrelated three-second queue snapshot.
+    void refreshReportAfterStatus(reporteId, operationsRef.current, cargarReporte).then((refreshed) => {
+      if (refreshed && !cancelled) setStatusNeedsRefresh(false);
+    });
+    return () => { cancelled = true; };
+  }, [pendingStatus, statusNeedsRefresh, guardando, sync.isLoading, sync.isSyncing, sync.error, sync.isOnline, reporteId, cargarReporte]);
 
   useEffect(() => {
     if (location) {
@@ -50,21 +65,20 @@ export default function ReporteDetalleScreen() {
     }
   }, [location]);
 
-  const pendingStatus = sync.operations.some((operation) => operation.kind === 'status' && operation.reportId === reporteId);
   const resolutionReady = evidenceConfirmed || hasResolutionEvidence(reporteId, reporte?.evidencias ?? [], sync.operations);
 
   const handleActualizarEstatus = async (nuevoEstatus: FieldStatus) => {
-    if (!reporte || guardando || pendingStatus || sync.isLoading || sync.error
+    if (!reporte || guardando || pendingStatus || statusNeedsRefresh || sync.isLoading || sync.error
       || !getAllowedNextStatuses(reporte.estatus).includes(nuevoEstatus)
       || (nuevoEstatus === 5 && !resolutionReady)) return;
 
     setGuardando(true);
+    setStatusNeedsRefresh(true);
     try {
       const data = { estatus: nuevoEstatus };
 
       const result = await reportesService.actualizarEstatus(reporteId, data);
       await sync.refresh();
-      if (getOperationFeedback(result) === 'synced') await cargarReporte();
       Alert.alert('Estado del reporte', operationFeedbackMessages[getOperationFeedback(result)]);
     } catch (error: unknown) {
       Alert.alert('Error', error instanceof Error ? error.message : 'No se pudo guardar el estado');
@@ -206,9 +220,10 @@ export default function ReporteDetalleScreen() {
             currentEstatus={reporte.estatus}
             onChange={handleActualizarEstatus}
             hasResolutionEvidence={resolutionReady}
-            disabled={guardando || pendingStatus || sync.isLoading || !!sync.error}
+            disabled={guardando || pendingStatus || statusNeedsRefresh || sync.isLoading || !!sync.error}
           />
           {pendingStatus && <Text style={styles.infoValue}>Hay un cambio de estado pendiente o rechazado. Sincroniza y revisa el resultado antes de continuar.</Text>}
+          {statusNeedsRefresh && !pendingStatus && <Text style={styles.infoValue}>Esperando confirmar el estado del reporte con el servidor antes de continuar.</Text>}
         </View>
 
         {/* Evidencias existentes */}

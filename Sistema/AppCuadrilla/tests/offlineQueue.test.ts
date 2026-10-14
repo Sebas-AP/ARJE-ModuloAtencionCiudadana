@@ -241,6 +241,32 @@ test('concurrent sync requests do not send the same queued operation twice', asy
   assert.deepEqual(results.map(({ pending }) => pending), [0, 0]);
 });
 
+test('concurrent sync trigger without queued work does not retry a failed operation', async () => {
+  const queue = createMemoryQueue();
+  await queue.enqueue({ kind: 'status', reportId: 5, status: 3 });
+  let releaseSend!: () => void;
+  let signalStarted!: () => void;
+  const sending = new Promise<void>((resolve) => { releaseSend = resolve; });
+  const started = new Promise<void>((resolve) => { signalStarted = resolve; });
+  let sends = 0;
+  const dependencies = { queue, ...senders({
+    sendStatus: async () => {
+      sends++;
+      signalStarted();
+      await sending;
+      throw new Error('Network request failed');
+    },
+  }) };
+
+  const first = syncPendingOperations(dependencies);
+  await started;
+  const trigger = syncPendingOperations(dependencies);
+  releaseSend();
+  await Promise.all([first, trigger]);
+
+  assert.equal(sends, 1);
+});
+
 test('sync runs one follow-up pass when work is enqueued during an active send', async () => {
   const queue = createMemoryQueue();
   await queue.enqueue({ kind: 'location', reportId: 5, latitud: 1, longitud: 2 });
@@ -257,9 +283,8 @@ test('sync runs one follow-up pass when work is enqueued during an active send',
   const first = syncPendingOperations(dependencies);
   await started;
   await queue.enqueue({ kind: 'status', reportId: 5, status: 3 });
-  const trigger = syncPendingOperations(dependencies);
   releaseSend();
-  await Promise.all([first, trigger]);
+  await first;
 
   assert.deepEqual(calls, ['location', 'status']);
   assert.deepEqual(await queue.list(), []);

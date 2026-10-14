@@ -31,7 +31,6 @@ export interface SyncDependencies {
 
 interface ActiveSync {
   current: Promise<SyncResult>;
-  rerunRequested: boolean;
 }
 
 const activeSyncs = new WeakMap<SyncDependencies['queue'], ActiveSync>();
@@ -93,12 +92,17 @@ async function sendGroup(group: QueuedOperation[], dependencies: SyncDependencie
   }
 }
 
-async function runSync(dependencies: SyncDependencies): Promise<SyncResult> {
+async function runSync(
+  dependencies: SyncDependencies,
+  onSnapshot: (operations: QueuedOperation[]) => void = () => {},
+): Promise<SyncResult> {
   const blockedReports = new Set<number>();
   let sent = 0;
   let requiresAuthentication = false;
+  const operations = await dependencies.queue.list();
+  onSnapshot(operations);
 
-  for (const group of groupLocations(await dependencies.queue.list())) {
+  for (const group of groupLocations(operations)) {
     const first = group[0];
     if (first.terminal) {
       if (first.kind === 'status') blockedReports.add(first.reportId);
@@ -134,24 +138,26 @@ async function runSync(dependencies: SyncDependencies): Promise<SyncResult> {
   };
 }
 
-async function runRequestedSyncs(dependencies: SyncDependencies, active: ActiveSync): Promise<SyncResult> {
+async function runRequestedSyncs(dependencies: SyncDependencies): Promise<SyncResult> {
   let result!: SyncResult;
+  let hasUnprocessedOperations: boolean;
   do {
-    active.rerunRequested = false;
-    result = await runSync(dependencies);
-  } while (active.rerunRequested);
+    let processedIds = new Set<string>();
+    result = await runSync(dependencies, (operations) => {
+      processedIds = new Set(operations.map((operation) => operation.id));
+    });
+    const remaining = await dependencies.queue.list();
+    hasUnprocessedOperations = remaining.some((operation) => !processedIds.has(operation.id));
+  } while (hasUnprocessedOperations);
   return result;
 }
 
 export function syncPendingOperations(dependencies: SyncDependencies): Promise<SyncResult> {
   const active = activeSyncs.get(dependencies.queue);
-  if (active) {
-    active.rerunRequested = true;
-    return active.current;
-  }
+  if (active) return active.current;
 
-  const next = { rerunRequested: false } as ActiveSync;
-  const current = runRequestedSyncs(dependencies, next);
+  const next = {} as ActiveSync;
+  const current = runRequestedSyncs(dependencies);
   next.current = current;
   activeSyncs.set(dependencies.queue, next);
   const clear = () => {

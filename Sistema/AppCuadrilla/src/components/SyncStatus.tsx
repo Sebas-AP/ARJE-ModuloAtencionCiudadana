@@ -2,6 +2,7 @@ import React from 'react';
 import { Alert, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import type { TerminalOperationDetail } from '../services/syncRecoveryPolicy';
+import { APP_THEME } from '../theme/appTheme';
 
 interface SyncStatusProps {
   isOnline: boolean;
@@ -68,8 +69,8 @@ export const SyncStatus: React.FC<SyncStatusProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 12, gap: 6, backgroundColor: '#EFF6FF', borderBottomWidth: 1, borderColor: '#BFDBFE' },
-  status: { fontSize: 13, fontWeight: '700', color: '#19244E' },
+  container: { padding: 10, gap: 6, backgroundColor: '#E8F1FF', borderBottomWidth: 1, borderColor: APP_THEME.colors.border },
+  status: { fontSize: 13, fontWeight: '700', color: APP_THEME.colors.royal },
   warning: { fontSize: 12, color: '#9A3412' },
   rejection: { gap: 3, paddingTop: 6, borderTopWidth: 1, borderColor: '#FED7AA' },
   rejectionTitle: { fontSize: 12, fontWeight: '700', color: '#7C2D12' },

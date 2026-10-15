@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { authService } from '../../services/authService';
+import { APP_THEME } from '../../theme/appTheme';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -9,219 +11,27 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
   const handleLogin = async () => {
-    if (!usuario.trim() || !password.trim()) {
-      setError('Ingrese usuario y contraseña');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      await authService.login(usuario, password);
-      router.replace('/(tabs)');
-    } catch (err: any) {
-      setError(err.message || 'Credenciales inválidas');
-    } finally {
-      setLoading(false);
-    }
+    if (!usuario.trim() || !password.trim()) { setError('Ingrese usuario y contraseña'); return; }
+    setLoading(true); setError('');
+    try { await authService.login(usuario, password); router.replace('/(tabs)'); }
+    catch (cause: unknown) { setError(cause instanceof Error ? cause.message : 'Credenciales inválidas'); }
+    finally { setLoading(false); }
   };
-
-  return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-      keyboardVerticalOffset={0}
-    >
-      <View style={styles.content}>
-        <View style={styles.logoContainer}>
-          <View style={styles.logo}>
-            <Text style={styles.logoText}>ARJE</Text>
-          </View>
-          <Text style={styles.title}>Módulo Cuadrilla</Text>
-          <Text style={styles.subtitle}>Atención Ciudadana - Aguascalientes</Text>
-        </View>
-
-        <View style={styles.form}>
-          <Text style={styles.formTitle}>Iniciar sesión</Text>
-          
-          {error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>⚠ {error}</Text>
-            </View>
-          )}
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Usuario / Email</Text>
-            <TextInput
-              style={styles.input}
-              value={usuario}
-              onChangeText={setUsuario}
-              placeholder="Ingrese su usuario"
-              autoCapitalize="none"
-              autoComplete="username"
-              textContentType="username"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Contraseña</Text>
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Ingrese su contraseña"
-              secureTextEntry
-              autoComplete="current-password"
-              textContentType="password"
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.loginButton, loading && styles.loginButtonLoading]}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="large" color="#FFFFFF" />
-            ) : (
-              <Text style={styles.loginButtonText}>Entrar</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Sistema ARJE - Módulo de Atención Ciudadana
-          </Text>
-        </View>
+  return <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+    <View style={styles.content}>
+      <Image accessibilityLabel="ARJE" source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
+      <Text style={styles.welcome}>Acceso a cuadrillas</Text><Text style={styles.subtitle}>Gestión de atención en campo</Text>
+      <View style={styles.form}>
+        <Text style={styles.label}>Usuario</Text><View style={styles.inputShell}><Ionicons name="person-outline" size={20} color={APP_THEME.colors.primary} /><TextInput style={styles.input} value={usuario} onChangeText={setUsuario} placeholder="ej. Juan López" placeholderTextColor="#B9D6FF" autoCapitalize="none" autoComplete="username" textContentType="username" /></View>
+        <Text style={styles.label}>Contraseña</Text><View style={styles.inputShell}><Ionicons name="lock-closed-outline" size={20} color={APP_THEME.colors.primary} /><TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Ingresa tu contraseña" placeholderTextColor="#B9D6FF" secureTextEntry autoComplete="current-password" textContentType="password" /></View>
+        {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
       </View>
-    </KeyboardAvoidingView>
-  );
+      <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: loading }} disabled={loading} onPress={() => { void handleLogin(); }} style={styles.button}>{loading ? <ActivityIndicator color="#FFF" /> : <><Text style={styles.buttonText}>Iniciar sesión</Text><Ionicons name="log-in-outline" size={24} color="#FFF" /></>}</TouchableOpacity>
+    </View>
+  </KeyboardAvoidingView>;
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'center',
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 16,
-    backgroundColor: '#253C96',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#253C96',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  logoText: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 2,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#19244E',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#64748B',
-  },
-  form: {
-    width: '100%',
-    maxWidth: 400,
-    alignSelf: 'center',
-  },
-  formTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#19244E',
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  errorContainer: {
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorText: {
-    fontSize: 13,
-    color: '#B91C1C',
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  input: {
-    height: 50,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    fontSize: 15,
-    color: '#19244E',
-  },
-  loginButton: {
-    height: 54,
-    backgroundColor: '#253C96',
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
-    shadowColor: '#253C96',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  loginButtonLoading: {
-    backgroundColor: '#1E3A8A',
-  },
-  loginButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  footer: {
-    marginTop: 32,
-    paddingTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 12,
-    color: '#94A3B8',
-    textAlign: 'center',
-  },
+  container: { flex: 1, backgroundColor: APP_THEME.colors.canvas }, content: { flex: 1, paddingHorizontal: 40, justifyContent: 'center' }, logo: { width: 265, height: 115, alignSelf: 'center', marginBottom: 58 }, welcome: { color: APP_THEME.colors.royal, fontSize: 25, fontWeight: '800', textAlign: 'center' }, subtitle: { color: APP_THEME.colors.muted, textAlign: 'center', marginTop: 6, marginBottom: 44 }, form: { gap: 8 }, label: { color: '#015FEB', fontSize: 16, marginTop: 14 }, inputShell: { height: 45, borderWidth: 1, borderColor: '#015FEB', borderRadius: APP_THEME.radius.input, backgroundColor: '#FFF', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 10 }, input: { flex: 1, color: APP_THEME.colors.royal, fontSize: 16 }, error: { color: '#B91C1C', marginTop: 12, textAlign: 'center' }, button: { height: 48, borderRadius: APP_THEME.radius.button, backgroundColor: APP_THEME.colors.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 10, marginTop: 72, shadowColor: APP_THEME.colors.primary, shadowOffset: { width: 0, height: 10 }, shadowOpacity: .2, shadowRadius: 12, elevation: 4 }, buttonText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
 });

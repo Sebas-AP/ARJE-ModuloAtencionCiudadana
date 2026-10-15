@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { canSelectAvailable, type Availability } from '../services/fieldUiPolicy';
+import { APP_THEME } from '../theme/appTheme';
 
 interface DisponibilidadSelectorProps {
   currentAvailability: number;
@@ -44,11 +45,11 @@ export const DisponibilidadSelector: React.FC<DisponibilidadSelectorProps> = ({
 );
 
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 10, backgroundColor: '#FFFFFF', borderRadius: 12, marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: '700', color: '#19244E' },
+  container: { padding: 16, gap: 10, backgroundColor: APP_THEME.colors.surface, borderWidth: 1, borderColor: APP_THEME.colors.border, borderRadius: APP_THEME.radius.card, marginBottom: 16 },
+  label: { fontSize: 14, fontWeight: '700', color: APP_THEME.colors.royal },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  option: { padding: 12, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8 },
-  selected: { borderColor: '#253C96', backgroundColor: '#EFF6FF' },
+  option: { padding: 10, borderWidth: 1, borderColor: APP_THEME.colors.primary, borderRadius: 8 },
+  selected: { borderColor: APP_THEME.colors.primary, backgroundColor: '#E8F1FF' },
   disabled: { opacity: 0.5 },
   text: { color: '#253C96', fontSize: 12, fontWeight: '600' },
   hint: { color: '#64748B', fontSize: 12 },

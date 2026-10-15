@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { ReporteDTO, PrioridadReporte, EstatusReporteLabels, EstatusReporteColors } from '../types';
+import { APP_THEME } from '../theme/appTheme';
+import { toReporteCardModel } from '../services/reportesListModel';
 
 interface ReporteCardProps {
   reporte: ReporteDTO;
@@ -18,13 +20,13 @@ export const ReporteCard: React.FC<ReporteCardProps> = ({ reporte, onPress }) =>
 
   const estatusLabel = EstatusReporteLabels[reporte.estatus] || String(reporte.estatus);
   const estatusColor = EstatusReporteColors[reporte.estatus] || '#64748B';
+  const model = toReporteCardModel(reporte);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.header}>
         <View style={styles.folioContainer}>
-          <Text style={styles.folioLabel}>Folio:</Text>
-          <Text style={styles.folioValue}>{reporte.folio || `REP-${reporte.id}`}</Text>
+          <Text style={styles.folioValue}>▣ {model.folio}</Text>
         </View>
         <View style={[styles.prioridadBadge, { backgroundColor: prioridadColor }]}>
           <Text style={styles.prioridadText}>{prioridad}</Text>
@@ -32,15 +34,15 @@ export const ReporteCard: React.FC<ReporteCardProps> = ({ reporte, onPress }) =>
       </View>
 
       <View style={styles.body}>
-        <Text style={styles.categoria}>{reporte.categoria || 'Sin categoría'}</Text>
-        <Text style={styles.descripcion}>{reporte.descripcion}</Text>
+        <Text style={styles.categoria}>{model.category}</Text>
+        <Text style={styles.descripcion}>Fecha de registro: {model.date}</Text>
       </View>
 
       <View style={styles.footer}>
         <View style={styles.ubicacionRow}>
           <Text style={styles.ubicacionIcon}>📍</Text>
           <Text style={styles.ubicacionText} numberOfLines={1}>
-            {reporte.direccion || 'Ubicación no disponible'}
+            {model.location}
           </Text>
         </View>
         <View style={[styles.estatusBadge, { backgroundColor: estatusColor }]}>
@@ -60,8 +62,8 @@ export const ReporteCard: React.FC<ReporteCardProps> = ({ reporte, onPress }) =>
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: APP_THEME.colors.surface,
+    borderRadius: APP_THEME.radius.card,
     padding: 16,
     marginBottom: 12,
     shadowColor: '#000',
@@ -70,13 +72,13 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: APP_THEME.colors.border,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   folioContainer: {
     flexDirection: 'row',
@@ -91,7 +93,7 @@ const styles = StyleSheet.create({
   folioValue: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#19244E',
+    color: '#015FEB',
   },
   prioridadBadge: {
     paddingHorizontal: 10,
@@ -110,7 +112,7 @@ const styles = StyleSheet.create({
   categoria: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#19244E',
+    color: APP_THEME.colors.ink,
     marginBottom: 4,
   },
   descripcion: {

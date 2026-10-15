@@ -17,3 +17,8 @@ test('normalizes missing optional values for a report card', () => {
     folio: 'REP-7', category: 'Sin categoría', location: 'Ubicación no disponible', date: 'Fecha no disponible',
   });
 });
+
+test('status filters distinguish pending, active and completed reports', () => {
+  const rows = [{ id: 1, estatus: 2 }, { id: 2, estatus: 4 }, { id: 3, estatus: 5 }] as ReporteDTO[];
+  assert.deepEqual(filterReportes(rows, '', 'inProgress').map((report) => report.id), [2]);
+});

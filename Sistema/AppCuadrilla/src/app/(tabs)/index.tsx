@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, Alert, TextInput, TouchableOpacity } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { authService } from '../../services/authService';
 import { reportesService } from '../../services/reportesService';
@@ -10,6 +10,8 @@ import { getCuadrillaActual } from '../../services/api';
 import { queueAvailability } from '../../services/fieldOperationsService';
 import { canSelectAvailable, getOperationFeedback, operationFeedbackMessages, type Availability } from '../../services/fieldUiPolicy';
 import { ReporteDTO, CuadrillaDTO } from '../../types';
+import { APP_THEME } from '../../theme/appTheme';
+import { filterReportes, type ReportStatusFilter } from '../../services/reportesListModel';
 
 export default function ReportesScreen() {
   const router = useRouter();
@@ -19,6 +21,8 @@ export default function ReportesScreen() {
   const [cuadrilla, setCuadrilla] = useState<CuadrillaDTO | null>(null);
   const [reportsConfirmed, setReportsConfirmed] = useState(false);
   const [savingAvailability, setSavingAvailability] = useState(false);
+  const [query, setQuery] = useState('');
+  const [status, setStatus] = useState<ReportStatusFilter>('all');
   const sync = useFieldSync();
 
   const cargarReportes = useCallback(async () => {
@@ -83,6 +87,7 @@ export default function ReportesScreen() {
         && <Text style={styles.pendingText}>Este reporte tiene operaciones pendientes de sincronización.</Text>}
     </View>
   );
+  const visibleReportes = filterReportes(reportes, query, status);
 
   if (loading) {
     return (
@@ -96,11 +101,16 @@ export default function ReportesScreen() {
   return (
     <View style={styles.container}>
       <FlatList
-        data={reportes}
+        data={visibleReportes}
         renderItem={renderItem}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.listContent}
-        ListHeaderComponent={cuadrilla ? <View>
+        ListHeaderComponent={<View>
+          <Text style={styles.title}>Reportes</Text>
+          <Text style={styles.searchTitle}>Buscar reportes</Text>
+          <TextInput value={query} onChangeText={setQuery} placeholder="Buscar por ID, tipo o sector ..." placeholderTextColor="#8FAFD9" style={styles.search} accessibilityLabel="Buscar reportes" />
+          <View style={styles.filters}>{([['all', 'Todos'], ['pending', 'Pendientes'], ['inProgress', 'En proceso'], ['completed', 'Completados']] as const).map(([value, label]) => <TouchableOpacity key={value} accessibilityRole="button" accessibilityState={{ selected: status === value }} onPress={() => setStatus(value)} style={[styles.filter, status === value && styles.filterActive]}><Text style={[styles.filterText, status === value && styles.filterTextActive]}>{label}</Text></TouchableOpacity>)}</View>
+          {cuadrilla ? <View>
           <DisponibilidadSelector
             currentAvailability={cuadrilla.estatusDisponibilidad}
             activeReportCount={activeReportCount}
@@ -108,7 +118,7 @@ export default function ReportesScreen() {
             onChange={cambiarDisponibilidad}
           />
           {pendingAvailability && <Text style={styles.pendingText}>Cambio de disponibilidad pendiente o rechazado. Sincroniza y revisa el resultado.</Text>}
-        </View> : null}
+          </View> : null}</View>}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -119,9 +129,9 @@ export default function ReportesScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>📋</Text>
-            <Text style={styles.emptyTitle}>Sin reportes asignados</Text>
+            <Text style={styles.emptyTitle}>{reportes.length ? 'No se encontraron reportes' : 'Sin reportes asignados'}</Text>
             <Text style={styles.emptyText}>
-              Cuando se te asigne un reporte, aparecerá aquí automáticamente.
+              {reportes.length ? 'Prueba con otra búsqueda o filtro.' : 'Cuando se te asigne un reporte, aparecerá aquí automáticamente.'}
             </Text>
           </View>
         }
@@ -134,7 +144,7 @@ const styles = StyleSheet.create({
   pendingText: { color: '#9A3412', fontSize: 12, marginBottom: 12 },
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: APP_THEME.colors.canvas,
   },
   loadingContainer: {
     flex: 1,
@@ -150,6 +160,11 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 100,
   },
+  title: { color: APP_THEME.colors.royal, fontSize: 24, fontWeight: '800', marginBottom: 22 },
+  searchTitle: { color: APP_THEME.colors.royal, fontSize: 16, fontWeight: '700', marginBottom: 8 },
+  search: { height: 38, borderWidth: 1, borderColor: '#9CA3AF', borderRadius: 9, backgroundColor: '#F5F6FB', paddingHorizontal: 14, color: APP_THEME.colors.ink, marginBottom: 14 },
+  filters: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', borderBottomWidth: 1, borderBottomColor: APP_THEME.colors.border, paddingBottom: 14, marginBottom: 18 },
+  filter: { borderWidth: 1, borderColor: APP_THEME.colors.primary, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 }, filterActive: { backgroundColor: '#015FEB' }, filterText: { fontSize: 12, color: '#015FEB' }, filterTextActive: { color: '#FFF' },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',

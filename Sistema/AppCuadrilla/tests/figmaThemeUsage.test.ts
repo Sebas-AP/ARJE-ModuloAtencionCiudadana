@@ -16,4 +16,5 @@ test('the detail route uses the Figma theme and exposes completion and location 
   assert.match(source, /APP_THEME/);
   assert.match(source, /Marcar ubicación/);
   assert.match(source, /Reporte completado/);
+  assert.match(source, /onPress=\{\(\) => \{ void obtenerUbicacionActual\(\); \}\}/);
 });

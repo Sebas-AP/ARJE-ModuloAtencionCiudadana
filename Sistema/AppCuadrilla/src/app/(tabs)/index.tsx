@@ -109,7 +109,7 @@ export default function ReportesScreen() {
           <Text style={styles.title}>Reportes</Text>
           <Text style={styles.searchTitle}>Buscar reportes</Text>
           <TextInput value={query} onChangeText={setQuery} placeholder="Buscar por ID, tipo o sector ..." placeholderTextColor="#8FAFD9" style={styles.search} accessibilityLabel="Buscar reportes" />
-          <View style={styles.filters}>{([['all', 'Todos'], ['pending', 'Pendientes'], ['inProgress', 'En proceso'], ['completed', 'Completados']] as const).map(([value, label]) => <TouchableOpacity key={value} accessibilityRole="button" accessibilityState={{ selected: status === value }} onPress={() => setStatus(value)} style={[styles.filter, status === value && styles.filterActive]}><Text style={[styles.filterText, status === value && styles.filterTextActive]}>{label}</Text></TouchableOpacity>)}</View>
+          <View style={styles.filters}>{([['all', 'Todos'], ['pending', 'Pendientes'], ['inProgress', 'En proceso']] as const).map(([value, label]) => <TouchableOpacity key={value} accessibilityRole="button" accessibilityState={{ selected: status === value }} onPress={() => setStatus(value)} style={[styles.filter, status === value && styles.filterActive]}><Text style={[styles.filterText, status === value && styles.filterTextActive]}>{label}</Text></TouchableOpacity>)}</View>
           {cuadrilla ? <View>
           <DisponibilidadSelector
             currentAvailability={cuadrilla.estatusDisponibilidad}

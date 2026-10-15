@@ -27,7 +27,7 @@ export default function ReporteDetalleScreen() {
   const operationsRef = useRef(sync.operations);
   operationsRef.current = sync.operations;
 
-  const { location, iniciarSeguimiento, detenerSeguimiento, tracking, canTrack } = useLocation(reporteId, reporte?.estatus);
+  const { location, obtenerUbicacionActual, iniciarSeguimiento, detenerSeguimiento, tracking, canTrack } = useLocation(reporteId, reporte?.estatus);
 
   const cargarReporte = useCallback(async () => {
     try {
@@ -270,7 +270,7 @@ export default function ReporteDetalleScreen() {
 
         {/* Botón de seguimiento GPS */}
         <View style={styles.section}>
-          <TouchableOpacity accessibilityRole="button" style={styles.locationButton} onPress={toggleSeguimiento} disabled={guardando || !canTrack}>
+          <TouchableOpacity accessibilityRole="button" style={styles.locationButton} onPress={() => { void obtenerUbicacionActual(); }} disabled={guardando}>
             <Text style={styles.locationButtonText}>Marcar ubicación</Text>
           </TouchableOpacity>
           <TouchableOpacity

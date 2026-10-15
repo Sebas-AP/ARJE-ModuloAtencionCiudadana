@@ -17,6 +17,9 @@ export function mobileRuntime() {
   let tokenReads = 0;
   let onTokenRead: ((read: number) => void | Promise<void>) | undefined;
   const natives: Record<string, any> = {
+    'react-native': {
+      Platform: { OS: 'android' },
+    },
     '@react-native-async-storage/async-storage': {
       getItem: async (key: string) => storage.get(key) ?? null,
       setItem: async (key: string, value: string) => { storage.set(key, value); },

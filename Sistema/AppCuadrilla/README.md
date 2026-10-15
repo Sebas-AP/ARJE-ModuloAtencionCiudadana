@@ -6,9 +6,27 @@ Este README está dirigido a quienes mantienen y verifican la aplicación. La se
 
 ## Configuración y verificación
 
-- Requiere las dependencias del proyecto instaladas y una API accesible desde el dispositivo. La aplicación usa `EXPO_PUBLIC_API_BASE_URL`; si no se define, usa `http://10.0.2.2:5170/api`, dirección del emulador Android configurada en `src/services/api.ts`.
+- Requiere las dependencias del proyecto instaladas y una API accesible desde el dispositivo. La aplicación usa `EXPO_PUBLIC_API_BASE_URL`; si no se define, usa `http://10.0.2.2:5170/api`, dirección exclusiva del emulador Android configurada en `src/services/api.ts`.
 - Desde `Sistema/AppCuadrilla`, `npm test` ejecuta las pruebas de servicios y políticas de campo; `npx tsc --noEmit` comprueba tipos; `npx expo lint` ejecuta ESLint. Estos tres comandos se verificaron en el worktree el 14 de octubre de 2026.
 - El inicio de sesión de cuadrilla utiliza la API. La lista y el detalle de reportes necesitan conexión para su primera carga; la aplicación no conserva una copia offline de esos datos.
+
+### Inicio desde navegador o Expo Go en la red local
+
+No uses `10.0.2.2` ni una IP escrita permanentemente en el código desde un teléfono físico. Primero inicia la API para aceptar conexiones externas en el puerto 5170 (por ejemplo, enlazada a `0.0.0.0:5170`). Después conecta el teléfono y esta computadora a la misma red Wi-Fi; evita redes de invitados o perfiles que aíslen dispositivos.
+
+Desde `Sistema/AppCuadrilla`, ejecuta:
+
+```bash
+./scripts/start-lan.sh
+```
+
+El script detecta la IP privada actual del equipo, define para esa sesión `EXPO_PUBLIC_API_BASE_URL=http://<IP-LOCAL>:5170/api` e inicia Expo con `--lan --clear`, sin túnel. Escanea el QR con Expo Go o abre la URL web que muestre Expo. Si el equipo tiene más de una red activa o la detección no elige la interfaz Wi-Fi, fija la IP explícitamente:
+
+```bash
+EXPO_LOCAL_IP=192.168.1.50 ./scripts/start-lan.sh
+```
+
+La API debe permitir tráfico entrante desde la red local en el puerto 5170. Si el inicio de sesión falla en el teléfono pero funciona en navegador, comprueba que el firewall del equipo no bloquee ese puerto y abre desde el navegador del teléfono `http://<IP-LOCAL>:5170` para confirmar que puede alcanzar el servidor.
 
 ## Operación en campo
 

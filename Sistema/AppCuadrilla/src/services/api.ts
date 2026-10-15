@@ -1,20 +1,22 @@
-import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { buildAssignedReportsPath, buildLocationBatch, fieldApiPaths } from './fieldApiContract';
+import { resolveApiBaseUrl } from './apiConfiguration';
+import { secureStorage } from './secureStorage';
 import type { CuadrillaLoginPayload } from './fieldApiContract';
 import type { ActualizarEstatusDTO, CuadrillaDTO, EvidenciaDTO, ReporteDTO } from '../types';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.2.2:5170/api';
+const API_BASE_URL = resolveApiBaseUrl(Platform.OS, process.env.EXPO_PUBLIC_API_BASE_URL);
 
 export const getAuthToken = async (): Promise<string | null> => {
-  return await SecureStore.getItemAsync('arje_token');
+  return await secureStorage.getItemAsync('arje_token');
 };
 
 export const setAuthToken = async (token: string): Promise<void> => {
-  await SecureStore.setItemAsync('arje_token', token);
+  await secureStorage.setItemAsync('arje_token', token);
 };
 
 export const clearAuthToken = async (): Promise<void> => {
-  await SecureStore.deleteItemAsync('arje_token');
+  await secureStorage.deleteItemAsync('arje_token');
 };
 
 interface RequestOptions extends RequestInit {

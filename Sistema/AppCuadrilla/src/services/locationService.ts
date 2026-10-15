@@ -1,7 +1,7 @@
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
-import * as SecureStore from 'expo-secure-store';
 import { fieldOperationQueue, setFieldOperationOwner, syncFieldOperations } from './fieldOperationsService';
+import { secureStorage } from './secureStorage';
 
 export const LOCATION_TASK = 'background-location-task';
 const ACTIVE_TRACKING_KEY = 'arje_active_location_tracking';
@@ -70,21 +70,21 @@ export const setLocationSessionOwner = async (ownerCuadrillaId: number | null): 
   // headless TaskManager invocation.
   locationSessionOwner = ownerCuadrillaId;
   if (ownerCuadrillaId === null) {
-    await SecureStore.deleteItemAsync(LOCATION_SESSION_OWNER_KEY);
+    await secureStorage.deleteItemAsync(LOCATION_SESSION_OWNER_KEY);
     return;
   }
-  await SecureStore.setItemAsync(LOCATION_SESSION_OWNER_KEY, String(ownerCuadrillaId));
+  await secureStorage.setItemAsync(LOCATION_SESSION_OWNER_KEY, String(ownerCuadrillaId));
 };
 
 const getLocationSessionOwner = async (): Promise<number | null> => {
   if (locationSessionOwner !== undefined) return locationSessionOwner;
-  locationSessionOwner = parsePositiveInteger(await SecureStore.getItemAsync(LOCATION_SESSION_OWNER_KEY));
+  locationSessionOwner = parsePositiveInteger(await secureStorage.getItemAsync(LOCATION_SESSION_OWNER_KEY));
   return locationSessionOwner;
 };
 
 export const setActiveReporteId = async (id: number | null): Promise<void> => {
   if (id === null) {
-    await SecureStore.deleteItemAsync(ACTIVE_TRACKING_KEY);
+    await secureStorage.deleteItemAsync(ACTIVE_TRACKING_KEY);
     return;
   }
 
@@ -92,11 +92,11 @@ export const setActiveReporteId = async (id: number | null): Promise<void> => {
   if (ownerCuadrillaId === null) {
     throw new Error('No se puede iniciar seguimiento GPS sin una sesión activa de cuadrilla.');
   }
-  await SecureStore.setItemAsync(ACTIVE_TRACKING_KEY, JSON.stringify({ reportId: id, ownerCuadrillaId }));
+  await secureStorage.setItemAsync(ACTIVE_TRACKING_KEY, JSON.stringify({ reportId: id, ownerCuadrillaId }));
 };
 
 const getActiveTracking = async (): Promise<ActiveTracking | null> => {
-  return parseActiveTracking(await SecureStore.getItemAsync(ACTIVE_TRACKING_KEY));
+  return parseActiveTracking(await secureStorage.getItemAsync(ACTIVE_TRACKING_KEY));
 };
 
 export const startLocationTracking = async (idReporte: number): Promise<void> => {

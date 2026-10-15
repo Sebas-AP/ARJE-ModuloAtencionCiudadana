@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { ReporteDTO, PrioridadReporte, EstatusReporteLabels, EstatusReporteColors } from '../types';
 import { APP_THEME } from '../theme/appTheme';
 import { toReporteCardModel } from '../services/reportesListModel';

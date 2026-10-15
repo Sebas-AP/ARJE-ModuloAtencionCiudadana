@@ -10,3 +10,10 @@ test('the tab layout and both map implementations use the shared AppCuadrilla th
     assert.match(readFileSync(resolve(root, file), 'utf8'), /APP_THEME/);
   }
 });
+
+test('the detail route uses the Figma theme and exposes completion and location actions', () => {
+  const source = readFileSync(resolve(root, 'src/app/reporte/[id].tsx'), 'utf8');
+  assert.match(source, /APP_THEME/);
+  assert.match(source, /Marcar ubicación/);
+  assert.match(source, /Reporte completado/);
+});

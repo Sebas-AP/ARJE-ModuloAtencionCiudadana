@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity, Image, Platform, KeyboardAvoidingView } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { reportesService } from '../../services/reportesService';
 import { useLocation } from '../../hooks/useLocation';
 import { StatusSelector } from '../../components/StatusSelector';
@@ -10,10 +10,12 @@ import { useFieldSync } from '../../hooks/useFieldSync';
 import { getAllowedNextStatuses, getOperationFeedback, hasResolutionEvidence, operationFeedbackMessages, refreshReportAfterStatus, type FieldStatus } from '../../services/fieldUiPolicy';
 import type { SyncResult } from '../../services/syncService';
 import { ReporteDTO, EstatusReporteLabels, EstatusReporteColors, PrioridadColors } from '../../types';
+import { APP_THEME } from '../../theme/appTheme';
 
 export default function ReporteDetalleScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const reporteId = parseInt(id || '0', 10);
+  const router = useRouter();
 
   const [reporte, setReporte] = useState<ReporteDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -134,6 +136,15 @@ export default function ReporteDetalleScreen() {
   const prioridadColor = PrioridadColors[prioridad] || '#F59A1E';
   const estatusLabel = EstatusReporteLabels[reporte.estatus] || String(reporte.estatus);
   const estatusColor = EstatusReporteColors[reporte.estatus] || '#64748B';
+
+  if (reporte.estatus === 5) {
+    return <View style={styles.completedScreen}>
+      <View style={styles.completedIcon}><Text style={styles.completedMark}>✓</Text></View>
+      <Text style={styles.completedTitle}>Reporte completado</Text>
+      <Text style={styles.completedCopy}>La evidencia y el cambio de estado se guardaron para su sincronización.</Text>
+      <TouchableOpacity accessibilityRole="button" style={styles.primaryAction} onPress={() => router.replace('/(tabs)')}><Text style={styles.primaryActionText}>Volver a reportes</Text></TouchableOpacity>
+    </View>;
+  }
 
   return (
     <KeyboardAvoidingView
@@ -259,6 +270,9 @@ export default function ReporteDetalleScreen() {
 
         {/* Botón de seguimiento GPS */}
         <View style={styles.section}>
+          <TouchableOpacity accessibilityRole="button" style={styles.locationButton} onPress={toggleSeguimiento} disabled={guardando || !canTrack}>
+            <Text style={styles.locationButtonText}>Marcar ubicación</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.seguimientoButton,
@@ -313,7 +327,7 @@ export default function ReporteDetalleScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: APP_THEME.colors.canvas,
   },
   loadingContainer: {
     flex: 1,
@@ -330,11 +344,13 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   header: {
-    backgroundColor: '#253C96',
-    borderRadius: 16,
+    backgroundColor: APP_THEME.colors.surface,
+    borderWidth: 1,
+    borderColor: APP_THEME.colors.border,
+    borderRadius: APP_THEME.radius.card,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#253C96',
+    shadowColor: '#015FEB',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -352,14 +368,14 @@ const styles = StyleSheet.create({
   folioLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.7)',
+    color: APP_THEME.colors.muted,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   folioValue: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: APP_THEME.colors.royal,
     letterSpacing: 1,
   },
   prioridadBadge: {
@@ -528,4 +544,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontStyle: 'italic',
   },
+  locationButton: { paddingVertical: 13, borderRadius: 12, borderWidth: 2, borderColor: APP_THEME.colors.primary, alignItems: 'center', marginBottom: 10, backgroundColor: '#FFF' },
+  locationButtonText: { color: APP_THEME.colors.primary, fontWeight: '700', fontSize: 16 },
+  completedScreen: { flex: 1, backgroundColor: APP_THEME.colors.canvas, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 18 },
+  completedIcon: { width: 96, height: 96, borderRadius: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: '#D1FAE5' },
+  completedMark: { color: '#10B981', fontSize: 54, fontWeight: '800' },
+  completedTitle: { color: APP_THEME.colors.royal, fontSize: 26, fontWeight: '800' },
+  completedCopy: { color: APP_THEME.colors.muted, textAlign: 'center', lineHeight: 22 },
+  primaryAction: { backgroundColor: APP_THEME.colors.primary, borderRadius: APP_THEME.radius.button, paddingVertical: 14, paddingHorizontal: 28, marginTop: 14 },
+  primaryActionText: { color: '#FFF', fontWeight: '800', fontSize: 16 },
 });

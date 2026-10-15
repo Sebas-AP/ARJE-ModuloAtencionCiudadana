@@ -99,7 +99,7 @@ export default function MapaScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#253C96" />
+        <ActivityIndicator size="large" color={APP_THEME.colors.primary} />
         <Text style={styles.loadingText}>Cargando mapa...</Text>
       </View>
     );
@@ -314,7 +314,7 @@ const mapStyle = [
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: APP_THEME.colors.canvas,
   },
   loadingContainer: {
     flex: 1,

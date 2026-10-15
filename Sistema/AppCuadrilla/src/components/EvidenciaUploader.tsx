@@ -93,6 +93,9 @@ export const EvidenciaUploader: React.FC<EvidenciaUploaderProps> = ({
       
       {!imagen ? (
         <View style={styles.buttonRow}>
+          <TouchableOpacity style={[styles.actionButton, styles.galleryButton]} onPress={() => Alert.alert('Grabar audio', 'La aplicación aún no admite adjuntar audio a un reporte.')} disabled={disabled || subiendo}>
+            <Text style={styles.buttonIcon}>🎙</Text><Text style={styles.buttonText}>Grabar audio</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, styles.cameraButton]}
             onPress={tomarFoto}

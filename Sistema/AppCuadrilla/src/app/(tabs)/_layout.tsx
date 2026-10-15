@@ -5,23 +5,24 @@ import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SyncStatus } from '../../components/SyncStatus';
 import { useFieldSync } from '../../hooks/useFieldSync';
+import { APP_THEME } from '../../theme/appTheme';
 
 export default function TabsLayout() {
   const sync = useFieldSync();
   return (
     <View style={{ flex: 1 }}>
-      <SafeAreaView edges={['top']} style={{ backgroundColor: '#EFF6FF' }}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: '#E8F1FF' }}>
         <SyncStatus {...sync} onRetry={() => { void sync.syncNow(); }} />
       </SafeAreaView>
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#253C96',
+        tabBarActiveTintColor: APP_THEME.colors.primary,
         tabBarInactiveTintColor: '#94A3B8',
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: APP_THEME.colors.surface,
           borderTopWidth: 1,
-          borderTopColor: '#E2E8F0',
+          borderTopColor: APP_THEME.colors.border,
           height: 65,
           paddingBottom: 10,
         },

@@ -7,6 +7,7 @@ import { useLocation } from '../hooks/useLocation';
 import { authService } from '../services/authService';
 import { reportesService } from '../services/reportesService';
 import { ReporteDTO, EstatusReporteLabels } from '../types';
+import { APP_THEME } from '../theme/appTheme';
 
 export default function MapaScreen() {
   const [reporte, setReporte] = useState<ReporteDTO | null>(null);

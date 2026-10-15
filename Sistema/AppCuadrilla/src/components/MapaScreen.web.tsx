@@ -5,6 +5,7 @@ import { useFocusEffect } from 'expo-router';
 import { authService } from '../services/authService';
 import { reportesService } from '../services/reportesService';
 import { EstatusReporteLabels, type ReporteDTO } from '../types';
+import { APP_THEME } from '../theme/appTheme';
 
 export default function MapaWebScreen() {
   const [reporte, setReporte] = useState<ReporteDTO | null>(null);
@@ -80,16 +81,16 @@ export default function MapaWebScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, gap: 16, backgroundColor: '#F8FAFC' },
+  container: { flex: 1, padding: 24, gap: 16, backgroundColor: APP_THEME.colors.canvas },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 },
-  title: { fontSize: 24, fontWeight: '700', color: '#253C96' },
+  title: { fontSize: 24, fontWeight: '700', color: APP_THEME.colors.royal },
   muted: { color: '#475569', lineHeight: 20 },
-  card: { gap: 8, padding: 20, borderRadius: 12, backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
+  card: { gap: 8, padding: 20, borderRadius: APP_THEME.radius.card, backgroundColor: APP_THEME.colors.surface, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
   category: { color: '#253C96', fontSize: 14, fontWeight: '600' },
   folio: { color: '#0F172A', fontSize: 20, fontWeight: '700' },
   detail: { color: '#334155', lineHeight: 20 },
   coordinates: { color: '#64748B', fontFamily: 'monospace' },
-  button: { alignSelf: 'flex-start', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, backgroundColor: '#253C96' },
+  button: { alignSelf: 'flex-start', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8, backgroundColor: APP_THEME.colors.primary },
   buttonText: { color: '#FFFFFF', fontWeight: '600' },
   error: { color: '#B91C1C', textAlign: 'center' },
 });

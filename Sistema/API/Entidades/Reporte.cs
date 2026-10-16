@@ -47,6 +47,14 @@ public class Reporte : IId
 
     public decimal? TiempoEstimado { get; set; }
 
+    public DateTime? FechaSupervision { get; set; }
+
+    [StringLength(1000)]
+    public string? NotasSupervision { get; set; }
+
+    [StringLength(2000)]
+    public string? ComentariosResolucion { get; set; }
+
     public int? IdCuadrillaAsignada { get; set; }
     public Cuadrilla? CuadrillaAsignada { get; set; }
 

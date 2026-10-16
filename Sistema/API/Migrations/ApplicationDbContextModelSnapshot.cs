@@ -106,6 +106,10 @@ namespace ARJE.Api.Migrations
                     b.Property<double?>("ConfianzaIA")
                         .HasColumnType("float");
 
+                    b.Property<string>("ComentariosResolucion")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
                     b.Property<string>("Descripcion")
                         .IsRequired()
                         .HasMaxLength(2000)
@@ -120,6 +124,9 @@ namespace ARJE.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<DateTime?>("FechaSupervision")
+                        .HasColumnType("datetime2");
 
                     b.Property<int?>("IdCuadrillaAsignada")
                         .HasColumnType("int");
@@ -144,6 +151,10 @@ namespace ARJE.Api.Migrations
                     b.Property<string>("NumeroContrato")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("NotasSupervision")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<int>("Prioridad")
                         .ValueGeneratedOnAdd()

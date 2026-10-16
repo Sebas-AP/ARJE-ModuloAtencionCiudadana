@@ -174,6 +174,43 @@ public class FieldOperationControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task Scheduling_supervision_persists_the_requested_date_and_notes()
+    {
+        var report = await AddReport(EstatusReporte.Completado, resolution: true);
+        var scheduledAt = new DateTime(2026, 10, 20, 10, 30, 0, DateTimeKind.Utc);
+
+        var result = await Reports("7", "Usuario", "Administrador").ProgramarSupervision(report.Id,
+            new ProgramarSupervisionDTO
+            {
+                IdCuadrillaSupervisora = 2,
+                FechaSupervision = scheduledAt,
+                NotasSupervision = "Validar sellado y bacheo"
+            });
+
+        Assert.IsType<NoContentResult>(result);
+        context.ChangeTracker.Clear();
+        var persisted = (await context.Reportes.FindAsync(report.Id))!;
+        Assert.Equal(scheduledAt, persisted.FechaSupervision);
+        Assert.Equal("Validar sellado y bacheo", persisted.NotasSupervision);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(1441)]
+    public async Task Estimated_time_rejects_values_outside_one_to_1440_minutes(decimal minutes)
+    {
+        var report = await AddReport(EstatusReporte.Asignado);
+
+        var result = await Reports().PutTiempoEstimado(report.Id,
+            new ActualizarTiempoEstimadoDTO { TiempoEstimado = minutes });
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        context.ChangeTracker.Clear();
+        Assert.Null((await context.Reportes.FindAsync(report.Id))!.TiempoEstimado);
+    }
+
+    [Fact]
     public async Task Location_rejects_foreign_cuadrilla_without_writing_points()
     {
         var report = await AddReport(EstatusReporte.EnProceso);

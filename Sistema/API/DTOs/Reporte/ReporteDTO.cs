@@ -18,6 +18,9 @@ public class ReporteDTO
     public DateTime FechaRecibido { get; set; }
     public EstatusReporte Estatus { get; set; }
     public decimal? TiempoEstimado { get; set; }
+    public DateTime? FechaSupervision { get; set; }
+    public string? NotasSupervision { get; set; }
+    public string? ComentariosResolucion { get; set; }
     public int? IdCuadrillaAsignada { get; set; }
     public string? CuadrillaAsignadaNombre { get; set; }
     public string? NumeroContrato { get; set; }

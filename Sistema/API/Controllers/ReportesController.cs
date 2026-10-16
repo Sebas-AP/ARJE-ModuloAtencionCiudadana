@@ -50,6 +50,7 @@ public class ReportesController : ControllerBase
         [FromQuery] PrioridadReporte? prioridad = null,
         [FromQuery] bool ordenarPorPrioridad = false,
         [FromQuery] int? idCuadrillaAsignada = null,
+        [FromQuery] int? idCuadrillaSupervisora = null,
         [FromQuery] DateTime? fechaDesde = null,
         [FromQuery] DateTime? fechaHasta = null,
         [FromQuery] string? numeroContrato = null)
@@ -76,6 +77,9 @@ public class ReportesController : ControllerBase
 
         if (idCuadrillaAsignada.HasValue)
             queryable = queryable.Where(r => r.IdCuadrillaAsignada == idCuadrillaAsignada.Value);
+
+        if (idCuadrillaSupervisora.HasValue)
+            queryable = queryable.Where(r => r.IdCuadrillaSupervisora == idCuadrillaSupervisora.Value);
 
         if (fechaDesde.HasValue)
             queryable = queryable.Where(r => r.FechaRecibido >= fechaDesde.Value);
@@ -347,11 +351,41 @@ public class ReportesController : ControllerBase
         }
 
         reporte.IdCuadrillaSupervisora = dto.IdCuadrillaSupervisora;
+        reporte.FechaSupervision = dto.FechaSupervision;
+        reporte.NotasSupervision = string.IsNullOrWhiteSpace(dto.NotasSupervision)
+            ? null
+            : dto.NotasSupervision.Trim();
         reporte.Estatus = EstatusReporte.EnSupervision;
 
         await _context.SaveChangesAsync();
         await _outputCacheStore.EvictByTagAsync("reportes", default);
         await _outputCacheStore.EvictByTagAsync("cuadrillas", default);
+
+        return NoContent();
+    }
+
+    [HttpPut("{id:int}/tiempo-estimado")]
+    public async Task<ActionResult> PutTiempoEstimado(int id, [FromBody] ActualizarTiempoEstimadoDTO dto)
+    {
+        if (dto.TiempoEstimado is < 1 or > 1440)
+        {
+            return BadRequest(new { mensaje = "El tiempo estimado debe estar entre 1 y 1440 minutos." });
+        }
+
+        var reporte = await _context.Reportes.FindAsync(id);
+        if (reporte == null)
+        {
+            return NotFound();
+        }
+
+        if (_fieldOperationPolicy.IsCuadrilla(User) && !_fieldOperationPolicy.CanAccessAssignedReport(reporte, User))
+        {
+            return Forbid();
+        }
+
+        reporte.TiempoEstimado = dto.TiempoEstimado;
+        await _context.SaveChangesAsync();
+        await _outputCacheStore.EvictByTagAsync("reportes", default);
 
         return NoContent();
     }
@@ -519,4 +553,9 @@ public class ProgramarSupervisionDTO
     public int IdCuadrillaSupervisora { get; set; }
     public DateTime? FechaSupervision { get; set; }
     public string? NotasSupervision { get; set; }
+}
+
+public class ActualizarTiempoEstimadoDTO
+{
+    public decimal TiempoEstimado { get; set; }
 }

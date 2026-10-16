@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Data.Common;
 using Xunit;
 
@@ -24,7 +25,7 @@ public sealed class AvailabilityConcurrencySqlServerTests : IAsyncDisposable
     private const string ConnectionStringVariable = "ARJE_SQLSERVER_TEST_CONNECTION";
     private readonly string? connectionString = Environment.GetEnvironmentVariable(ConnectionStringVariable);
     private readonly ServiceProvider services = new ServiceCollection().AddLogging().AddOutputCache().BuildServiceProvider();
-    private readonly IMapper mapper = new MapperConfiguration(c => c.AddProfile<AutoMapperProfiles>()).CreateMapper();
+    private readonly IMapper mapper = new MapperConfiguration(c => c.AddProfile<AutoMapperProfiles>(), NullLoggerFactory.Instance).CreateMapper();
 
     [Fact]
     [Trait("Category", "SqlServerIntegration")]

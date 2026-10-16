@@ -17,6 +17,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace ARJE.Api.Tests;
@@ -26,7 +27,7 @@ public class FieldOperationControllerTests : IDisposable
     private readonly SqliteConnection connection = new("Data Source=:memory:");
     private readonly TransactionSpy transactionSpy = new();
     private readonly ApplicationDbContext context;
-    private readonly IMapper mapper = new MapperConfiguration(c => c.AddProfile<AutoMapperProfiles>()).CreateMapper();
+    private readonly IMapper mapper = new MapperConfiguration(c => c.AddProfile<AutoMapperProfiles>(), NullLoggerFactory.Instance).CreateMapper();
     private readonly ServiceProvider services;
     private readonly IOutputCacheStore cache;
 

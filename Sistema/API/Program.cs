@@ -25,7 +25,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     }
 });
 
-builder.Services.AddAutoMapper(typeof(AutoMapperProfiles));
+builder.Services.AddAutoMapper(_ => { }, typeof(AutoMapperProfiles));
 
 builder.Services.AddOutputCache(options =>
 {

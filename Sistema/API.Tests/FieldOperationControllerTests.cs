@@ -211,6 +211,48 @@ public class FieldOperationControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task Resolution_comments_are_saved_without_bypassing_resolution_evidence()
+    {
+        var report = await AddReport(EstatusReporte.EnProceso);
+
+        Assert.IsType<NoContentResult>(await Reports().PutComentariosResolucion(report.Id,
+            new ActualizarComentariosResolucionDTO { ComentariosResolucion = "Se sustituyó la válvula dañada." }));
+        Assert.IsType<BadRequestObjectResult>(await Reports().PutEstatus(report.Id, EstatusReporte.Completado));
+        context.ChangeTracker.Clear();
+        Assert.Equal("Se sustituyó la válvula dañada.", (await context.Reportes.FindAsync(report.Id))!.ComentariosResolucion);
+    }
+
+    [Fact]
+    public async Task Supervising_crew_can_confirm_repair_and_close_the_report()
+    {
+        var report = await AddReport(EstatusReporte.EnSupervision, resolution: true);
+        report.IdCuadrillaSupervisora = 2;
+        await context.SaveChangesAsync();
+
+        var result = await Reports("2").PutResultadoSupervision(report.Id,
+            new ResolverSupervisionDTO { ConfirmaReparacion = true, Observaciones = "Reparación validada." });
+
+        Assert.IsType<NoContentResult>(result);
+        context.ChangeTracker.Clear();
+        Assert.Equal(EstatusReporte.Cerrado, (await context.Reportes.FindAsync(report.Id))!.Estatus);
+    }
+
+    [Fact]
+    public async Task Non_supervising_crew_cannot_decide_supervision()
+    {
+        var report = await AddReport(EstatusReporte.EnSupervision, resolution: true);
+        report.IdCuadrillaSupervisora = 2;
+        await context.SaveChangesAsync();
+
+        var result = await Reports().PutResultadoSupervision(report.Id,
+            new ResolverSupervisionDTO { ConfirmaReparacion = false });
+
+        Assert.IsType<ForbidResult>(result);
+        context.ChangeTracker.Clear();
+        Assert.Equal(EstatusReporte.EnSupervision, (await context.Reportes.FindAsync(report.Id))!.Estatus);
+    }
+
+    [Fact]
     public async Task Location_rejects_foreign_cuadrilla_without_writing_points()
     {
         var report = await AddReport(EstatusReporte.EnProceso);

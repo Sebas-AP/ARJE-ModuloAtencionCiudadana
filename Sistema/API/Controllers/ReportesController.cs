@@ -390,6 +390,72 @@ public class ReportesController : ControllerBase
         return NoContent();
     }
 
+    [HttpPut("{id:int}/comentarios-resolucion")]
+    public async Task<ActionResult> PutComentariosResolucion(int id, [FromBody] ActualizarComentariosResolucionDTO dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.ComentariosResolucion) || dto.ComentariosResolucion.Length > 2000)
+        {
+            return BadRequest(new { mensaje = "Los comentarios de resolución deben contener entre 1 y 2000 caracteres." });
+        }
+
+        var reporte = await _context.Reportes.FindAsync(id);
+        if (reporte == null)
+        {
+            return NotFound();
+        }
+
+        if (_fieldOperationPolicy.IsCuadrilla(User) && !_fieldOperationPolicy.CanAccessAssignedReport(reporte, User))
+        {
+            return Forbid();
+        }
+
+        reporte.ComentariosResolucion = dto.ComentariosResolucion.Trim();
+        await _context.SaveChangesAsync();
+        await _outputCacheStore.EvictByTagAsync("reportes", default);
+
+        return NoContent();
+    }
+
+    [HttpPut("{id:int}/supervision/resultado")]
+    public async Task<ActionResult> PutResultadoSupervision(int id, [FromBody] ResolverSupervisionDTO dto)
+    {
+        var reporte = await _context.Reportes.FindAsync(id);
+        if (reporte == null)
+        {
+            return NotFound();
+        }
+
+        if (_fieldOperationPolicy.IsCuadrilla(User) && !_fieldOperationPolicy.CanAccessSupervisedReport(reporte, User))
+        {
+            return Forbid();
+        }
+
+        if (reporte.Estatus != EstatusReporte.EnSupervision)
+        {
+            return BadRequest(new { mensaje = "El reporte no está pendiente de supervisión." });
+        }
+
+        reporte.NotasSupervision = string.IsNullOrWhiteSpace(dto.Observaciones)
+            ? reporte.NotasSupervision
+            : dto.Observaciones.Trim();
+        reporte.Estatus = dto.ConfirmaReparacion ? EstatusReporte.Cerrado : EstatusReporte.EnProceso;
+
+        if (!dto.ConfirmaReparacion && reporte.IdCuadrillaAsignada.HasValue)
+        {
+            var cuadrilla = await _context.Cuadrillas.FindAsync(reporte.IdCuadrillaAsignada.Value);
+            if (cuadrilla != null && cuadrilla.EstatusDisponibilidad != EstatusCuadrilla.FueraServicio)
+            {
+                cuadrilla.EstatusDisponibilidad = EstatusCuadrilla.Ocupada;
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        await _outputCacheStore.EvictByTagAsync("reportes", default);
+        await _outputCacheStore.EvictByTagAsync("cuadrillas", default);
+
+        return NoContent();
+    }
+
     [HttpPut("{id:int}/estatus")]
     public async Task<ActionResult> PutEstatus(int id, [FromBody] EstatusReporte nuevoEstatus)
     {
@@ -558,4 +624,15 @@ public class ProgramarSupervisionDTO
 public class ActualizarTiempoEstimadoDTO
 {
     public decimal TiempoEstimado { get; set; }
+}
+
+public class ActualizarComentariosResolucionDTO
+{
+    public string ComentariosResolucion { get; set; } = string.Empty;
+}
+
+public class ResolverSupervisionDTO
+{
+    public bool ConfirmaReparacion { get; set; }
+    public string? Observaciones { get; set; }
 }

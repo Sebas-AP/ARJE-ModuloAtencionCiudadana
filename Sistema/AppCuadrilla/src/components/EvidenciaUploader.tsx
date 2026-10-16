@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator, Platform, Modal, useWindowDimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { reportesService } from '../services/reportesService';
 import { getOperationFeedback, operationFeedbackMessages } from '../services/fieldUiPolicy';
 import type { SyncResult } from '../services/syncService';
+import { fitArtboard } from '../theme/figmaArtboard';
 
 interface EvidenciaUploaderProps {
   idReporte: number;
@@ -18,6 +21,9 @@ export const EvidenciaUploader: React.FC<EvidenciaUploaderProps> = ({
 }) => {
   const [imagen, setImagen] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState(false);
+  const [showAudioNotice, setShowAudioNotice] = useState(false);
+  const { width, height } = useWindowDimensions();
+  const modalScale = fitArtboard(width, height);
 
   const seleccionarImagen = async () => {
     if (disabled) return;
@@ -87,30 +93,27 @@ export const EvidenciaUploader: React.FC<EvidenciaUploaderProps> = ({
     setImagen(null);
   };
 
+  const agregarEvidencia = () => {
+    if (Platform.OS === 'web') {
+      void seleccionarImagen();
+      return;
+    }
+    Alert.alert('Agregar evidencia', 'Elige cómo agregar la foto del reporte.', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Tomar foto', onPress: () => { void tomarFoto(); } },
+      { text: 'Galería', onPress: () => { void seleccionarImagen(); } },
+    ]);
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Evidencia de resolución</Text>
-      
       {!imagen ? (
         <View style={styles.buttonRow}>
-          <TouchableOpacity style={[styles.actionButton, styles.galleryButton]} onPress={() => Alert.alert('Grabar audio', 'La aplicación aún no admite adjuntar audio a un reporte.')} disabled={disabled || subiendo}>
-            <Text style={styles.buttonIcon}>🎙</Text><Text style={styles.buttonText}>Grabar audio</Text>
+          <TouchableOpacity accessibilityRole="button" style={styles.actionButton} onPress={() => setShowAudioNotice(true)} disabled={disabled || subiendo}>
+            <View style={styles.actionIcon}><Ionicons name="mic-outline" size={20} color="#FFF" /></View><Text style={styles.buttonText}>Grabar audio</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.cameraButton]}
-            onPress={tomarFoto}
-            disabled={disabled || subiendo}
-          >
-            <Text style={styles.buttonIcon}>📷</Text>
-            <Text style={styles.buttonText}>Tomar foto</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.galleryButton]}
-            onPress={seleccionarImagen}
-            disabled={disabled || subiendo}
-          >
-            <Text style={styles.buttonIcon}>🖼</Text>
-            <Text style={styles.buttonText}>Galería</Text>
+          <TouchableOpacity accessibilityRole="button" style={styles.actionButton} onPress={agregarEvidencia} disabled={disabled || subiendo}>
+            <View style={styles.actionIcon}><Ionicons name="camera-outline" size={24} color="#FFF" /></View><Text style={styles.buttonText}>Agregar</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -138,57 +141,52 @@ export const EvidenciaUploader: React.FC<EvidenciaUploaderProps> = ({
         </View>
       )}
 
-      <Text style={styles.hint}>
-        La evidencia se guarda en el dispositivo y se enviará al servidor cuando se pueda sincronizar.
-      </Text>
+      {imagen ? <Text style={styles.hint}>La evidencia se guardará en el dispositivo y se enviará al servidor cuando se pueda sincronizar.</Text> : null}
+      <Modal visible={showAudioNotice} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setShowAudioNotice(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.audioCard, { transform: [{ scale: modalScale }] }]} accessibilityViewIsModal>
+            <View style={styles.audioHeader}>
+              <View style={styles.audioHeaderTitle}><View style={styles.audioDot} /><Text style={styles.audioTitle}>Audio no disponible</Text></View>
+              <View style={styles.audioUnavailable}><View style={styles.audioUnavailableDot} /><Text style={styles.audioUnavailableText}>No disponible</Text></View>
+            </View>
+            <LinearGradient colors={['#2200FF', '#0184FF']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.audioHero}>
+              <View style={styles.audioIconCircle}><Ionicons name="mic-off-outline" size={28} color="#FFF" /></View>
+              <View style={styles.audioHeroCopy}><Text style={styles.audioHeroTitle}>No hay grabación</Text><Text style={styles.audioHeroText}>Esta versión aún no puede capturar ni adjuntar audio al reporte.</Text></View>
+            </LinearGradient>
+            <View style={styles.audioFooter}><View style={styles.audioFooterLeft}><Ionicons name="mic-off-outline" size={24} color="#00D4EB" /><Text style={styles.audioFooterText}>Audio inactivo</Text></View><Text style={styles.audioDuration}>—</Text></View>
+            <TouchableOpacity accessibilityRole="button" style={styles.audioClose} onPress={() => setShowAudioNotice(false)}><Text style={styles.audioCloseText}>Entendido</Text></TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: 16,
-    padding: 16,
-    backgroundColor: '#FFF7ED',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FDBA74',
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#9A3412',
-    marginBottom: 12,
-  },
+  container: { width: 353 },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 57,
   },
   actionButton: {
-    flex: 1,
+    width: 148,
+    height: 54,
+    padding: 0,
+    paddingLeft: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 8,
-    borderWidth: 1,
+    justifyContent: 'flex-start',
+    gap: 10,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#0184FF',
+    backgroundColor: '#F8FBFF',
   },
-  cameraButton: {
-    borderColor: '#253C96',
-    backgroundColor: '#EFF6FF',
-  },
-  galleryButton: {
-    borderColor: '#0057D9',
-    backgroundColor: '#EFF6FF',
-  },
-  buttonIcon: {
-    fontSize: 18,
-  },
+  actionIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#0184FF', alignItems: 'center', justifyContent: 'center' },
   buttonText: {
+    fontFamily: 'InriaSans_700Bold',
     fontSize: 14,
-    fontWeight: '600',
-    color: '#253C96',
+    color: '#015FEB',
   },
   previewContainer: {
     marginBottom: 12,
@@ -241,4 +239,24 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: 8,
   },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
+  audioCard: { width: 332, height: 467, padding: 24, borderWidth: 1, borderColor: '#E7F3FF', borderRadius: 28, backgroundColor: '#FFF', shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 12, justifyContent: 'space-between' },
+  audioHeader: { width: 284, height: 26, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  audioHeaderTitle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  audioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#00D4EB' },
+  audioTitle: { color: '#015FEB', fontFamily: 'InriaSans_700Bold', fontSize: 13 },
+  audioUnavailable: { height: 26, borderRadius: 999, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#F1F5F9' },
+  audioUnavailableDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#94A3B8' },
+  audioUnavailableText: { color: '#64748B', fontFamily: 'InriaSans_700Bold', fontSize: 10 },
+  audioHero: { width: 284, height: 229, borderRadius: 24, padding: 24, alignItems: 'center', justifyContent: 'center', gap: 16 },
+  audioIconCircle: { width: 88, height: 88, borderRadius: 44, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  audioHeroCopy: { width: 236, alignItems: 'center', gap: 6 },
+  audioHeroTitle: { color: '#FFF', fontFamily: 'InriaSans_700Bold', fontSize: 22, lineHeight: 29, textAlign: 'center' },
+  audioHeroText: { color: 'rgba(255,255,255,0.8)', fontFamily: 'InriaSans_400Regular', fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  audioFooter: { width: 284, height: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  audioFooterLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  audioFooterText: { color: '#015FEB', fontFamily: 'InriaSans_700Bold', fontSize: 13 },
+  audioDuration: { color: '#7A8699', fontFamily: 'InriaSans_400Regular', fontSize: 13 },
+  audioClose: { width: 272, height: 58, alignSelf: 'center', borderRadius: 24, backgroundColor: '#0184FF', alignItems: 'center', justifyContent: 'center', shadowColor: '#0184FF', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 12, elevation: 4 },
+  audioCloseText: { color: '#FFF', fontFamily: 'InriaSans_700Bold', fontSize: 18, lineHeight: 22 },
 });

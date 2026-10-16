@@ -8,6 +8,7 @@ import { authService } from '../services/authService';
 import { reportesService } from '../services/reportesService';
 import { ReporteDTO, EstatusReporteLabels } from '../types';
 import { APP_THEME } from '../theme/appTheme';
+import { isActiveAssignedStatus } from '../services/fieldApiContract';
 
 export default function MapaScreen() {
   const [reporte, setReporte] = useState<ReporteDTO | null>(null);
@@ -29,7 +30,8 @@ export default function MapaScreen() {
       }
 
       const reportes = await reportesService.getAsignados(cuadrilla.id);
-      const reporteActivo = reportes.find(r => r.estatus === 4 || r.estatus === 3) || reportes[0];
+      const reportesActivos = reportes.filter((report) => isActiveAssignedStatus(report.estatus));
+      const reporteActivo = reportesActivos.find(r => r.estatus === 4 || r.estatus === 3) || reportesActivos[0];
       setReporte(reporteActivo ?? null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'No se pudieron cargar los reportes');

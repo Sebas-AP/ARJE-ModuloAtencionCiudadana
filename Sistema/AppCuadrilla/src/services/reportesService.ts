@@ -3,14 +3,14 @@ import {
   getReporteDetalle,
 } from './api';
 import { ReporteDTO, ActualizarEstatusDTO } from '../types';
-import { isActiveAssignedStatus } from './fieldApiContract';
+import { isVisibleAssignedStatus } from './fieldApiContract';
 import { queueEvidence, queueStatus } from './fieldOperationsService';
 import type { SyncResult } from './syncService';
 
 export const reportesService = {
   async getAsignados(idCuadrilla: number): Promise<ReporteDTO[]> {
     const reportes = await getReportesAsignados(idCuadrilla);
-    return reportes.filter((reporte) => isActiveAssignedStatus(reporte.estatus));
+    return reportes.filter((reporte) => isVisibleAssignedStatus(reporte.estatus));
   },
 
   async getDetalle(id: number): Promise<ReporteDTO> {

@@ -32,6 +32,18 @@ test('unsupported field status is rejected before persistence or HTTP', async ()
   assert.equal(app.requests.length, 0);
 });
 
+test('assigned report list includes completed reports so the Figma completed filter has real data', async () => {
+  const app = mobileRuntime();
+  app.respondWith(async () => ({ ok: true, status: 200, json: async () => [
+    { id: 1, estatus: 1 }, { id: 2, estatus: 2 }, { id: 3, estatus: 3 },
+    { id: 4, estatus: 4 }, { id: 5, estatus: 5 }, { id: 6, estatus: 6 }, { id: 7, estatus: 7 },
+  ] }));
+
+  const reportes = await app.load('reportesService').reportesService.getAsignados(8);
+
+  assert.deepEqual(reportes.map((report: any) => report.estatus), [2, 3, 4, 5, 6, 7]);
+});
+
 test('evidence is copied to durable storage before multipart upload and removed after confirmation', async () => {
   const app = mobileRuntime();
   app.respondWith(async (url, options) => {

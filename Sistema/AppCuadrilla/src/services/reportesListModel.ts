@@ -9,6 +9,20 @@ export interface ReporteCardModel {
   date: string;
 }
 
+export interface ReporteStatusVisual {
+  label: string;
+  background: string;
+  color: string;
+}
+
+export const getReporteStatusVisual = (estatus: number): ReporteStatusVisual => {
+  if (estatus === 5 || estatus === 6 || estatus === 7) {
+    return { label: 'Completado', background: 'rgba(16, 185, 129, 0.31)', color: '#10B981' };
+  }
+  if (estatus === 2) return { label: 'Pendiente', background: '#FFE0AA', color: '#F59E0B' };
+  return { label: 'En Proceso', background: '#E8F1FF', color: '#015FEB' };
+};
+
 const matchesStatus = (estatus: number, filter: ReportStatusFilter) => {
   if (filter === 'all') return true;
   if (filter === 'pending') return estatus === 1 || estatus === 2 || estatus === 3;

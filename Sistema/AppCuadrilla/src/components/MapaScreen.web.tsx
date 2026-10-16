@@ -6,6 +6,7 @@ import { authService } from '../services/authService';
 import { reportesService } from '../services/reportesService';
 import { EstatusReporteLabels, type ReporteDTO } from '../types';
 import { APP_THEME } from '../theme/appTheme';
+import { isActiveAssignedStatus } from '../services/fieldApiContract';
 
 export default function MapaWebScreen() {
   const [reporte, setReporte] = useState<ReporteDTO | null>(null);
@@ -23,7 +24,8 @@ export default function MapaWebScreen() {
       }
 
       const reportes = await reportesService.getAsignados(cuadrilla.id);
-      setReporte(reportes.find((item) => item.estatus === 3 || item.estatus === 4) ?? reportes[0] ?? null);
+      const reportesActivos = reportes.filter((item) => isActiveAssignedStatus(item.estatus));
+      setReporte(reportesActivos.find((item) => item.estatus === 3 || item.estatus === 4) ?? reportesActivos[0] ?? null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudieron cargar los reportes');
     } finally {

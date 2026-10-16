@@ -7,6 +7,7 @@ import {
   createCuadrillaSession,
   fieldApiPaths,
   isActiveAssignedStatus,
+  isVisibleAssignedStatus,
 } from '../src/services/fieldApiContract.ts';
 
 test('solicita todos los reportes de una cuadrilla y conserva los estados operativos', () => {
@@ -18,6 +19,8 @@ test('solicita todos los reportes de una cuadrilla y conserva los estados operat
   assert.equal(isActiveAssignedStatus(3), true);
   assert.equal(isActiveAssignedStatus(4), true);
   assert.equal(isActiveAssignedStatus(5), false);
+  assert.deepEqual([5, 6, 7].map(isVisibleAssignedStatus), [true, true, true]);
+  assert.equal(isVisibleAssignedStatus(1), false);
 });
 
 test('usa las rutas vigentes para estatus, evidencia y ubicaciones en lote', () => {

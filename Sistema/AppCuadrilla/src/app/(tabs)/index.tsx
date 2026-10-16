@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, Alert, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, Alert, TextInput, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { authService } from '../../services/authService';
 import { reportesService } from '../../services/reportesService';
@@ -10,11 +11,21 @@ import { getCuadrillaActual } from '../../services/api';
 import { queueAvailability } from '../../services/fieldOperationsService';
 import { canSelectAvailable, getOperationFeedback, operationFeedbackMessages, type Availability } from '../../services/fieldUiPolicy';
 import { ReporteDTO, CuadrillaDTO } from '../../types';
-import { APP_THEME } from '../../theme/appTheme';
 import { filterReportes, type ReportStatusFilter } from '../../services/reportesListModel';
+import { fitArtboard } from '../../theme/figmaArtboard';
+import { isActiveAssignedStatus } from '../../services/fieldApiContract';
+
+const filters: { value: ReportStatusFilter; label: string; width: number }[] = [
+  { value: 'all', label: 'Todos', width: 61 },
+  { value: 'inProgress', label: 'En proceso', width: 88 },
+  { value: 'pending', label: 'Pendiente', width: 76 },
+  { value: 'completed', label: 'Completado', width: 87 },
+];
 
 export default function ReportesScreen() {
   const router = useRouter();
+  const { width, height } = useWindowDimensions();
+  const scale = fitArtboard(width, height);
   const [reportes, setReportes] = useState<ReporteDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -33,7 +44,6 @@ export default function ReportesScreen() {
         Alert.alert('Error', 'No se encontró la cuadrilla asignada');
         return;
       }
-
       const [current, data] = await Promise.all([getCuadrillaActual(), reportesService.getAsignados(session.id)]);
       setCuadrilla(current);
       setReportes(data);
@@ -55,7 +65,7 @@ export default function ReportesScreen() {
 
   const pendingAvailability = sync.operations.some((operation) => operation.kind === 'availability');
   const activeReportCount = reportsConfirmed && sync.isOnline
-    ? Math.max(reportes.length, cuadrilla?.reportesActivosCount ?? 0,
+    ? Math.max(reportes.filter((report) => isActiveAssignedStatus(report.estatus)).length,
       sync.operations.some((operation) => operation.kind === 'status') ? 1 : 0)
     : null;
 
@@ -75,115 +85,75 @@ export default function ReportesScreen() {
     }
   };
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    cargarReportes();
-  };
-
-  const renderItem = ({ item }: { item: ReporteDTO }) => (
-    <View>
-      <ReporteCard reporte={item} onPress={() => router.push(`/reporte/${item.id}`)} />
-      {sync.operations.some((operation) => 'reportId' in operation && operation.reportId === item.id)
-        && <Text style={styles.pendingText}>Este reporte tiene operaciones pendientes de sincronización.</Text>}
-    </View>
-  );
   const visibleReportes = filterReportes(reportes, query, status);
 
+  const renderItem = ({ item, index }: { item: ReporteDTO; index: number }) => (
+    <View style={{ marginLeft: index === 0 ? 8 : 0, marginBottom: index === 0 ? 20 : 27 }}>
+      <ReporteCard reporte={item} onPress={() => router.push(`/reporte/${item.id}`)} />
+      {sync.operations.some((operation) => 'reportId' in operation && operation.reportId === item.id)
+        && <Text style={styles.pendingText}>Sincronización pendiente para este reporte.</Text>}
+    </View>
+  );
+
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#253C96" />
-        <Text style={styles.loadingText}>Cargando reportes...</Text>
-      </View>
-    );
+    return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#253C96" /><Text style={styles.loadingText}>Cargando reportes...</Text></View>;
   }
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={visibleReportes}
-        renderItem={renderItem}
-        keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={styles.listContent}
-        ListHeaderComponent={<View>
-          <Text style={styles.title}>Reportes</Text>
-          <Text style={styles.searchTitle}>Buscar reportes</Text>
-          <TextInput value={query} onChangeText={setQuery} placeholder="Buscar por ID, tipo o sector ..." placeholderTextColor="#8FAFD9" style={styles.search} accessibilityLabel="Buscar reportes" />
-          <View style={styles.filters}>{([['all', 'Todos'], ['pending', 'Pendientes'], ['inProgress', 'En proceso']] as const).map(([value, label]) => <TouchableOpacity key={value} accessibilityRole="button" accessibilityState={{ selected: status === value }} onPress={() => setStatus(value)} style={[styles.filter, status === value && styles.filterActive]}><Text style={[styles.filterText, status === value && styles.filterTextActive]}>{label}</Text></TouchableOpacity>)}</View>
-          {cuadrilla ? <View>
-          <DisponibilidadSelector
-            currentAvailability={cuadrilla.estatusDisponibilidad}
-            activeReportCount={activeReportCount}
-            disabled={savingAvailability || pendingAvailability || sync.isLoading || !!sync.error}
-            onChange={cambiarDisponibilidad}
-          />
-          {pendingAvailability && <Text style={styles.pendingText}>Cambio de disponibilidad pendiente o rechazado. Sincroniza y revisa el resultado.</Text>}
-          </View> : null}</View>}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={['#253C96']}
-          />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>📋</Text>
-            <Text style={styles.emptyTitle}>{reportes.length ? 'No se encontraron reportes' : 'Sin reportes asignados'}</Text>
-            <Text style={styles.emptyText}>
-              {reportes.length ? 'Prueba con otra búsqueda o filtro.' : 'Cuando se te asigne un reporte, aparecerá aquí automáticamente.'}
-            </Text>
-          </View>
-        }
-      />
+    <View style={styles.stage}>
+      <View style={[styles.artboard, { transform: [{ scale }] }]}>
+        <Text style={styles.title}>Reportes</Text>
+        <Text style={styles.searchTitle}>Buscar reportes</Text>
+        <View style={styles.search}>
+          <Ionicons name="search-outline" size={20} color="#8FAFD9" />
+          <TextInput value={query} onChangeText={setQuery} placeholder="Buscar por ID, tipo o sector ..." placeholderTextColor="#8FAFD9" style={styles.searchInput} accessibilityLabel="Buscar reportes" />
+        </View>
+        <Text style={styles.statusLabel}>Estado:</Text>
+        <View style={styles.filters}>
+          {filters.map(({ value, label, width: chipWidth }) => (
+            <TouchableOpacity key={value} accessibilityRole="button" accessibilityState={{ selected: status === value }} onPress={() => setStatus(value)} style={[styles.filter, { width: chipWidth }, status === value && styles.filterActive]}>
+              <Text style={[styles.filterText, status === value && styles.filterTextActive]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <View style={styles.divider} />
+        <FlatList
+          style={styles.reportList}
+          data={visibleReportes}
+          renderItem={renderItem}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={styles.reportListContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void cargarReportes(); }} colors={['#253C96']} />}
+          ListEmptyComponent={<View style={styles.emptyContainer}><Text style={styles.emptyTitle}>{reportes.length ? 'No se encontraron reportes' : 'Sin reportes asignados'}</Text><Text style={styles.emptyText}>{reportes.length ? 'Prueba con otra búsqueda o filtro.' : 'Cuando se te asigne un reporte, aparecerá aquí automáticamente.'}</Text></View>}
+          ListFooterComponent={cuadrilla ? <View style={styles.availabilityFooter}><DisponibilidadSelector currentAvailability={cuadrilla.estatusDisponibilidad} activeReportCount={activeReportCount} disabled={savingAvailability || pendingAvailability || sync.isLoading || !!sync.error} onChange={cambiarDisponibilidad} />{pendingAvailability && <Text style={styles.pendingText}>Disponibilidad pendiente o rechazada. Sincroniza para revisar el resultado.</Text>}</View> : null}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  pendingText: { color: '#9A3412', fontSize: 12, marginBottom: 12 },
-  container: {
-    flex: 1,
-    backgroundColor: APP_THEME.colors.canvas,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#64748B',
-  },
-  listContent: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-  title: { color: APP_THEME.colors.royal, fontSize: 24, fontWeight: '800', marginBottom: 22 },
-  searchTitle: { color: APP_THEME.colors.royal, fontSize: 16, fontWeight: '700', marginBottom: 8 },
-  search: { height: 38, borderWidth: 1, borderColor: '#9CA3AF', borderRadius: 9, backgroundColor: '#F5F6FB', paddingHorizontal: 14, color: APP_THEME.colors.ink, marginBottom: 14 },
-  filters: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', borderBottomWidth: 1, borderBottomColor: APP_THEME.colors.border, paddingBottom: 14, marginBottom: 18 },
-  filter: { borderWidth: 1, borderColor: APP_THEME.colors.primary, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 }, filterActive: { backgroundColor: '#015FEB' }, filterText: { fontSize: 12, color: '#015FEB' }, filterTextActive: { color: '#FFF' },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-    gap: 12,
-  },
-  emptyIcon: {
-    fontSize: 48,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#19244E',
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#64748B',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
+  stage: { flex: 1, backgroundColor: '#F7F9FC', alignItems: 'center', justifyContent: 'center' },
+  artboard: { width: 412, height: 917, backgroundColor: '#F7F9FC' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, backgroundColor: '#F7F9FC' },
+  loadingText: { fontSize: 16, color: '#64748B', fontFamily: 'InriaSans_400Regular' },
+  title: { position: 'absolute', left: 24, top: 72, height: 29, fontFamily: 'InriaSans_700Bold', fontSize: 24, lineHeight: 29, color: '#253C96' },
+  searchTitle: { position: 'absolute', left: 24, top: 108, height: 19, fontFamily: 'InriaSans_700Bold', fontSize: 16, lineHeight: 19, color: '#253C96' },
+  search: { position: 'absolute', left: 24, top: 140, width: 361, height: 33, flexDirection: 'row', alignItems: 'center', gap: 13, paddingLeft: 10, paddingRight: 8, borderWidth: 1, borderColor: '#9CA3AF', borderRadius: 9, backgroundColor: '#F5F6FB' },
+  searchInput: { flex: 1, height: 32, paddingVertical: 0, paddingHorizontal: 0, fontFamily: 'InriaSans_300Light', fontSize: 16, lineHeight: 19, color: '#1D2F40' },
+  statusLabel: { position: 'absolute', left: 26, top: 183, fontFamily: 'InriaSans_700Bold', fontSize: 16, lineHeight: 19, color: '#1D2F40' },
+  filters: { position: 'absolute', left: 27, top: 208, width: 338, height: 20, flexDirection: 'row', gap: 8 },
+  filter: { height: 20, borderWidth: 1, borderColor: '#0184FF', borderRadius: 8, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', paddingBottom: 1 },
+  filterActive: { backgroundColor: '#015FEB', borderColor: '#015FEB' },
+  filterText: { fontFamily: 'InriaSans_400Regular', fontSize: 16, lineHeight: 19, color: '#015FEB' },
+  filterTextActive: { color: '#FFF' },
+  divider: { position: 'absolute', top: 248, left: 20, width: 371, height: 1, backgroundColor: 'rgba(0,0,0,0.12)' },
+  reportList: { position: 'absolute', top: 260, left: 12, width: 388, height: 635 },
+  reportListContent: { paddingTop: 15, paddingBottom: 30 },
+  availabilityFooter: { width: 375, marginTop: 4 },
+  emptyContainer: { width: 375, height: 300, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  emptyTitle: { fontFamily: 'InriaSans_700Bold', fontSize: 18, color: '#253C96', textAlign: 'center' },
+  emptyText: { fontFamily: 'InriaSans_400Regular', fontSize: 14, color: '#64748B', textAlign: 'center', lineHeight: 20 },
+  pendingText: { color: '#9A3412', fontFamily: 'InriaSans_400Regular', fontSize: 12, marginTop: 4, marginBottom: 8 },
 });

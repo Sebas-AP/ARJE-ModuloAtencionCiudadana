@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Image, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { authService } from '../../services/authService';
-import { APP_THEME } from '../../theme/appTheme';
+import { fitArtboard } from '../../theme/figmaArtboard';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { width, height } = useWindowDimensions();
+  const scale = fitArtboard(width, height);
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,20 +20,52 @@ export default function LoginScreen() {
     catch (cause: unknown) { setError(cause instanceof Error ? cause.message : 'Credenciales inválidas'); }
     finally { setLoading(false); }
   };
-  return <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-    <View style={styles.content}>
-      <Image accessibilityLabel="ARJE" source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
-      <Text style={styles.welcome}>Acceso a cuadrillas</Text><Text style={styles.subtitle}>Gestión de atención en campo</Text>
-      <View style={styles.form}>
-        <Text style={styles.label}>Usuario</Text><View style={styles.inputShell}><Ionicons name="person-outline" size={20} color={APP_THEME.colors.primary} /><TextInput style={styles.input} value={usuario} onChangeText={setUsuario} placeholder="ej. Juan López" placeholderTextColor="#B9D6FF" autoCapitalize="none" autoComplete="username" textContentType="username" /></View>
-        <Text style={styles.label}>Contraseña</Text><View style={styles.inputShell}><Ionicons name="lock-closed-outline" size={20} color={APP_THEME.colors.primary} /><TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Ingresa tu contraseña" placeholderTextColor="#B9D6FF" secureTextEntry autoComplete="current-password" textContentType="password" /></View>
-        {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
+
+  return <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.stage}>
+    <View style={[styles.artboard, { transform: [{ scale }] }]}>
+      <View style={styles.logoFrame}>
+        <Image accessibilityLabel="Logotipo ARJE" source={require('../../../assets/arje-logo.png')} style={styles.logoSource} resizeMode="stretch" />
       </View>
-      <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: loading }} disabled={loading} onPress={() => { void handleLogin(); }} style={styles.button}>{loading ? <ActivityIndicator color="#FFF" /> : <><Text style={styles.buttonText}>Iniciar sesión</Text><Ionicons name="log-in-outline" size={24} color="#FFF" /></>}</TouchableOpacity>
+
+      <View style={[styles.fieldGroup, styles.usernameGroup]}>
+        <Text style={styles.usernameLabel}>Usuario</Text>
+        <View style={styles.usernameInputShell}>
+          <View style={styles.iconFrame}><Ionicons name="person-outline" size={18} color="#015FEB" /></View>
+          <TextInput style={styles.input} value={usuario} onChangeText={setUsuario} placeholder="ej. Juan Lopez" placeholderTextColor="#CEDAFA" autoCapitalize="none" autoComplete="username" textContentType="username" accessibilityLabel="Usuario" />
+        </View>
+      </View>
+
+      <View style={[styles.fieldGroup, styles.passwordGroup]}>
+        <Text style={styles.passwordLabel}>Contraseña</Text>
+        <View style={styles.passwordInputShell}>
+          <View style={styles.iconFrame}><Ionicons name="lock-closed-outline" size={20} color="#015FEB" /></View>
+          <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Ingresa tu contraseña" placeholderTextColor="#D5CEFF" secureTextEntry autoComplete="current-password" textContentType="password" accessibilityLabel="Contraseña" />
+        </View>
+      </View>
+
+      {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
+      <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: loading }} disabled={loading} onPress={() => { void handleLogin(); }} style={styles.button}>
+        {loading ? <ActivityIndicator color="#FFF" /> : <><Text style={styles.buttonText}>Iniciar sesion</Text><Ionicons name="log-in-outline" size={24} color="#FFF" /></>}
+      </TouchableOpacity>
     </View>
   </KeyboardAvoidingView>;
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: APP_THEME.colors.canvas }, content: { flex: 1, paddingHorizontal: 40, justifyContent: 'center' }, logo: { width: 265, height: 115, alignSelf: 'center', marginBottom: 58 }, welcome: { color: APP_THEME.colors.royal, fontSize: 25, fontWeight: '800', textAlign: 'center' }, subtitle: { color: APP_THEME.colors.muted, textAlign: 'center', marginTop: 6, marginBottom: 44 }, form: { gap: 8 }, label: { color: '#015FEB', fontSize: 16, marginTop: 14 }, inputShell: { height: 45, borderWidth: 1, borderColor: '#015FEB', borderRadius: APP_THEME.radius.input, backgroundColor: '#FFF', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 10 }, input: { flex: 1, color: APP_THEME.colors.royal, fontSize: 16 }, error: { color: '#B91C1C', marginTop: 12, textAlign: 'center' }, button: { height: 48, borderRadius: APP_THEME.radius.button, backgroundColor: APP_THEME.colors.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 10, marginTop: 72, shadowColor: APP_THEME.colors.primary, shadowOffset: { width: 0, height: 10 }, shadowOpacity: .2, shadowRadius: 12, elevation: 4 }, buttonText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  stage: { flex: 1, backgroundColor: '#F7F9FC', alignItems: 'center', justifyContent: 'center' },
+  artboard: { width: 412, height: 917, backgroundColor: '#F7F9FC' },
+  logoFrame: { position: 'absolute', left: 74, top: 164, width: 265, height: 115, overflow: 'hidden', borderRadius: 7, backgroundColor: '#FFF', shadowColor: '#000', shadowOffset: { width: 2, height: 4 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
+  logoSource: { position: 'absolute', width: 986.14, height: 1394.9, left: -357.78, top: -36.04 },
+  fieldGroup: { position: 'absolute', width: 280, height: 67, left: 66 },
+  usernameGroup: { top: 413 },
+  passwordGroup: { top: 513 },
+  usernameLabel: { height: 19, color: '#015FEB', fontSize: 16, lineHeight: 19, fontFamily: 'InriaSans_400Regular' },
+  passwordLabel: { height: 19, color: '#2200FF', fontSize: 16, lineHeight: 19, fontFamily: 'InriaSans_400Regular' },
+  usernameInputShell: { position: 'absolute', top: 24, width: 280, height: 43, borderWidth: 1, borderColor: '#015FEB', borderRadius: 7, backgroundColor: '#FFF', flexDirection: 'row', alignItems: 'center' },
+  passwordInputShell: { position: 'absolute', top: 24, width: 280, height: 43, borderWidth: 1, borderColor: '#2200FF', borderRadius: 7, backgroundColor: '#FFF', flexDirection: 'row', alignItems: 'center' },
+  iconFrame: { width: 32, height: 32, marginLeft: 3, backgroundColor: '#FFF', borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  input: { flex: 1, height: 42, paddingHorizontal: 9, color: '#1D2F40', fontSize: 16, fontFamily: 'Inter_400Regular' },
+  error: { position: 'absolute', left: 66, top: 594, width: 280, textAlign: 'center', color: '#B91C1C', fontSize: 13, fontFamily: 'InriaSans_400Regular' },
+  button: { position: 'absolute', left: 40, top: 735, width: 332, height: 48, borderRadius: 14, backgroundColor: '#0184FF', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 10, shadowColor: '#0184FF', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 12, elevation: 4 },
+  buttonText: { color: '#FFF', fontSize: 16, lineHeight: 19, fontFamily: 'InriaSans_700Bold' },
 });

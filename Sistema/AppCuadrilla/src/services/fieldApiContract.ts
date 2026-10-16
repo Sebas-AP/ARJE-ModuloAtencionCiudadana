@@ -1,4 +1,5 @@
 const ACTIVE_ASSIGNED_STATUSES = new Set([2, 3, 4]);
+const VISIBLE_ASSIGNED_STATUSES = new Set([2, 3, 4, 5, 6, 7]);
 
 export interface CuadrillaLoginPayload {
   token: string;
@@ -24,6 +25,9 @@ export const buildAssignedReportsPath = (idCuadrilla: number) =>
 
 export const isActiveAssignedStatus = (estatus: number) =>
   ACTIVE_ASSIGNED_STATUSES.has(estatus);
+
+export const isVisibleAssignedStatus = (estatus: number) =>
+  VISIBLE_ASSIGNED_STATUSES.has(estatus);
 
 export const createCuadrillaSession = (response: CuadrillaLoginPayload) => ({
   token: response.token,

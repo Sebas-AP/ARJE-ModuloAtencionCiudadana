@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { filterReportes, toReporteCardModel } from '../src/services/reportesListModel.ts';
+import { getReporteStatusVisual } from '../src/services/reportesListModel.ts';
 import type { ReporteDTO } from '../src/types/index.ts';
 
 const reportes: ReporteDTO[] = [
@@ -21,4 +22,10 @@ test('normalizes missing optional values for a report card', () => {
 test('status filters distinguish pending, active and completed reports', () => {
   const rows = [{ id: 1, estatus: 2 }, { id: 2, estatus: 4 }, { id: 3, estatus: 5 }] as ReporteDTO[];
   assert.deepEqual(filterReportes(rows, '', 'inProgress').map((report) => report.id), [2]);
+});
+
+test('maps assignment statuses to the Figma card badge palette', () => {
+  assert.deepEqual(getReporteStatusVisual(2), { label: 'Pendiente', background: '#FFE0AA', color: '#F59E0B' });
+  assert.deepEqual(getReporteStatusVisual(4), { label: 'En Proceso', background: '#E8F1FF', color: '#015FEB' });
+  assert.deepEqual(getReporteStatusVisual(5), { label: 'Completado', background: 'rgba(16, 185, 129, 0.31)', color: '#10B981' });
 });

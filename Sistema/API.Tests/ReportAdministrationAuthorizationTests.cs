@@ -45,7 +45,7 @@ public class ReportAdministrationAuthorizationTests : IAsyncLifetime
         });
         jwt = new JwtService(builder.Configuration);
         builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connection));
-        builder.Services.AddAutoMapper(typeof(AutoMapperProfiles));
+        builder.Services.AddAutoMapper(_ => { }, typeof(AutoMapperProfiles));
         builder.Services.AddOutputCache();
         builder.Services.AddSingleton<IClasificadorService, TestClassifier>();
         builder.Services.AddSingleton<IAlmacenadorArchivos, TestFileStorage>();

@@ -43,6 +43,7 @@ export interface ReporteDTO {
   fechaSupervision?: string;
   observacionesSupervision?: string;
   notasSupervision?: string;
+  comentariosResolucion?: string;
   numeroContrato?: string | null;
   nombreCiudadano?: string | null;
   telefonoCiudadano?: string | null;
@@ -123,4 +124,13 @@ export interface ActualizarEstatusDTO {
   tiempoEstimado?: number;
   idCuadrillaAsignada?: number;
   comentariosResolucion?: string;
+}
+
+export interface ActualizarTiempoEstimadoDTO {
+  tiempoEstimado: number;
+}
+
+export interface ResolverSupervisionDTO {
+  confirmaReparacion: boolean;
+  observaciones?: string;
 }

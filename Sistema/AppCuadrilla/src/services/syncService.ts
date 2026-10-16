@@ -2,6 +2,9 @@ import type { QueuedOperation } from './offlineQueue';
 
 type LocationOperation = Extract<QueuedOperation, { kind: 'location' }>;
 type StatusOperation = Extract<QueuedOperation, { kind: 'status' }>;
+type EstimateOperation = Extract<QueuedOperation, { kind: 'estimate' }>;
+type ResolutionCommentOperation = Extract<QueuedOperation, { kind: 'resolutionComment' }>;
+type SupervisionResultOperation = Extract<QueuedOperation, { kind: 'supervisionResult' }>;
 type EvidenceOperation = Extract<QueuedOperation, { kind: 'evidence' }>;
 type AvailabilityOperation = Extract<QueuedOperation, { kind: 'availability' }>;
 
@@ -27,6 +30,9 @@ export interface SyncDependencies {
   };
   sendLocations(batch: LocationBatch): Promise<unknown>;
   sendStatus(operation: StatusOperation): Promise<unknown>;
+  sendEstimate(operation: EstimateOperation): Promise<unknown>;
+  sendResolutionComment(operation: ResolutionCommentOperation): Promise<unknown>;
+  sendSupervisionResult(operation: SupervisionResultOperation): Promise<unknown>;
   sendEvidence(operation: EvidenceOperation): Promise<unknown>;
   sendAvailability(operation: AvailabilityOperation): Promise<unknown>;
 }
@@ -87,6 +93,15 @@ async function sendGroup(group: QueuedOperation[], dependencies: SyncDependencie
     case 'status':
       await dependencies.sendStatus(first);
       return;
+    case 'estimate':
+      await dependencies.sendEstimate(first);
+      return;
+    case 'resolutionComment':
+      await dependencies.sendResolutionComment(first);
+      return;
+    case 'supervisionResult':
+      await dependencies.sendSupervisionResult(first);
+      return;
     case 'evidence':
       await dependencies.sendEvidence(first);
       return;
@@ -113,7 +128,7 @@ async function runSync(
       || first.ownerCuadrillaId !== ownerCuadrillaId
       || dependencies.queue.getActiveOwner() !== ownerCuadrillaId) break;
     if (first.terminal) {
-      if (first.kind === 'status') blockedReports.add(first.reportId);
+      if (first.kind === 'status' || first.kind === 'resolutionComment') blockedReports.add(first.reportId);
       continue;
     }
     if ('reportId' in first && blockedReports.has(first.reportId)) continue;
@@ -131,7 +146,7 @@ async function runSync(
       const terminal = status === 400 || status === 409;
       for (const operation of group) await dependencies.queue.markFailed(operation.id, errorMessage(error), terminal);
       if (!terminal) break;
-      if (first.kind === 'status') blockedReports.add(first.reportId);
+      if (first.kind === 'status' || first.kind === 'resolutionComment') blockedReports.add(first.reportId);
       continue;
     }
     if (dependencies.queue.getActiveOwner() !== ownerCuadrillaId) break;

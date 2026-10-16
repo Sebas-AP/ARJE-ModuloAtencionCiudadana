@@ -44,6 +44,39 @@ test('assigned report list includes completed reports so the Figma completed fil
   assert.deepEqual(reportes.map((report: any) => report.estatus), [2, 3, 4, 5, 6, 7]);
 });
 
+test('report list merges assigned and supervised reports without duplicates', async () => {
+  const app = mobileRuntime();
+  app.respondWith(async (url) => ({ ok: true, status: 200, json: async () =>
+    url.includes('idCuadrillaSupervisora')
+      ? [{ id: 7, estatus: 6 }, { id: 8, estatus: 7 }]
+      : [{ id: 2, estatus: 3 }, { id: 7, estatus: 6 }],
+  }));
+
+  const reportes = await app.load('reportesService').reportesService.getAsignados(8);
+
+  assert.deepEqual(reportes.map((report: any) => report.id), [2, 7, 8]);
+  assert.equal(app.requests.filter(({ url }) => url.includes('/reportes?')).length, 2);
+});
+
+test('resolution comment is synchronized before the completion status', async () => {
+  const app = mobileRuntime();
+  app.respondWith(async () => ({ ok: true, status: 204 }));
+
+  await app.load('reportesService').reportesService.actualizarEstatus(19, {
+    estatus: 5,
+    comentariosResolucion: 'Se sustituyó la válvula dañada.',
+  });
+
+  assert.deepEqual(app.requests.map(({ url, options }) => ({
+    path: new URL(url).pathname,
+    payload: JSON.parse(options.body),
+  })), [
+    { path: '/api/reportes/19/comentarios-resolucion', payload: { comentariosResolucion: 'Se sustituyó la válvula dañada.' } },
+    { path: '/api/reportes/19/estatus', payload: 5 },
+  ]);
+  assert.deepEqual(app.pending(), []);
+});
+
 test('evidence is copied to durable storage before multipart upload and removed after confirmation', async () => {
   const app = mobileRuntime();
   app.respondWith(async (url, options) => {

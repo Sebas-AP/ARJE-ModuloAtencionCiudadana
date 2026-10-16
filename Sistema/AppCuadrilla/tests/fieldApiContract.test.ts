@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   buildAssignedReportsPath,
+  buildSupervisedReportsPath,
   buildLocationBatch,
   createCuadrillaSession,
   fieldApiPaths,
@@ -14,6 +15,10 @@ test('solicita todos los reportes de una cuadrilla y conserva los estados operat
   assert.equal(
     buildAssignedReportsPath(17),
     '/reportes?idCuadrillaAsignada=17&registrosPorPagina=100',
+  );
+  assert.equal(
+    buildSupervisedReportsPath(17),
+    '/reportes?idCuadrillaSupervisora=17&registrosPorPagina=100',
   );
   assert.equal(isActiveAssignedStatus(2), true);
   assert.equal(isActiveAssignedStatus(3), true);
@@ -28,6 +33,9 @@ test('usa las rutas vigentes para estatus, evidencia y ubicaciones en lote', () 
   assert.equal(fieldApiPaths.evidencias(25), '/reportes/25/evidencias');
   assert.equal(fieldApiPaths.ubicaciones(25), '/reportes/25/ubicaciones');
   assert.equal(fieldApiPaths.disponibilidad(8), '/cuadrillas/8/disponibilidad');
+  assert.equal(fieldApiPaths.tiempoEstimado(25), '/reportes/25/tiempo-estimado');
+  assert.equal(fieldApiPaths.comentariosResolucion(25), '/reportes/25/comentarios-resolucion');
+  assert.equal(fieldApiPaths.resultadoSupervision(25), '/reportes/25/supervision/resultado');
 });
 
 test('envuelve cada ubicación en el lote requerido por la API', () => {

@@ -28,6 +28,10 @@ public class FieldOperationPolicy
     public bool CanAccessAssignedReport(Reporte reporte, ClaimsPrincipal user) =>
         int.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var authenticatedId) &&
         EnsureAssignedToAuthenticatedCuadrilla(reporte, authenticatedId).IsAllowed;
+
+    public bool CanAccessSupervisedReport(Reporte reporte, ClaimsPrincipal user) =>
+        int.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var authenticatedId) &&
+        authenticatedId > 0 && reporte.IdCuadrillaSupervisora == authenticatedId;
 }
 
 public readonly record struct FieldOperationDecision(bool IsAllowed);

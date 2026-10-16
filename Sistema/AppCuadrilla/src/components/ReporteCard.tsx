@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ReporteDTO } from '../types';
 import { toReporteCardModel, getReporteStatusVisual } from '../services/reportesListModel';
+import { APP_THEME } from '../theme/appTheme';
 
 interface ReporteCardProps {
   reporte: ReporteDTO;
@@ -34,14 +35,14 @@ export const ReporteCard: React.FC<ReporteCardProps> = ({ reporte, onPress }) =>
 };
 
 const styles = StyleSheet.create({
-  card: { width: 375, height: 127, backgroundColor: '#F8FAFF', borderWidth: 1, borderColor: '#E7F3FF', borderRadius: 18 },
-  header: { position: 'absolute', top: 15, left: 15, right: 15, height: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  folioContainer: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: 210 },
+  card: { width: '100%', minHeight: 126, padding: 15, gap: 12, backgroundColor: APP_THEME.colors.surface, borderWidth: 1, borderColor: APP_THEME.colors.border, borderRadius: APP_THEME.radius.card },
+  header: { minHeight: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  folioContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
   folioValue: { fontFamily: 'InriaSans_700Bold', fontSize: 14, lineHeight: 17, color: '#015FEB' },
   statusBadge: { minHeight: 22, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, alignItems: 'center', justifyContent: 'center' },
   statusText: { fontFamily: 'InriaSans_700Bold', fontSize: 12, lineHeight: 14 },
-  divider: { position: 'absolute', top: 49, left: 15, right: 15, height: 1, backgroundColor: '#E5E7EB' },
-  details: { position: 'absolute', top: 61, left: 15, right: 15, gap: 6 },
+  divider: { height: 1, backgroundColor: '#E5E7EB' },
+  details: { gap: 6 },
   category: { fontFamily: 'InriaSans_700Bold', fontSize: 16, lineHeight: 19, color: '#1D1B20' },
   date: { fontFamily: 'InriaSans_400Regular', fontSize: 13, lineHeight: 16, color: '#6B7280' },
 });

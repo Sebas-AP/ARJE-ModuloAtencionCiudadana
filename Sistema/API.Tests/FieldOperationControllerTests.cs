@@ -17,6 +17,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace ARJE.Api.Tests;
@@ -26,7 +27,7 @@ public class FieldOperationControllerTests : IDisposable
     private readonly SqliteConnection connection = new("Data Source=:memory:");
     private readonly TransactionSpy transactionSpy = new();
     private readonly ApplicationDbContext context;
-    private readonly IMapper mapper = new MapperConfiguration(c => c.AddProfile<AutoMapperProfiles>()).CreateMapper();
+    private readonly IMapper mapper = new MapperConfiguration(c => c.AddProfile<AutoMapperProfiles>(), NullLoggerFactory.Instance).CreateMapper();
     private readonly ServiceProvider services;
     private readonly IOutputCacheStore cache;
 
@@ -171,6 +172,85 @@ public class FieldOperationControllerTests : IDisposable
         context.ChangeTracker.Clear();
         Assert.Equal(EstatusReporte.EnSupervision, (await context.Reportes.FindAsync(report.Id))!.Estatus);
         Assert.Equal(EstatusCuadrilla.FueraServicio, (await context.Cuadrillas.FindAsync(1))!.EstatusDisponibilidad);
+    }
+
+    [Fact]
+    public async Task Scheduling_supervision_persists_the_requested_date_and_notes()
+    {
+        var report = await AddReport(EstatusReporte.Completado, resolution: true);
+        var scheduledAt = new DateTime(2026, 10, 20, 10, 30, 0, DateTimeKind.Utc);
+
+        var result = await Reports("7", "Usuario", "Administrador").ProgramarSupervision(report.Id,
+            new ProgramarSupervisionDTO
+            {
+                IdCuadrillaSupervisora = 2,
+                FechaSupervision = scheduledAt,
+                NotasSupervision = "Validar sellado y bacheo"
+            });
+
+        Assert.IsType<NoContentResult>(result);
+        context.ChangeTracker.Clear();
+        var persisted = (await context.Reportes.FindAsync(report.Id))!;
+        Assert.Equal(scheduledAt, persisted.FechaSupervision);
+        Assert.Equal("Validar sellado y bacheo", persisted.NotasSupervision);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(1441)]
+    public async Task Estimated_time_rejects_values_outside_one_to_1440_minutes(decimal minutes)
+    {
+        var report = await AddReport(EstatusReporte.Asignado);
+
+        var result = await Reports().PutTiempoEstimado(report.Id,
+            new ActualizarTiempoEstimadoDTO { TiempoEstimado = minutes });
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        context.ChangeTracker.Clear();
+        Assert.Null((await context.Reportes.FindAsync(report.Id))!.TiempoEstimado);
+    }
+
+    [Fact]
+    public async Task Resolution_comments_are_saved_without_bypassing_resolution_evidence()
+    {
+        var report = await AddReport(EstatusReporte.EnProceso);
+
+        Assert.IsType<NoContentResult>(await Reports().PutComentariosResolucion(report.Id,
+            new ActualizarComentariosResolucionDTO { ComentariosResolucion = "Se sustituyó la válvula dañada." }));
+        Assert.IsType<BadRequestObjectResult>(await Reports().PutEstatus(report.Id, EstatusReporte.Completado));
+        context.ChangeTracker.Clear();
+        Assert.Equal("Se sustituyó la válvula dañada.", (await context.Reportes.FindAsync(report.Id))!.ComentariosResolucion);
+    }
+
+    [Fact]
+    public async Task Supervising_crew_can_confirm_repair_and_close_the_report()
+    {
+        var report = await AddReport(EstatusReporte.EnSupervision, resolution: true);
+        report.IdCuadrillaSupervisora = 2;
+        await context.SaveChangesAsync();
+
+        var result = await Reports("2").PutResultadoSupervision(report.Id,
+            new ResolverSupervisionDTO { ConfirmaReparacion = true, Observaciones = "Reparación validada." });
+
+        Assert.IsType<NoContentResult>(result);
+        context.ChangeTracker.Clear();
+        Assert.Equal(EstatusReporte.Cerrado, (await context.Reportes.FindAsync(report.Id))!.Estatus);
+    }
+
+    [Fact]
+    public async Task Non_supervising_crew_cannot_decide_supervision()
+    {
+        var report = await AddReport(EstatusReporte.EnSupervision, resolution: true);
+        report.IdCuadrillaSupervisora = 2;
+        await context.SaveChangesAsync();
+
+        var result = await Reports().PutResultadoSupervision(report.Id,
+            new ResolverSupervisionDTO { ConfirmaReparacion = false });
+
+        Assert.IsType<ForbidResult>(result);
+        context.ChangeTracker.Clear();
+        Assert.Equal(EstatusReporte.EnSupervision, (await context.Reportes.FindAsync(report.Id))!.Estatus);
     }
 
     [Fact]

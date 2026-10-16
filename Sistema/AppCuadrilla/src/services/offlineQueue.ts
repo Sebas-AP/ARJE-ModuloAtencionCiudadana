@@ -3,6 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 type OperationData =
   | { kind: 'location'; reportId: number; latitud: number; longitud: number }
   | { kind: 'status'; reportId: number; status: 3 | 4 | 5 }
+  | { kind: 'estimate'; reportId: number; tiempoEstimado: number }
+  | { kind: 'resolutionComment'; reportId: number; comentariosResolucion: string }
+  | { kind: 'supervisionResult'; reportId: number; confirmaReparacion: boolean; observaciones?: string }
   | { kind: 'evidence'; reportId: number; uri: string; name: string; mimeType: string; storage: 'persistent' }
   | { kind: 'availability'; availability: 1 | 2 | 3; targetCuadrillaId: number };
 
@@ -62,6 +65,15 @@ function isQueuedOperation(value: unknown): value is QueuedOperation {
         && typeof value.longitud === 'number' && Number.isFinite(value.longitud);
     case 'status':
       return isPositiveInteger(value.reportId) && [3, 4, 5].includes(value.status as number);
+    case 'estimate':
+      return isPositiveInteger(value.reportId)
+        && typeof value.tiempoEstimado === 'number' && value.tiempoEstimado >= 1 && value.tiempoEstimado <= 1440;
+    case 'resolutionComment':
+      return isPositiveInteger(value.reportId) && isNonemptyString(value.comentariosResolucion)
+        && value.comentariosResolucion.length <= 2000;
+    case 'supervisionResult':
+      return isPositiveInteger(value.reportId) && typeof value.confirmaReparacion === 'boolean'
+        && (value.observaciones === undefined || typeof value.observaciones === 'string');
     case 'evidence':
       return isPositiveInteger(value.reportId)
         && isNonemptyString(value.uri)

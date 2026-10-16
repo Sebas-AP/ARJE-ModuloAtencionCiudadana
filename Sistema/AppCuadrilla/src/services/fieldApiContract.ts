@@ -18,10 +18,16 @@ export const fieldApiPaths = {
   evidencias: (idReporte: number) => `/reportes/${idReporte}/evidencias`,
   ubicaciones: (idReporte: number) => `/reportes/${idReporte}/ubicaciones`,
   disponibilidad: (idCuadrilla: number) => `/cuadrillas/${idCuadrilla}/disponibilidad`,
+  tiempoEstimado: (idReporte: number) => `/reportes/${idReporte}/tiempo-estimado`,
+  comentariosResolucion: (idReporte: number) => `/reportes/${idReporte}/comentarios-resolucion`,
+  resultadoSupervision: (idReporte: number) => `/reportes/${idReporte}/supervision/resultado`,
 };
 
 export const buildAssignedReportsPath = (idCuadrilla: number) =>
   `/reportes?idCuadrillaAsignada=${idCuadrilla}&registrosPorPagina=100`;
+
+export const buildSupervisedReportsPath = (idCuadrilla: number) =>
+  `/reportes?idCuadrillaSupervisora=${idCuadrilla}&registrosPorPagina=100`;
 
 export const isActiveAssignedStatus = (estatus: number) =>
   ACTIVE_ASSIGNED_STATUSES.has(estatus);

@@ -26,3 +26,21 @@ test('terminal operations without an API message still provide a safe explanatio
   }]);
   assert.equal(getRecoverableOperationCount([{ id: 'rejected', kind: 'availability', terminal: true }]), 0);
 });
+
+test('terminal field-workflow operations identify the action that was rejected', () => {
+  assert.deepEqual(getTerminalOperationDetails([
+    { id: 'estimate', kind: 'estimate', reportId: 19, terminal: true },
+    { id: 'supervision', kind: 'supervisionResult', reportId: 20, terminal: true },
+  ]), [
+    {
+      id: 'estimate',
+      description: 'Tiempo estimado del reporte #19',
+      error: 'El servidor rechazó esta operación. Descártala antes de registrar un nuevo cambio.',
+    },
+    {
+      id: 'supervision',
+      description: 'Resultado de supervisión del reporte #20',
+      error: 'El servidor rechazó esta operación. Descártala antes de registrar un nuevo cambio.',
+    },
+  ]);
+});

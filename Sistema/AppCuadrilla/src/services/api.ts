@@ -1,9 +1,9 @@
 import { Platform } from 'react-native';
-import { buildAssignedReportsPath, buildLocationBatch, fieldApiPaths } from './fieldApiContract';
+import { buildAssignedReportsPath, buildLocationBatch, buildSupervisedReportsPath, fieldApiPaths } from './fieldApiContract';
 import { resolveApiBaseUrl } from './apiConfiguration';
 import { secureStorage } from './secureStorage';
 import type { CuadrillaLoginPayload } from './fieldApiContract';
-import type { ActualizarEstatusDTO, CuadrillaDTO, EvidenciaDTO, ReporteDTO } from '../types';
+import type { ActualizarEstatusDTO, ActualizarTiempoEstimadoDTO, CuadrillaDTO, EvidenciaDTO, ReporteDTO, ResolverSupervisionDTO } from '../types';
 
 const API_BASE_URL = resolveApiBaseUrl(Platform.OS, process.env.EXPO_PUBLIC_API_BASE_URL);
 
@@ -104,6 +104,10 @@ export const getReportesAsignados = async (idCuadrilla: number) => {
   return apiRequest<ReporteDTO[]>(buildAssignedReportsPath(idCuadrilla));
 };
 
+export const getReportesSupervisados = async (idCuadrilla: number) => {
+  return apiRequest<ReporteDTO[]>(buildSupervisedReportsPath(idCuadrilla));
+};
+
 export const getReporteDetalle = async (id: number) => {
   return apiRequest<ReporteDTO>(`/reportes/${id}`);
 };
@@ -115,6 +119,17 @@ export const actualizarEstatusReporte = async (id: number, data: ActualizarEstat
     session,
   });
 };
+
+export const actualizarTiempoEstimado = (id: number, data: ActualizarTiempoEstimadoDTO, session?: AuthSessionSnapshot) =>
+  apiRequest<void>(fieldApiPaths.tiempoEstimado(id), { method: 'PUT', body: JSON.stringify(data), session });
+
+export const guardarComentariosResolucion = (id: number, comentariosResolucion: string, session?: AuthSessionSnapshot) =>
+  apiRequest<void>(fieldApiPaths.comentariosResolucion(id), {
+    method: 'PUT', body: JSON.stringify({ comentariosResolucion }), session,
+  });
+
+export const resolverSupervision = (id: number, data: ResolverSupervisionDTO, session?: AuthSessionSnapshot) =>
+  apiRequest<void>(fieldApiPaths.resultadoSupervision(id), { method: 'PUT', body: JSON.stringify(data), session });
 
 export const subirEvidencia = async (idReporte: number, formData: FormData, session?: AuthSessionSnapshot) => {
   return apiRequestMultipart<EvidenciaDTO>(fieldApiPaths.evidencias(idReporte), formData, true, session);

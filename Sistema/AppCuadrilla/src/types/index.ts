@@ -124,3 +124,12 @@ export interface ActualizarEstatusDTO {
   idCuadrillaAsignada?: number;
   comentariosResolucion?: string;
 }
+
+export interface ActualizarTiempoEstimadoDTO {
+  tiempoEstimado: number;
+}
+
+export interface ResolverSupervisionDTO {
+  confirmaReparacion: boolean;
+  observaciones?: string;
+}

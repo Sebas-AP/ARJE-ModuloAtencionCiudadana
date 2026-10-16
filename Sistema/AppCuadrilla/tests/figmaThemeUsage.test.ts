@@ -11,30 +11,31 @@ test('the tab layout and both map implementations use the shared AppCuadrilla th
   }
 });
 
-test('the detail route reproduces the Figma frames and exposes completion and location actions', () => {
+test('the detail route uses Figma tokens in an adaptive native layout', () => {
   const source = readFileSync(resolve(root, 'src/app/reporte/[id].tsx'), 'utf8');
-  assert.match(source, /width: 412, height: 917/);
-  assert.match(source, /top: 154, width: 412, height: 231/);
-  assert.match(source, /width: 375, height: 159/);
-  assert.match(source, /top: 835, width: 357, height: 44/);
+  assert.match(source, /APP_THEME/);
+  assert.match(source, /SafeAreaView/);
+  assert.match(source, /ScrollView/);
+  assert.doesNotMatch(source, /fitArtboard/);
+  assert.doesNotMatch(source, /artboard/);
   assert.match(source, /Marcar ubicación/);
   assert.match(source, /¡Reporte completado!/);
-  assert.match(source, /reporte\.estatus === 5 \|\| reporte\.estatus === 6 \|\| reporte\.estatus === 7/);
+  assert.match(source, /Confirmar supervisión/);
+  assert.match(source, /Rechazar y reabrir/);
   assert.match(source, /onPress=\{\(\) => \{ void obtenerUbicacionActual\(\); \}\}/);
 });
 
-test('login, report search and report cards retain the Figma artboard coordinates', () => {
+test('login, report search and report cards adapt instead of scaling a fixed artboard', () => {
   const login = readFileSync(resolve(root, 'src/app/(auth)/login.tsx'), 'utf8');
   const list = readFileSync(resolve(root, 'src/app/(tabs)/index.tsx'), 'utf8');
   const card = readFileSync(resolve(root, 'src/components/ReporteCard.tsx'), 'utf8');
-  assert.match(login, /left: 74, top: 164, width: 265, height: 115/);
-  assert.match(login, /usernameGroup: \{ top: 413 \}/);
-  assert.match(login, /passwordGroup: \{ top: 513 \}/);
-  assert.match(login, /left: 40, top: 735, width: 332, height: 48/);
-  assert.match(list, /top: 72, height: 29/);
-  assert.match(list, /left: 24, top: 140, width: 361, height: 33/);
-  assert.match(list, /top: 248, left: 20, width: 371, height: 1/);
-  assert.match(card, /width: 375, height: 127/);
+  for (const source of [login, list]) {
+    assert.match(source, /SafeAreaView/);
+    assert.doesNotMatch(source, /fitArtboard/);
+    assert.doesNotMatch(source, /artboard/);
+  }
+  assert.match(card, /width: '100%'/);
+  assert.doesNotMatch(card, /width: 375, height: 127/);
 });
 
 test('the audio overlay uses the Figma modal frame while clearly avoiding a fake recording state', () => {

@@ -43,6 +43,7 @@ export interface ReporteDTO {
   fechaSupervision?: string;
   observacionesSupervision?: string;
   notasSupervision?: string;
+  comentariosResolucion?: string;
   numeroContrato?: string | null;
   nombreCiudadano?: string | null;
   telefonoCiudadano?: string | null;

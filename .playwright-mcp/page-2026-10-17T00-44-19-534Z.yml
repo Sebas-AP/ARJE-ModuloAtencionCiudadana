@@ -1,0 +1,21 @@
+- generic [ref=f6e30]:
+  - generic [ref=f6e31]:
+    - generic [ref=f6e32] [cursor=pointer]: 
+    - generic [ref=f6e34]: Portal Ciudadano
+  - generic [ref=f6e35]: Consultar reportes
+  - generic [ref=f6e36]: Introduce tu número de contrato para conocer el estatus actual de tus solicitudes de servicio.
+  - generic [ref=f6e37]:
+    - generic [ref=f6e38]: Número de contrato *
+    - generic [ref=f6e39]:
+      - generic [ref=f6e40]: 󰐣
+      - textbox "ej. T001 o 123456" [ref=f6e42]
+  - generic [ref=f6e43] [cursor=pointer]:
+    - generic [ref=f6e44]: Buscar reportes
+    - generic [ref=f6e45]: 
+  - generic [ref=f6e46]:
+    - generic [ref=f6e47]: Historial de reportes
+    - generic [ref=f6e48]: 0 encontrados
+  - generic [ref=f6e49]:
+    - generic [ref=f6e50]: 󰗖
+    - generic [ref=f6e51]: Request failed with status code 401
+    - generic [ref=f6e52] [cursor=pointer]: Reintentar

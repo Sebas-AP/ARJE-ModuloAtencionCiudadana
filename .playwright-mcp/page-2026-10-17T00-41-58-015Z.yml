@@ -1,0 +1,68 @@
+- generic [ref=e31]:
+  - complementary [ref=e32]:
+    - generic [ref=e33]:
+      - img "ARJE" [ref=e34]
+      - button "Contraer barra de navegación" [ref=e35] [cursor=pointer]
+    - navigation [ref=e39]:
+      - button "Inicio" [ref=e40] [cursor=pointer]
+      - button "Reportes" [ref=e45] [cursor=pointer]
+      - button "Cuadrillas" [ref=e50] [cursor=pointer]
+      - button "Indicadores" [ref=e57] [cursor=pointer]
+      - button "Mapa" [ref=e61] [cursor=pointer]
+    - 'button "Modo: API .NET Real" [ref=e66] [cursor=pointer]'
+    - generic [ref=e69]:
+      - generic [ref=e70]:
+        - 'generic "Perfil: Administrador General ARJE" [ref=e71]'
+        - generic "Administrador General ARJE" [ref=e85]
+      - button "Cerrar sesión" [ref=e86] [cursor=pointer]
+  - generic [ref=e90]:
+    - banner [ref=e91]:
+      - generic [ref=e92]:
+        - button "Contraer barra lateral" [ref=e93] [cursor=pointer]
+        - generic [ref=e97]:
+          - heading "Panel de Control Operativo" [level=2] [ref=e99]
+          - paragraph [ref=e100]: Monitoreo en tiempo real de incidencias y cuadrillas técnicas
+      - generic [ref=e101]:
+        - generic [ref=e102]: viernes, 16 de oct de 2026, 06:41 p.m.
+        - button "Actualizar datos del sistema" [disabled] [ref=e107]
+        - button "Alertas y Notificaciones de Reportes" [ref=e114] [cursor=pointer]
+        - generic [ref=e119]:
+          - generic "Ver perfil de usuario" [ref=e120] [cursor=pointer]:
+            - 'generic "Perfil: Administrador General ARJE" [ref=e121]'
+            - generic [ref=e135]:
+              - generic [ref=e136]: Administrador General ARJE
+              - generic [ref=e137]: "1"
+          - button "Cerrar sesión" [ref=e138] [cursor=pointer]
+    - main [ref=e142]:
+      - generic [ref=e143]:
+        - generic [ref=e144]:
+          - generic [ref=e145]:
+            - heading "Reportes" [level=2] [ref=e146]
+            - button "Ver todos los reportes" [ref=e147] [cursor=pointer]
+          - table [ref=e152]:
+            - rowgroup [ref=e153]:
+              - row [ref=e154]:
+                - columnheader "ID" [ref=e155]
+                - columnheader "Categoría" [ref=e156]
+                - columnheader "Tiempo" [ref=e157]
+                - columnheader "Estado" [ref=e158]
+                - columnheader "Sector" [ref=e159]
+                - columnheader "Acciones" [ref=e160]
+            - rowgroup [ref=e161]:
+              - row [ref=e162]:
+                - cell "No hay reportes registrados" [ref=e163]
+        - generic [ref=e164]:
+          - heading "Indicadores" [level=2] [ref=e165]
+          - generic [ref=e166]:
+            - generic [ref=e167]:
+              - generic [ref=e168]: Total Reportes
+              - generic [ref=e169]: "0"
+            - generic [ref=e170]:
+              - generic [ref=e171]: Reportes resueltos
+              - generic [ref=e172]: "0"
+            - generic [ref=e173]:
+              - generic [ref=e174]: Reportes pendientes
+              - generic [ref=e175]: "0"
+      - generic [ref=e177]:
+        - generic [ref=e181]: Bienvenido al sistema ARJE, Administrador General ARJE
+        - button [ref=e182] [cursor=pointer]

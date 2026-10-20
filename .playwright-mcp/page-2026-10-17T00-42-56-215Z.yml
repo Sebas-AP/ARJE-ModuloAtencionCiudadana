@@ -1,0 +1,21 @@
+- generic [ref=f2e26]:
+  - generic [ref=f2e27]:
+    - generic [ref=f2e59] [cursor=pointer]: 
+    - generic [ref=f2e28]: Paso 2 de 2
+    - generic [ref=f2e30]: Nuevo reporte
+    - generic [ref=f2e31]: Completa la descripción y adjunta archivos o grabaciones para que podamos revisar tu caso.
+  - generic [ref=f2e35]:
+    - generic [ref=f2e36]:
+      - generic [ref=f2e37]: Descripción
+      - textbox "Describe el incidente, el lugar y cualquier detalle relevante." [ref=f2e61]
+    - generic [ref=f2e42]:
+      - generic [ref=f2e43]: Adjuntos
+      - generic [ref=f2e44]:
+        - generic [ref=f2e62] [cursor=pointer]:
+          - generic [ref=f2e63]: 
+          - generic [ref=f2e65]: Adjuntar archivo
+        - generic [ref=f2e66] [cursor=pointer]:
+          - generic [ref=f2e67]: 
+          - generic [ref=f2e69]: Grabar audio
+    - generic [ref=f2e70]: Revisaremos tu reporte y te responderemos lo antes posible.
+    - generic [ref=f2e71] [cursor=pointer]: Enviar reporte

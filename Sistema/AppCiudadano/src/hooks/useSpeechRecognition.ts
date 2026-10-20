@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent, ExpoSpeechRecognitionOptions } from 'expo-speech-recognition';
+import Constants from 'expo-constants';
+import type { ExpoSpeechRecognitionOptions } from 'expo-speech-recognition';
+
+// Expo Go cannot load this third-party native module.  Do not require it in
+// that runtime: the report form remains usable and simply omits dictation.
+const speechRecognitionModule = Constants.executionEnvironment === 'storeClient'
+  ? null
+  : require('expo-speech-recognition').ExpoSpeechRecognitionModule;
 
 interface SpeechRecognitionState {
   isListening: boolean;
@@ -21,62 +28,44 @@ export function useSpeechRecognition() {
   const isMountedRef = useRef(true);
   const restartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useSpeechRecognitionEvent('start', () => {
-    if (!isMountedRef.current) return;
-    setState((prev) => ({ ...prev, isListening: true, error: null }));
-  });
-
-  useSpeechRecognitionEvent('end', () => {
-    if (!isMountedRef.current) return;
-    setState((prev) => ({ ...prev, isListening: false, interimTranscript: '' }));
-  });
-
-  useSpeechRecognitionEvent('result', (result) => {
-    if (!isMountedRef.current) return;
-    const transcript = result.results[0]?.transcript || '';
-    if (result.isFinal) {
-      setState((prev) => ({
-        ...prev,
-        transcript: prev.transcript + (prev.transcript ? ' ' : '') + transcript,
-        interimTranscript: '',
-      }));
-    } else {
-      setState((prev) => ({
-        ...prev,
-        interimTranscript: transcript,
-      }));
-    }
-  });
-
-  useSpeechRecognitionEvent('error', (event) => {
-    if (!isMountedRef.current) return;
-    let persistent = true;
-    if (event.error === 'aborted' || event.error === 'no-speech') {
-      persistent = false;
-    }
-    setState((prev) => ({
-      ...prev,
-      error: persistent ? event.message || 'Error en reconocimiento de voz' : null,
-      isListening: false,
-    }));
-  });
-
   useEffect(() => {
     isMountedRef.current = true;
     checkAvailability();
+
+    const subscriptions = [
+      speechRecognitionModule?.addListener?.('start', () => {
+        if (isMountedRef.current) setState((prev) => ({ ...prev, isListening: true, error: null }));
+      }),
+      speechRecognitionModule?.addListener?.('end', () => {
+        if (isMountedRef.current) setState((prev) => ({ ...prev, isListening: false, interimTranscript: '' }));
+      }),
+      speechRecognitionModule?.addListener?.('result', (result: any) => {
+        if (!isMountedRef.current) return;
+        const transcript = result.results[0]?.transcript || '';
+        setState((prev) => result.isFinal
+          ? { ...prev, transcript: prev.transcript + (prev.transcript ? ' ' : '') + transcript, interimTranscript: '' }
+          : { ...prev, interimTranscript: transcript });
+      }),
+      speechRecognitionModule?.addListener?.('error', (event: any) => {
+        if (!isMountedRef.current) return;
+        const persistent = event.error !== 'aborted' && event.error !== 'no-speech';
+        setState((prev) => ({ ...prev, error: persistent ? event.message || 'Error en reconocimiento de voz' : null, isListening: false }));
+      }),
+    ];
 
     return () => {
       isMountedRef.current = false;
       if (restartTimeoutRef.current) {
         clearTimeout(restartTimeoutRef.current);
       }
-      ExpoSpeechRecognitionModule?.stop?.();
+      subscriptions.forEach((subscription) => subscription?.remove?.());
+      speechRecognitionModule?.stop?.();
     };
   }, []);
 
   const checkAvailability = async () => {
     try {
-      const available = ExpoSpeechRecognitionModule?.isRecognitionAvailable ? ExpoSpeechRecognitionModule.isRecognitionAvailable() : false;
+      const available = speechRecognitionModule?.isRecognitionAvailable ? speechRecognitionModule.isRecognitionAvailable() : false;
       if (isMountedRef.current) {
         setState((prev) => ({ ...prev, isAvailable: !!available }));
       }
@@ -92,12 +81,12 @@ export function useSpeechRecognition() {
       await checkAvailability();
     }
 
-    if (!ExpoSpeechRecognitionModule) {
+    if (!speechRecognitionModule) {
       setState((prev) => ({ ...prev, error: 'Reconocimiento de voz no soportado en este dispositivo' }));
       return;
     }
 
-    const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync?.() ?? { granted: false };
+    const permission = await speechRecognitionModule.requestPermissionsAsync?.() ?? { granted: false };
     if (!permission.granted) {
       setState((prev) => ({ ...prev, error: 'Permiso de micrófono denegado' }));
       return;
@@ -111,7 +100,7 @@ export function useSpeechRecognition() {
     }));
 
     try {
-      ExpoSpeechRecognitionModule.start?.({
+      speechRecognitionModule.start?.({
         lang: 'es-ES',
         interimResults: true,
         continuous: false,
@@ -129,7 +118,7 @@ export function useSpeechRecognition() {
 
   const stopListening = useCallback(async () => {
     try {
-      ExpoSpeechRecognitionModule?.stop?.();
+      speechRecognitionModule?.stop?.();
       if (isMountedRef.current) {
         setState((prev) => ({
           ...prev,

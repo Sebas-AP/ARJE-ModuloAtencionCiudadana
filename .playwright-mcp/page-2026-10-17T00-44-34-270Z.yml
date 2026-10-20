@@ -1,0 +1,13 @@
+- generic [ref=f8e3]:
+  - img "ARJE Agua Potable" [ref=f8e6]
+  - generic [ref=f8e8]:
+    - heading "INICIO DE SESIÓN" [level=1] [ref=f8e9]
+    - generic [ref=f8e10]:
+      - generic [ref=f8e11]:
+        - generic [ref=f8e12]: Usuario
+        - textbox "Ingrese su usuario" [ref=f8e13]
+      - generic [ref=f8e14]:
+        - generic [ref=f8e15]: Contraseña
+        - textbox "Ingrese su contraseña" [ref=f8e16]
+      - button "Iniciar sesión" [ref=f8e17] [cursor=pointer]
+      - button "Acceder como Administrador Demo" [ref=f8e22] [cursor=pointer]

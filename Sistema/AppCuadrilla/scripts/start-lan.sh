@@ -70,10 +70,12 @@ EOF
 }
 
 export EXPO_PUBLIC_API_BASE_URL="http://${local_ip}:5170/api"
+export REACT_NATIVE_PACKAGER_HOSTNAME="$local_ip"
 
 cat <<EOF
 Iniciando Expo en modo LAN (sin túnel).
 API para esta sesión: ${EXPO_PUBLIC_API_BASE_URL}
+Metro para esta sesión: ${REACT_NATIVE_PACKAGER_HOSTNAME}
 
 Antes de escanear el QR, la API debe estar iniciada en 0.0.0.0:5170
 y el teléfono debe estar en la misma red Wi-Fi que esta computadora.

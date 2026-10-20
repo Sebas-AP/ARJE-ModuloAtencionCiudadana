@@ -6,12 +6,18 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+<<<<<<< HEAD
     "splash": {
       "image": "./assets/arje-cuadrilla-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#F7F9FC"
     },
     "assetBundlePatterns": ["**/*"],
+=======
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+>>>>>>> a1dbc86 (Refactor code structure for improved readability and maintainability)
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.arje.cuadrilla",
@@ -24,7 +30,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#253C96"
       },
       "package": "com.arje.cuadrilla",
@@ -62,7 +68,18 @@
         {
           "photosPermission": "Permitir a ARJE Cuadrilla acceder a la galería para evidencias"
         }
-      ]
+      ],
+      "expo-font",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#253C96"
+        }
+      ],
+      "expo-status-bar"
     ],
     "scheme": "arje-cuadrilla",
     "experiments": {

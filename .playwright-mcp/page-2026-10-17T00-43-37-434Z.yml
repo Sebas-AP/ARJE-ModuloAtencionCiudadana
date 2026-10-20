@@ -1,0 +1,17 @@
+- generic [ref=f4e18]:
+  - generic [ref=f4e20]:
+    - generic [ref=f4e21]: Reportes
+    - generic [ref=f4e22]: Buscar reportes
+    - generic [ref=f4e23]:
+      - generic [ref=f4e24]: 
+      - textbox "Buscar reportes" [ref=f4e25]:
+        - /placeholder: Buscar por ID, tipo o sector...
+    - generic [ref=f4e26]: Estado
+    - generic [ref=f4e27]:
+      - button "Todos" [ref=f4e28] [cursor=pointer]
+      - button "En proceso" [active] [ref=f4e30] [cursor=pointer]
+      - button "Pendiente" [ref=f4e32] [cursor=pointer]
+      - button "Completado" [ref=f4e34] [cursor=pointer]
+  - generic [ref=f4e36]:
+    - generic [ref=f4e37]: Sin reportes asignados
+    - generic [ref=f4e38]: Cuando se te asigne un reporte, aparecerá aquí automáticamente.

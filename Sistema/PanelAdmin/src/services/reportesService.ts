@@ -12,6 +12,7 @@ import {
   LandingPageDTO,
 } from '../types';
 import { INITIAL_REPORTES } from './mockData';
+import { loadRemoteReportes } from './remoteReportesLoad';
 
 // Estado local reactivo para el modo Mock / Offline
 let localReportes: ReporteDetalleDTO[] = (() => {
@@ -92,28 +93,23 @@ export const reportesService = {
       return { data, total };
     }
 
-    try {
-      const params = new URLSearchParams();
-      if (filters.pagina) params.append('pagina', String(filters.pagina));
-      if (filters.registrosPorPagina) params.append('registrosPorPagina', String(filters.registrosPorPagina));
-      if (filters.estatus) params.append('estatus', String(filters.estatus));
-      if (filters.tipoProblema) params.append('tipoProblema', String(filters.tipoProblema));
-      if (filters.categoria) params.append('categoria', filters.categoria);
-      if (filters.prioridad && filters.prioridad !== 'todas') {
-        const pMap: Record<string, string> = { critica: '4', crtica: '4', alta: '3', media: '2', baja: '1' };
-        const pVal = pMap[filters.prioridad.toLowerCase()] || filters.prioridad;
-        params.append('prioridad', pVal);
-      }
-      if (filters.ordenarPorPrioridad) params.append('ordenarPorPrioridad', 'true');
-      if (filters.idCuadrillaAsignada) params.append('idCuadrillaAsignada', String(filters.idCuadrillaAsignada));
-
-      const query = params.toString() ? `?${params.toString()}` : '';
-      const data = await apiClient<ReporteDTO[]>(`/reportes${query}`);
-      return { data, total: data.length };
-    } catch (err) {
-      console.warn('API error, falling back to local data', err);
-      return reportesService.getAll({ ...filters, pagina: 1 });
+    const params = new URLSearchParams();
+    if (filters.pagina) params.append('pagina', String(filters.pagina));
+    if (filters.registrosPorPagina) params.append('registrosPorPagina', String(filters.registrosPorPagina));
+    if (filters.estatus) params.append('estatus', String(filters.estatus));
+    if (filters.tipoProblema) params.append('tipoProblema', String(filters.tipoProblema));
+    if (filters.categoria) params.append('categoria', filters.categoria);
+    if (filters.prioridad && filters.prioridad !== 'todas') {
+      const pMap: Record<string, string> = { critica: '4', crtica: '4', alta: '3', media: '2', baja: '1' };
+      const pVal = pMap[filters.prioridad.toLowerCase()] || filters.prioridad;
+      params.append('prioridad', pVal);
     }
+    if (filters.ordenarPorPrioridad) params.append('ordenarPorPrioridad', 'true');
+    if (filters.idCuadrillaAsignada) params.append('idCuadrillaAsignada', String(filters.idCuadrillaAsignada));
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const data = await loadRemoteReportes(() => apiClient<ReporteDTO[]>(`/reportes${query}`));
+    return { data, total: data.length };
   },
 
   /**

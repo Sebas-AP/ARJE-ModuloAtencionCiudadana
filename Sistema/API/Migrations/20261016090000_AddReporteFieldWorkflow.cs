@@ -1,9 +1,13 @@
+using ARJE.Api.Entidades;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace ARJE.Api.Migrations;
 
+[DbContext(typeof(ApplicationDbContext))]
+[Migration("20261016090000_AddReporteFieldWorkflow")]
 public partial class AddReporteFieldWorkflow : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)

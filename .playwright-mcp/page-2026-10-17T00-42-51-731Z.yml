@@ -1,0 +1,26 @@
+- generic [ref=f2e26]:
+  - generic [ref=f2e27]:
+    - generic [ref=f2e28]: Paso 1 de 2
+    - generic [ref=f2e30]: Nuevo reporte
+    - generic [ref=f2e31]: Completa los datos del reporte para continuar con el siguiente paso.
+  - generic [ref=f2e35]:
+    - generic [ref=f2e36]:
+      - generic [ref=f2e37]: Número de contrato
+      - generic [ref=f2e38]:
+        - generic [ref=f2e39]: 󰐣
+        - textbox "ej. T001 o 123456" [ref=f2e41]
+    - generic [ref=f2e42]:
+      - generic [ref=f2e43]: Nombre
+      - generic [ref=f2e44]:
+        - generic [ref=f2e45]: 
+        - textbox "opcional" [ref=f2e47]
+    - generic [ref=f2e48]:
+      - generic [ref=f2e49]: Teléfono
+      - generic [ref=f2e50]:
+        - generic [ref=f2e51]: 
+        - textbox "opcional" [ref=f2e53]
+    - generic [ref=f2e54]:
+      - generic [ref=f2e55] [cursor=pointer]:
+        - generic [ref=f2e56]: Siguiente
+        - generic [ref=f2e57]: 
+      - generic [ref=f2e58]: Tus datos se usarán solo para este reporte.

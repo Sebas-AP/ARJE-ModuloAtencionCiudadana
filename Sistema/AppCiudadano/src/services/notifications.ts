@@ -1,11 +1,18 @@
-import * as Notifications from 'expo-notifications';
+import type * as ExpoNotifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS, NotificationData } from '../constants';
 
-Notifications.setNotificationHandler({
+// expo-notifications includes native code that Expo Go no longer ships on
+// Android. Keeping this module lazy lets the rest of the app run in Expo Go;
+// notification features remain available in a development/production build.
+const Notifications: typeof ExpoNotifications | null = Constants.executionEnvironment === 'storeClient'
+  ? null
+  : require('expo-notifications');
+
+Notifications?.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
@@ -18,8 +25,8 @@ Notifications.setNotificationHandler({
 export class NotificationService {
   private static instance: NotificationService;
   private expoPushToken: string | null = null;
-  private notificationListener: Notifications.EventSubscription | null = null;
-  private responseListener: Notifications.EventSubscription | null = null;
+  private notificationListener: ExpoNotifications.EventSubscription | null = null;
+  private responseListener: ExpoNotifications.EventSubscription | null = null;
 
   private constructor() {}
 
@@ -35,7 +42,7 @@ export class NotificationService {
       return this.expoPushToken;
     }
 
-    if (!Device.isDevice) {
+    if (!Notifications || !Device.isDevice) {
       console.warn('Push notifications only work on physical devices');
       return null;
     }
@@ -78,9 +85,10 @@ export class NotificationService {
   }
 
   public async setupNotificationListeners(
-    onNotification: (notification: Notifications.Notification) => void,
-    onResponse: (response: Notifications.NotificationResponse) => void
+    onNotification: (notification: ExpoNotifications.Notification) => void,
+    onResponse: (response: ExpoNotifications.NotificationResponse) => void
   ): Promise<void> {
+    if (!Notifications) return;
     this.notificationListener = Notifications.addNotificationReceivedListener(onNotification);
     this.responseListener = Notifications.addNotificationResponseReceivedListener(onResponse);
   }
@@ -97,6 +105,7 @@ export class NotificationService {
   }
 
   public async sendLocalNotification(data: NotificationData): Promise<string> {
+    if (!Notifications) return '';
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
         title: data.title,
@@ -112,8 +121,9 @@ export class NotificationService {
 
   public async scheduleNotification(
     data: NotificationData,
-    trigger: Notifications.NotificationTriggerInput
+    trigger: ExpoNotifications.NotificationTriggerInput
   ): Promise<string> {
+    if (!Notifications) return '';
     return Notifications.scheduleNotificationAsync({
       content: {
         title: data.title,
@@ -126,22 +136,27 @@ export class NotificationService {
   }
 
   public async cancelNotification(notificationId: string): Promise<void> {
+    if (!Notifications) return;
     await Notifications.cancelScheduledNotificationAsync(notificationId);
   }
 
   public async cancelAllNotifications(): Promise<void> {
+    if (!Notifications) return;
     await Notifications.cancelAllScheduledNotificationsAsync();
   }
 
   public async getBadgeCount(): Promise<number> {
+    if (!Notifications) return 0;
     return Notifications.getBadgeCountAsync();
   }
 
   public async setBadgeCount(count: number): Promise<void> {
+    if (!Notifications) return;
     await Notifications.setBadgeCountAsync(count);
   }
 
   public async clearBadge(): Promise<void> {
+    if (!Notifications) return;
     await Notifications.setBadgeCountAsync(0);
   }
 
@@ -158,11 +173,13 @@ export class NotificationService {
   }
 
   public async hasPermission(): Promise<boolean> {
+    if (!Notifications) return false;
     const { status } = await Notifications.getPermissionsAsync();
     return status === 'granted';
   }
 
   public async requestPermission(): Promise<boolean> {
+    if (!Notifications) return false;
     const { status } = await Notifications.requestPermissionsAsync({
       ios: {
         allowAlert: true,

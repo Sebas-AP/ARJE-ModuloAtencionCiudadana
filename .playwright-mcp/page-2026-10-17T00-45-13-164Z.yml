@@ -1,0 +1,235 @@
+- generic [ref=f8e27]:
+  - complementary [ref=f8e28]:
+    - generic [ref=f8e29]:
+      - img "ARJE" [ref=f8e30]
+      - button "Contraer barra de navegación" [ref=f8e31] [cursor=pointer]
+    - navigation [ref=f8e35]:
+      - button "Inicio" [ref=f8e36] [cursor=pointer]
+      - button "Reportes" [ref=f8e41] [cursor=pointer]
+      - button "Cuadrillas" [ref=f8e46] [cursor=pointer]
+      - button "Indicadores" [ref=f8e53] [cursor=pointer]
+      - button "Mapa" [ref=f8e57] [cursor=pointer]
+    - 'button "Modo: Mock Offline" [active] [ref=f8e212] [cursor=pointer]'
+    - generic [ref=f8e65]:
+      - generic [ref=f8e66]:
+        - 'generic "Perfil: Administrador General ARJE" [ref=f8e67]'
+        - generic "Administrador General ARJE" [ref=f8e81]
+      - button "Cerrar sesión" [ref=f8e82] [cursor=pointer]
+  - generic [ref=f8e86]:
+    - banner [ref=f8e87]:
+      - generic [ref=f8e88]:
+        - button "Contraer barra lateral" [ref=f8e89] [cursor=pointer]
+        - generic [ref=f8e93]:
+          - generic [ref=f8e94]:
+            - heading "Gestión Integral de Reportes" [level=2] [ref=f8e172]
+            - generic [ref=f8e173]: 8 registros
+          - paragraph [ref=f8e96]: Catálogo de incidencias, asignación y auditoría de clasificación IA
+      - generic [ref=f8e97]:
+        - generic [ref=f8e98]: viernes, 16 de oct de 2026, 06:45 p.m.
+        - button "Actualizar datos del sistema" [ref=f8e103] [cursor=pointer]
+        - button "8" [ref=f8e213] [cursor=pointer]
+        - generic [ref=f8e115]:
+          - generic "Ver perfil de usuario" [ref=f8e116] [cursor=pointer]:
+            - 'generic "Perfil: Administrador General ARJE" [ref=f8e117]'
+            - generic [ref=f8e131]:
+              - generic [ref=f8e132]: Administrador General ARJE
+              - generic [ref=f8e133]: "1"
+          - button "Cerrar sesión" [ref=f8e134] [cursor=pointer]
+    - main [ref=f8e138]:
+      - generic [ref=f8e174]:
+        - generic [ref=f8e175]:
+          - heading "Reportes" [level=2] [ref=f8e176]
+          - textbox "Buscar por folio, problema..." [ref=f8e178]
+        - generic [ref=f8e182]:
+          - generic [ref=f8e183]:
+            - generic [ref=f8e184]: "Filtrar por :"
+            - combobox [ref=f8e186] [cursor=pointer]:
+              - option "Estado" [selected]
+              - option "Pendiente"
+              - option "En proceso"
+              - option "Resuelto"
+            - combobox [ref=f8e188] [cursor=pointer]:
+              - option "Prioridad (Todas)" [selected]
+              - option "🔴 Crítica"
+              - option "🟠 Alta"
+              - option "🟡 Media"
+              - option "🟢 Baja"
+            - combobox [ref=f8e190] [cursor=pointer]:
+              - option "Categoría" [selected]
+              - option "Fuga en vía pública"
+              - option "Baja presión del agua"
+              - option "Medidor dañado"
+              - option "Uso indebido"
+              - option "Registro dañado o sin tapa"
+              - option "Falta de abastecimiento"
+              - option "Fuga domiciliaria"
+            - combobox [ref=f8e192] [cursor=pointer]:
+              - option "Sector" [selected]
+              - option "Sector 2"
+              - option "Sector 5"
+              - option "Sector 10"
+              - option "Sector 11"
+              - option "Sector 12"
+              - option "Sector 15"
+          - generic [ref=f8e193]:
+            - generic [ref=f8e194]: "Ordenar por :"
+            - generic [ref=f8e195]:
+              - button "Recientes" [ref=f8e196] [cursor=pointer]
+              - button "Prioridad" [ref=f8e197] [cursor=pointer]
+        - table [ref=f8e199]:
+          - rowgroup [ref=f8e200]:
+            - row [ref=f8e201]:
+              - columnheader "ID" [ref=f8e202]
+              - columnheader "Categoría" [ref=f8e203]
+              - columnheader "Prioridad" [ref=f8e204]
+              - columnheader "Tiempo" [ref=f8e205]
+              - columnheader "Estado" [ref=f8e206]
+              - columnheader "Sector" [ref=f8e207]
+              - columnheader "Acciones" [ref=f8e208]
+          - rowgroup [ref=f8e209]:
+            - row [ref=f8e215] [cursor=pointer]:
+              - cell "01" [ref=f8e216]
+              - cell "Falta de abastecimiento IA 94%" [ref=f8e217]:
+                - generic [ref=f8e218]:
+                  - generic [ref=f8e219]: Falta de abastecimiento
+                  - 'generic "Clasificado por IA: Falta de abastecimiento (94%)" [ref=f8e220]': IA 94%
+              - cell "Media 60%" [ref=f8e224]:
+                - generic [ref=f8e226]:
+                  - generic [ref=f8e229]: Media
+                  - generic [ref=f8e230]: 60%
+              - cell "hace 22d" [ref=f8e231]
+              - cell "Asignado" [ref=f8e232]
+              - cell "15" [ref=f8e235]
+              - cell [ref=f8e236]:
+                - generic [ref=f8e237]:
+                  - button "Ver detalle del reporte" [ref=f8e238]
+                  - button "Asignar cuadrilla" [ref=f8e242]
+                  - button "Revisar o corregir categoría IA" [ref=f8e248]
+            - row [ref=f8e252] [cursor=pointer]:
+              - cell "02" [ref=f8e253]
+              - cell "Registro dañado o sin tapa IA 89%" [ref=f8e254]:
+                - generic [ref=f8e255]:
+                  - generic [ref=f8e256]: Registro dañado o sin tapa
+                  - 'generic "Clasificado por IA: Registro dañado o sin tapa (89%)" [ref=f8e257]': IA 89%
+              - cell "Alta 82%" [ref=f8e261]:
+                - generic [ref=f8e263]:
+                  - generic [ref=f8e266]: Alta
+                  - generic [ref=f8e267]: 82%
+              - cell "hace 22d" [ref=f8e268]
+              - cell "Pendiente" [ref=f8e269]
+              - cell "9" [ref=f8e272]
+              - cell [ref=f8e273]:
+                - generic [ref=f8e274]:
+                  - button "Ver detalle del reporte" [ref=f8e275]
+                  - button "Asignar cuadrilla" [ref=f8e279]
+                  - button "Revisar o corregir categoría IA" [ref=f8e285]
+            - row [ref=f8e289] [cursor=pointer]:
+              - cell "03" [ref=f8e290]
+              - cell "Fuga en vía pública IA 96%" [ref=f8e291]:
+                - generic [ref=f8e292]:
+                  - generic [ref=f8e293]: Fuga en vía pública
+                  - 'generic "Clasificado por IA: Fuga en vía pública (96%)" [ref=f8e294]': IA 96%
+              - cell "Crítica 96%" [ref=f8e298]:
+                - generic [ref=f8e300]:
+                  - generic [ref=f8e303]: Crítica
+                  - generic [ref=f8e304]: 96%
+              - cell "hace 22d" [ref=f8e305]
+              - cell "En proceso" [ref=f8e306]
+              - cell "6" [ref=f8e309]
+              - cell [ref=f8e310]:
+                - generic [ref=f8e311]:
+                  - button "Ver detalle del reporte" [ref=f8e312]
+                  - button "Asignar cuadrilla" [ref=f8e316]
+                  - button "Revisar o corregir categoría IA" [ref=f8e322]
+            - row [ref=f8e326] [cursor=pointer]:
+              - cell "04" [ref=f8e327]
+              - cell "Uso indebido IA 85%" [ref=f8e328]:
+                - generic [ref=f8e329]:
+                  - generic [ref=f8e330]: Uso indebido
+                  - 'generic "Clasificado por IA: Uso indebido (85%)" [ref=f8e331]': IA 85%
+              - cell "Baja 25%" [ref=f8e335]:
+                - generic [ref=f8e337]:
+                  - generic [ref=f8e339]: Baja
+                  - generic [ref=f8e340]: 25%
+              - cell "hace 22d" [ref=f8e341]
+              - cell "En camino" [ref=f8e342]
+              - cell "3" [ref=f8e345]
+              - cell [ref=f8e346]:
+                - generic [ref=f8e347]:
+                  - button "Ver detalle del reporte" [ref=f8e348]
+                  - button "Asignar cuadrilla" [ref=f8e352]
+                  - button "Revisar o corregir categoría IA" [ref=f8e358]
+            - row [ref=f8e362] [cursor=pointer]:
+              - cell "05" [ref=f8e363]
+              - cell "Medidor dañado IA 88%" [ref=f8e364]:
+                - generic [ref=f8e365]:
+                  - generic [ref=f8e366]: Medidor dañado
+                  - 'generic "Clasificado por IA: Medidor dañado (88%)" [ref=f8e367]': IA 88%
+              - cell "Alta 78%" [ref=f8e371]:
+                - generic [ref=f8e373]:
+                  - generic [ref=f8e376]: Alta
+                  - generic [ref=f8e377]: 78%
+              - cell "hace 22d" [ref=f8e378]
+              - cell "Pendiente" [ref=f8e379]
+              - cell "2" [ref=f8e382]
+              - cell [ref=f8e383]:
+                - generic [ref=f8e384]:
+                  - button "Ver detalle del reporte" [ref=f8e385]
+                  - button "Asignar cuadrilla" [ref=f8e389]
+                  - button "Revisar o corregir categoría IA" [ref=f8e395]
+            - row [ref=f8e399] [cursor=pointer]:
+              - cell "06" [ref=f8e400]
+              - cell "Fuga en vía pública IA 95%" [ref=f8e401]:
+                - generic [ref=f8e402]:
+                  - generic [ref=f8e403]: Fuga en vía pública
+                  - 'generic "Clasificado por IA: Fuga en vía pública (95%)" [ref=f8e404]': IA 95%
+              - cell "Crítica 94%" [ref=f8e408]:
+                - generic [ref=f8e410]:
+                  - generic [ref=f8e413]: Crítica
+                  - generic [ref=f8e414]: 94%
+              - cell "hace 22d" [ref=f8e415]
+              - cell "En proceso" [ref=f8e416]
+              - cell "15" [ref=f8e419]
+              - cell [ref=f8e420]:
+                - generic [ref=f8e421]:
+                  - button "Ver detalle del reporte" [ref=f8e422]
+                  - button "Asignar cuadrilla" [ref=f8e426]
+                  - button "Revisar o corregir categoría IA" [ref=f8e432]
+            - row [ref=f8e436] [cursor=pointer]:
+              - cell "07" [ref=f8e437]
+              - cell "Fuga domiciliaria IA 93%" [ref=f8e438]:
+                - generic [ref=f8e439]:
+                  - generic [ref=f8e440]: Fuga domiciliaria
+                  - 'generic "Clasificado por IA: Fuga domiciliaria (93%)" [ref=f8e441]': IA 93%
+              - cell "Media 45%" [ref=f8e445]:
+                - generic [ref=f8e447]:
+                  - generic [ref=f8e450]: Media
+                  - generic [ref=f8e451]: 45%
+              - cell "hace 22d" [ref=f8e452]
+              - cell "Resuelto" [ref=f8e453]
+              - cell "6" [ref=f8e456]
+              - cell [ref=f8e457]:
+                - generic [ref=f8e458]:
+                  - button "Ver detalle del reporte" [ref=f8e459]
+                  - button "Asignar cuadrilla" [ref=f8e463]
+                  - button "Revisar o corregir categoría IA" [ref=f8e469]
+                  - button "Programar visita de supervisión (RF-13)" [ref=f8e473]
+            - row [ref=f8e478] [cursor=pointer]:
+              - cell "08" [ref=f8e479]
+              - cell "Baja presión del agua IA 91%" [ref=f8e480]:
+                - generic [ref=f8e481]:
+                  - generic [ref=f8e482]: Baja presión del agua
+                  - 'generic "Clasificado por IA: Baja presión del agua (91%)" [ref=f8e483]': IA 91%
+              - cell "Media 52%" [ref=f8e487]:
+                - generic [ref=f8e489]:
+                  - generic [ref=f8e492]: Media
+                  - generic [ref=f8e493]: 52%
+              - cell "hace 23d" [ref=f8e494]
+              - cell "Resuelto" [ref=f8e495]
+              - cell "1" [ref=f8e498]
+              - cell [ref=f8e499]:
+                - generic [ref=f8e500]:
+                  - button "Ver detalle del reporte" [ref=f8e501]
+                  - button "Asignar cuadrilla" [ref=f8e505]
+                  - button "Revisar o corregir categoría IA" [ref=f8e511]
+                  - button "Programar visita de supervisión (RF-13)" [ref=f8e515]

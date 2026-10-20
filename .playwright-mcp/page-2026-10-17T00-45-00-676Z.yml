@@ -1,0 +1,84 @@
+- generic [ref=f8e27]:
+  - complementary [ref=f8e28]:
+    - generic [ref=f8e29]:
+      - img "ARJE" [ref=f8e30]
+      - button "Contraer barra de navegación" [ref=f8e31] [cursor=pointer]
+    - navigation [ref=f8e35]:
+      - button "Inicio" [ref=f8e36] [cursor=pointer]
+      - button "Reportes" [active] [ref=f8e41] [cursor=pointer]
+      - button "Cuadrillas" [ref=f8e46] [cursor=pointer]
+      - button "Indicadores" [ref=f8e53] [cursor=pointer]
+      - button "Mapa" [ref=f8e57] [cursor=pointer]
+    - 'button "Modo: API .NET Real" [ref=f8e62] [cursor=pointer]'
+    - generic [ref=f8e65]:
+      - generic [ref=f8e66]:
+        - 'generic "Perfil: Administrador General ARJE" [ref=f8e67]'
+        - generic "Administrador General ARJE" [ref=f8e81]
+      - button "Cerrar sesión" [ref=f8e82] [cursor=pointer]
+  - generic [ref=f8e86]:
+    - banner [ref=f8e87]:
+      - generic [ref=f8e88]:
+        - button "Contraer barra lateral" [ref=f8e89] [cursor=pointer]
+        - generic [ref=f8e93]:
+          - generic [ref=f8e94]:
+            - heading "Gestión Integral de Reportes" [level=2] [ref=f8e172]
+            - generic [ref=f8e173]: 0 registros
+          - paragraph [ref=f8e96]: Catálogo de incidencias, asignación y auditoría de clasificación IA
+      - generic [ref=f8e97]:
+        - generic [ref=f8e98]: viernes, 16 de oct de 2026, 06:44 p.m.
+        - button "Actualizar datos del sistema" [disabled] [ref=f8e103]
+        - button "Alertas y Notificaciones de Reportes" [ref=f8e110] [cursor=pointer]
+        - generic [ref=f8e115]:
+          - generic "Ver perfil de usuario" [ref=f8e116] [cursor=pointer]:
+            - 'generic "Perfil: Administrador General ARJE" [ref=f8e117]'
+            - generic [ref=f8e131]:
+              - generic [ref=f8e132]: Administrador General ARJE
+              - generic [ref=f8e133]: "1"
+          - button "Cerrar sesión" [ref=f8e134] [cursor=pointer]
+    - main [ref=f8e138]:
+      - generic [ref=f8e174]:
+        - generic [ref=f8e175]:
+          - heading "Reportes" [level=2] [ref=f8e176]
+          - textbox "Buscar por folio, problema..." [ref=f8e178]
+        - generic [ref=f8e182]:
+          - generic [ref=f8e183]:
+            - generic [ref=f8e184]: "Filtrar por :"
+            - combobox [ref=f8e186] [cursor=pointer]:
+              - option "Estado" [selected]
+              - option "Pendiente"
+              - option "En proceso"
+              - option "Resuelto"
+            - combobox [ref=f8e188] [cursor=pointer]:
+              - option "Prioridad (Todas)" [selected]
+              - option "🔴 Crítica"
+              - option "🟠 Alta"
+              - option "🟡 Media"
+              - option "🟢 Baja"
+            - combobox [ref=f8e190] [cursor=pointer]:
+              - option "Categoría" [selected]
+            - combobox [ref=f8e192] [cursor=pointer]:
+              - option "Sector" [selected]
+              - option "Sector 2"
+              - option "Sector 5"
+              - option "Sector 10"
+              - option "Sector 11"
+              - option "Sector 12"
+              - option "Sector 15"
+          - generic [ref=f8e193]:
+            - generic [ref=f8e194]: "Ordenar por :"
+            - generic [ref=f8e195]:
+              - button "Recientes" [ref=f8e196] [cursor=pointer]
+              - button "Prioridad" [ref=f8e197] [cursor=pointer]
+        - table [ref=f8e199]:
+          - rowgroup [ref=f8e200]:
+            - row [ref=f8e201]:
+              - columnheader "ID" [ref=f8e202]
+              - columnheader "Categoría" [ref=f8e203]
+              - columnheader "Prioridad" [ref=f8e204]
+              - columnheader "Tiempo" [ref=f8e205]
+              - columnheader "Estado" [ref=f8e206]
+              - columnheader "Sector" [ref=f8e207]
+              - columnheader "Acciones" [ref=f8e208]
+          - rowgroup [ref=f8e209]:
+            - row [ref=f8e210]:
+              - cell "No se encontraron reportes con los filtros seleccionados" [ref=f8e211]

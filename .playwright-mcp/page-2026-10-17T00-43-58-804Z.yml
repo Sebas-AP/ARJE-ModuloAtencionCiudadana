@@ -1,0 +1,65 @@
+- generic [ref=f5e27]:
+  - complementary [ref=f5e28]:
+    - generic [ref=f5e29]:
+      - img "ARJE" [ref=f5e30]
+      - button "Contraer barra de navegación" [ref=f5e31] [cursor=pointer]
+    - navigation [ref=f5e35]:
+      - button "Inicio" [ref=f5e36] [cursor=pointer]
+      - button "Reportes" [ref=f5e41] [cursor=pointer]
+      - button "Cuadrillas" [ref=f5e46] [cursor=pointer]
+      - button "Indicadores" [ref=f5e53] [cursor=pointer]
+      - button "Mapa" [ref=f5e57] [cursor=pointer]
+    - 'button "Modo: API .NET Real" [ref=f5e62] [cursor=pointer]'
+    - generic [ref=f5e65]:
+      - generic [ref=f5e66]:
+        - 'generic "Perfil: Administrador General ARJE" [ref=f5e67]'
+        - generic "Administrador General ARJE" [ref=f5e81]
+      - button "Cerrar sesión" [ref=f5e82] [cursor=pointer]
+  - generic [ref=f5e86]:
+    - banner [ref=f5e87]:
+      - generic [ref=f5e88]:
+        - button "Contraer barra lateral" [ref=f5e89] [cursor=pointer]
+        - generic [ref=f5e93]:
+          - heading "Panel de Control Operativo" [level=2] [ref=f5e95]
+          - paragraph [ref=f5e96]: Monitoreo en tiempo real de incidencias y cuadrillas técnicas
+      - generic [ref=f5e97]:
+        - generic [ref=f5e98]: viernes, 16 de oct de 2026, 06:43 p.m.
+        - button "Actualizar datos del sistema" [disabled] [ref=f5e103]
+        - button "Alertas y Notificaciones de Reportes" [ref=f5e110] [cursor=pointer]
+        - generic [ref=f5e115]:
+          - generic "Ver perfil de usuario" [ref=f5e116] [cursor=pointer]:
+            - 'generic "Perfil: Administrador General ARJE" [ref=f5e117]'
+            - generic [ref=f5e131]:
+              - generic [ref=f5e132]: Administrador General ARJE
+              - generic [ref=f5e133]: "1"
+          - button "Cerrar sesión" [ref=f5e134] [cursor=pointer]
+    - main [ref=f5e138]:
+      - generic [ref=f5e139]:
+        - generic [ref=f5e140]:
+          - generic [ref=f5e141]:
+            - heading "Reportes" [level=2] [ref=f5e142]
+            - button "Ver todos los reportes" [ref=f5e143] [cursor=pointer]
+          - table [ref=f5e148]:
+            - rowgroup [ref=f5e149]:
+              - row [ref=f5e150]:
+                - columnheader "ID" [ref=f5e151]
+                - columnheader "Categoría" [ref=f5e152]
+                - columnheader "Tiempo" [ref=f5e153]
+                - columnheader "Estado" [ref=f5e154]
+                - columnheader "Sector" [ref=f5e155]
+                - columnheader "Acciones" [ref=f5e156]
+            - rowgroup [ref=f5e157]:
+              - row [ref=f5e158]:
+                - cell "No hay reportes registrados" [ref=f5e159]
+        - generic [ref=f5e160]:
+          - heading "Indicadores" [level=2] [ref=f5e161]
+          - generic [ref=f5e162]:
+            - generic [ref=f5e163]:
+              - generic [ref=f5e164]: Total Reportes
+              - generic [ref=f5e165]: "0"
+            - generic [ref=f5e166]:
+              - generic [ref=f5e167]: Reportes resueltos
+              - generic [ref=f5e168]: "0"
+            - generic [ref=f5e169]:
+              - generic [ref=f5e170]: Reportes pendientes
+              - generic [ref=f5e171]: "0"

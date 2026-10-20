@@ -1,3 +1,5 @@
+import { resolveMockMode } from './mockMode';
+
 /**
  * Configuración centralizada de cliente HTTP y Mock Layer
  * 
@@ -8,7 +10,10 @@
  */
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5170/api';
-export let USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK === 'true';
+export let USE_MOCK_DATA = resolveMockMode(
+  import.meta.env.VITE_USE_MOCK,
+  localStorage.getItem('arje_use_mock'),
+);
 
 export function setUseMockData(useMock: boolean): void {
   USE_MOCK_DATA = useMock;
@@ -18,11 +23,6 @@ export function setUseMockData(useMock: boolean): void {
 export function toggleMockData(): boolean {
   setUseMockData(!USE_MOCK_DATA);
   return USE_MOCK_DATA;
-}
-
-const savedMock = localStorage.getItem('arje_use_mock');
-if (savedMock !== null) {
-  USE_MOCK_DATA = savedMock === 'true';
 }
 
 // Helper para obtener token JWT de localStorage

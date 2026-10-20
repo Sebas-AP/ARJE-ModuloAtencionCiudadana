@@ -35,7 +35,7 @@ export const ReporteCard: React.FC<ReporteCardProps> = ({ reporte, onPress }) =>
 };
 
 const styles = StyleSheet.create({
-  card: { width: '100%', minHeight: 126, padding: 15, gap: 12, backgroundColor: APP_THEME.colors.surface, borderWidth: 1, borderColor: APP_THEME.colors.border, borderRadius: APP_THEME.radius.card },
+  card: { width: '100%', minHeight: 127, padding: 15, gap: 12, backgroundColor: APP_THEME.colors.surface, borderWidth: 1, borderColor: APP_THEME.colors.border, borderRadius: APP_THEME.radius.card },
   header: { minHeight: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   folioContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
   folioValue: { fontFamily: 'InriaSans_700Bold', fontSize: 14, lineHeight: 17, color: '#015FEB' },

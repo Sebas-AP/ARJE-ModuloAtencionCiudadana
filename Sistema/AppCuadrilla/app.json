@@ -7,9 +7,9 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/arje-cuadrilla-logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#253C96"
+      "backgroundColor": "#F7F9FC"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {

@@ -20,7 +20,6 @@ import { StatusBadge } from '../components/StatusBadge';
 import { PrioridadBadge } from '../components/PrioridadBadge';
 import { MapView } from '../components/MapView';
 import { reportesService } from '../services/reportesService';
-import fugaImg from '../assets/fuga-ejemplo.png';
 
 interface SeguimientoScreenProps {
   reporte: ReporteDTO;
@@ -261,34 +260,76 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
                   </div>
                 ))}
               </div>
+            ) : currentReporte?.evidencias?.length ? (
+              <div style={{ display: 'flex', height: '100%', overflowX: 'auto', gap: '8px', padding: '8px' }}>
+                {currentReporte.evidencias.map((ev, i) => (
+                  <div key={ev.id || i} style={{ flex: '0 0 200px', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
+                    <img
+                      src={ev.archivoUrl}
+                      alt={`Evidencia ${i + 1}`}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '4px',
+                        left: '4px',
+                        right: '4px',
+                        backgroundColor: 'rgba(25, 36, 78, 0.85)',
+                        color: '#FFFFFF',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        textAlign: 'center',
+                        backdropFilter: 'blur(4px)',
+                      }}
+                    >
+                      {ev.tipo === 1 ? 'Evidencia Inicial' : 'Evidencia de Resolución'}
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <>
-                <img
-                  src={fugaImg}
-                  alt="Evidencia del reporte"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                  }}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: '10px',
-                    right: '10px',
-                    backgroundColor: 'rgba(25, 36, 78, 0.85)',
-                    color: '#FFFFFF',
-                    fontSize: '11.5px',
-                    fontWeight: 600,
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    backdropFilter: 'blur(4px)',
-                  }}
-                >
-                  Evidencia fotográfica adjunta
-                </div>
-              </>
+              <div
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '12px',
+                  backgroundColor: '#F8FAFC',
+                  border: '2px dashed #E2E8F0',
+                  borderRadius: '8px',
+                  padding: '24px',
+                }}
+              >
+                <div style={{ fontSize: '48px', color: '#94A3B8' }}>📷</div>
+                <p style={{ 
+                  fontSize: '14px', 
+                  color: '#64748B', 
+                  fontWeight: 500,
+                  textAlign: 'center',
+                  margin: 0,
+                }}>
+                  Sin evidencias registradas
+                </p>
+                <p style={{ 
+                  fontSize: '12px', 
+                  color: '#94A3B8', 
+                  textAlign: 'center',
+                  margin: 0,
+                  maxWidth: '280px',
+                }}>
+                  No se han adjuntado fotos a este reporte aún.
+                </p>
+              </div>
             )}
           </div>
 

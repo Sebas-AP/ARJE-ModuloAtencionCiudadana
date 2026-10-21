@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   MapPin,
   Truck,
@@ -13,10 +13,22 @@ import {
   AlertTriangle,
   ChevronRight,
 } from 'lucide-react';
-import { ReporteDTO, CuadrillaDTO } from '../types';
+import { ReporteDTO, CuadrillaDTO, EstatusReporte } from '../types';
 import { CategoriaBadge } from '../components/CategoriaBadge';
 import { StatusBadge } from '../components/StatusBadge';
 import { MapView } from '../components/MapView';
+import { reportesService } from '../services/reportesService';
+
+const ESTATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: 'todos', label: 'Todos los estatus' },
+  { value: String(EstatusReporte.Nuevo), label: 'Nuevos' },
+  { value: String(EstatusReporte.Asignado), label: 'Asignados' },
+  { value: String(EstatusReporte.LevantandoInformacion), label: 'Levantando información' },
+  { value: String(EstatusReporte.EnProceso), label: 'En proceso' },
+  { value: String(EstatusReporte.Completado), label: 'Completados' },
+  { value: String(EstatusReporte.EnSupervision), label: 'En supervisión' },
+  { value: String(EstatusReporte.Cerrado), label: 'Cerrados' },
+];
 
 interface MapaScreenProps {
   reportes: ReporteDTO[];
@@ -37,6 +49,24 @@ export const MapaScreen: React.FC<MapaScreenProps> = ({
   const [filterEstatus, setFilterEstatus] = useState<string>('todos');
   const [showCuadrillas, setShowCuadrillas] = useState<boolean>(true);
   const [selectedReporteId, setSelectedReporteId] = useState<number | null>(null);
+  const [crewPositions, setCrewPositions] = useState<{ idCuadrilla: number; lat: number; lng: number; fecha: string; nombre: string }[]>([]);
+  const [loadingPositions, setLoadingPositions] = useState(false);
+
+  // Cargar posiciones reales de cuadrillas
+  useEffect(() => {
+    const cargarPosiciones = async () => {
+      setLoadingPositions(true);
+      try {
+        const posiciones = await reportesService.getCuadrillasUltimasUbicaciones();
+        setCrewPositions(posiciones);
+      } catch (error) {
+        console.warn('Error cargando posiciones de cuadrillas:', error);
+      } finally {
+        setLoadingPositions(false);
+      }
+    };
+    cargarPosiciones();
+  }, []);
 
   // Filtrar reportes para el mapa
   const filteredReportes = useMemo(() => {
@@ -48,7 +78,7 @@ export const MapaScreen: React.FC<MapaScreenProps> = ({
 
       const matchEst =
         filterEstatus === 'todos' ||
-        r.estatus.toLowerCase() === filterEstatus.toLowerCase();
+        String(r.estatus) === filterEstatus;
 
       return matchCat && matchEst;
     });
@@ -135,10 +165,9 @@ export const MapaScreen: React.FC<MapaScreenProps> = ({
               cursor: 'pointer',
             }}
           >
-            <option value="todos">Todos los estatus</option>
-            <option value="Pendiente">Pendientes</option>
-            <option value="En Proceso">En Proceso</option>
-            <option value="Resuelto">Resueltos</option>
+            {ESTATUS_FILTER_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
           </select>
         </div>
 
@@ -181,6 +210,7 @@ export const MapaScreen: React.FC<MapaScreenProps> = ({
         <MapView
           reportes={filteredReportes}
           cuadrillas={showCuadrillas ? cuadrillas : []}
+          crewPositions={showCuadrillas ? crewPositions : []}
           onSelectReporte={(id) => setSelectedReporteId(id)}
           height="100%"
         />

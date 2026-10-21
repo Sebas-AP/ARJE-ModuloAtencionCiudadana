@@ -19,6 +19,7 @@ public class EvidenciasController : ControllerBase
     private readonly IMapper _mapper;
     private readonly IOutputCacheStore _outputCacheStore;
     private readonly IAlmacenadorArchivos _almacenadorArchivos;
+    private readonly FieldOperationPolicy _fieldOperationPolicy = new();
     private const string ContenedorEvidencias = "evidencias";
 
     public EvidenciasController(
@@ -34,14 +35,20 @@ public class EvidenciasController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
-    [AllowAnonymous]
     [OutputCache(Tags = new[] { "evidencias" })]
     public async Task<ActionResult<EvidenciaDTO>> Get(int id)
     {
-        var evidencia = await _context.Evidencias.FindAsync(id);
-        if (evidencia == null)
+        var evidencia = await _context.Evidencias
+            .Include(e => e.Reporte)
+            .FirstOrDefaultAsync(e => e.Id == id);
+        if (evidencia == null || evidencia.Reporte == null)
         {
             return NotFound();
+        }
+
+        if (_fieldOperationPolicy.IsCuadrilla(User) && !_fieldOperationPolicy.CanAccessAssignedReport(evidencia.Reporte, User))
+        {
+            return Forbid();
         }
 
         var dto = _mapper.Map<EvidenciaDTO>(evidencia);

@@ -49,6 +49,7 @@ public class ReportAdministrationAuthorizationTests : IAsyncLifetime
         builder.Services.AddOutputCache();
         builder.Services.AddSingleton<IClasificadorService, TestClassifier>();
         builder.Services.AddSingleton<IAlmacenadorArchivos, TestFileStorage>();
+        builder.Services.AddSingleton<IJwtService>(jwt);
         builder.Services.AddControllers().AddApplicationPart(typeof(ReportesController).Assembly);
         builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
         {
@@ -186,8 +187,12 @@ public class ReportAdministrationAuthorizationTests : IAsyncLifetime
 
     private sealed class TestFileStorage : IAlmacenadorArchivos
     {
-        public Task<string> GuardarArchivo(string contenedor, IFormFile archivo) => throw new NotSupportedException();
-        public Task<string> EditarArchivo(string contenedor, IFormFile archivo, string rutaArchivoActual) => throw new NotSupportedException();
-        public Task BorrarArchivo(string contenedor, string rutaArchivo) => throw new NotSupportedException();
+        public Task<ArchivoValidacionResult> ValidarArchivo(IFormFile archivo) => 
+            Task.FromResult(new ArchivoValidacionResult { EsValido = true });
+        public Task<ArchivoGuardadoResult> GuardarArchivo(string contenedor, IFormFile archivo) => 
+            Task.FromResult(new ArchivoGuardadoResult { Exitoso = true, Url = "/test/evidencia.jpg" });
+        public Task<ArchivoGuardadoResult> EditarArchivo(string contenedor, IFormFile archivo, string rutaArchivoActual) => 
+            Task.FromResult(new ArchivoGuardadoResult { Exitoso = true, Url = "/test/evidencia-editada.jpg" });
+        public Task BorrarArchivo(string contenedor, string rutaArchivo) => Task.CompletedTask;
     }
 }

@@ -55,6 +55,8 @@ public class Reporte : IId
     [StringLength(2000)]
     public string? ComentariosResolucion { get; set; }
 
+    public DateTime? FechaResolucion { get; set; }
+
     public int? IdCuadrillaAsignada { get; set; }
     public Cuadrilla? CuadrillaAsignada { get; set; }
 

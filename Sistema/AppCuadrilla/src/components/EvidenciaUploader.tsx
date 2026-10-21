@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator, Platform, Modal, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,6 +7,7 @@ import { reportesService } from '../services/reportesService';
 import { getOperationFeedback, operationFeedbackMessages } from '../services/fieldUiPolicy';
 import type { SyncResult } from '../services/syncService';
 import { fitArtboard } from '../theme/figmaArtboard';
+import { storeImageHybrid, getImageHybrid, deleteImageHybrid } from '../services/webImageStorage';
 
 interface EvidenciaUploaderProps {
   idReporte: number;
@@ -20,10 +21,20 @@ export const EvidenciaUploader: React.FC<EvidenciaUploaderProps> = ({
   disabled = false,
 }) => {
   const [imagen, setImagen] = useState<string | null>(null);
+  const [imagenId, setImagenId] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState(false);
   const [showAudioNotice, setShowAudioNotice] = useState(false);
   const { width, height } = useWindowDimensions();
   const modalScale = fitArtboard(width, height);
+
+  // Load persisted image on mount
+  useEffect(() => {
+    if (imagenId) {
+      getImageHybrid(imagenId).then(uri => {
+        if (uri) setImagen(uri);
+      });
+    }
+  }, [imagenId]);
 
   const seleccionarImagen = async () => {
     if (disabled) return;
@@ -42,7 +53,11 @@ export const EvidenciaUploader: React.FC<EvidenciaUploaderProps> = ({
     });
 
     if (!result.canceled && result.assets[0]) {
-      setImagen(result.assets[0].uri);
+      const uri = result.assets[0].uri;
+      const id = `evidencia_${idReporte}_${Date.now()}`;
+      const durableUri = await storeImageHybrid(uri, id);
+      setImagen(durableUri);
+      setImagenId(id);
     }
   };
 
@@ -62,12 +77,16 @@ export const EvidenciaUploader: React.FC<EvidenciaUploaderProps> = ({
     });
 
     if (!result.canceled && result.assets[0]) {
-      setImagen(result.assets[0].uri);
+      const uri = result.assets[0].uri;
+      const id = `evidencia_${idReporte}_${Date.now()}`;
+      const durableUri = await storeImageHybrid(uri, id);
+      setImagen(durableUri);
+      setImagenId(id);
     }
   };
 
   const subirEvidencia = async () => {
-    if (!imagen || subiendo || disabled) return;
+    if (!imagen || subiendo || disabled || !imagenId) return;
 
     setSubiendo(true);
     try {
@@ -79,7 +98,10 @@ export const EvidenciaUploader: React.FC<EvidenciaUploaderProps> = ({
       const result = await reportesService.subirEvidenciaResolucion(idReporte, imagen, fileName, mimeType);
       
       Alert.alert('Evidencia', operationFeedbackMessages[getOperationFeedback(result)]);
+      // Clean up local storage after successful upload
+      await deleteImageHybrid(imagenId);
       setImagen(null);
+      setImagenId(null);
       onSuccess?.(result);
     } catch (error: unknown) {
       console.error('Error subiendo evidencia:', error);
@@ -90,7 +112,11 @@ export const EvidenciaUploader: React.FC<EvidenciaUploaderProps> = ({
   };
 
   const eliminarImagen = () => {
+    if (imagenId) {
+      deleteImageHybrid(imagenId);
+    }
     setImagen(null);
+    setImagenId(null);
   };
 
   const agregarEvidencia = () => {

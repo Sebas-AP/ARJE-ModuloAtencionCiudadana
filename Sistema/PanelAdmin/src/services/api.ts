@@ -87,3 +87,52 @@ export async function apiClient<T>(
     throw error;
   }
 }
+
+// Cliente HTTP que devuelve respuesta completa con headers para paginación
+export async function apiClientWithHeaders<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<{ data: T; total: number }> {
+  const token = getAuthToken();
+  const headers = new Headers(options.headers || {});
+
+  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    if (response.status === 401) {
+      removeAuthToken();
+      window.dispatchEvent(new CustomEvent('arje:unauthorized'));
+      throw new Error('Sesión expirada o no autorizada');
+    }
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      const message = errorBody?.mensaje || `Error en petición: ${response.status} ${response.statusText}`;
+      throw new Error(message);
+    }
+
+    if (response.status === 204) {
+      return { data: null as T, total: 0 };
+    }
+
+    const data = (await response.json()) as T;
+    const total = parseInt(response.headers.get('x-total-count') || '0', 10);
+    return { data, total };
+  } catch (error) {
+    console.error(`[API Error] ${endpoint}:`, error);
+    throw error;
+  }
+}

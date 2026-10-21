@@ -79,6 +79,11 @@ public class SeguimientosUbicacionController : ControllerBase
             return NotFound();
         }
 
+        if (_fieldOperationPolicy.IsCuadrilla(User) && !_fieldOperationPolicy.CanAccessAssignedReport(reporte, User))
+        {
+            return Forbid();
+        }
+
         var queryable = _context.SeguimientosUbicacion
             .Include(s => s.Cuadrilla)
             .Where(s => s.IdReporte == idReporte)
@@ -100,6 +105,11 @@ public class SeguimientosUbicacionController : ControllerBase
         if (reporte == null)
         {
             return NotFound();
+        }
+
+        if (_fieldOperationPolicy.IsCuadrilla(User) && !_fieldOperationPolicy.CanAccessAssignedReport(reporte, User))
+        {
+            return Forbid();
         }
 
         var ultima = await _context.SeguimientosUbicacion

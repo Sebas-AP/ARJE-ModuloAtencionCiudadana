@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
 using AutoMapper;
+using System.Security.Claims;
 using ARJE.Api.Entidades;
 using ARJE.Api.DTOs.Reporte;
 using ARJE.Api.DTOs.Evidencia;
@@ -22,6 +23,7 @@ public class ReportesController : ControllerBase
     private readonly IOutputCacheStore _outputCacheStore;
     private readonly IAlmacenadorArchivos _almacenadorArchivos;
     private readonly IClasificadorService _clasificador;
+    private readonly IJwtService _jwtService;
     private readonly FieldOperationPolicy _fieldOperationPolicy = new();
     private const string ContenedorEvidencias = "evidencias";
 
@@ -30,13 +32,15 @@ public class ReportesController : ControllerBase
         IMapper mapper,
         IOutputCacheStore outputCacheStore,
         IAlmacenadorArchivos almacenadorArchivos,
-        IClasificadorService clasificador)
+        IClasificadorService clasificador,
+        IJwtService jwtService)
     {
         _context = context;
         _mapper = mapper;
         _outputCacheStore = outputCacheStore;
         _almacenadorArchivos = almacenadorArchivos;
         _clasificador = clasificador;
+        _jwtService = jwtService;
     }
 
     [HttpGet]
@@ -60,6 +64,19 @@ public class ReportesController : ControllerBase
             .Include(r => r.Evidencias)
             .AsQueryable();
 
+        if (_fieldOperationPolicy.IsCuadrilla(User))
+        {
+            int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var authenticatedId);
+            if (authenticatedId > 0)
+            {
+                queryable = queryable.Where(r => r.IdCuadrillaAsignada == authenticatedId);
+            }
+            else
+            {
+                return Forbid();
+            }
+        }
+
         if (estatus.HasValue)
             queryable = queryable.Where(r => r.Estatus == estatus.Value);
 
@@ -76,7 +93,12 @@ public class ReportesController : ControllerBase
         }
 
         if (idCuadrillaAsignada.HasValue)
-            queryable = queryable.Where(r => r.IdCuadrillaAsignada == idCuadrillaAsignada.Value);
+        {
+            if (!_fieldOperationPolicy.IsCuadrilla(User))
+            {
+                queryable = queryable.Where(r => r.IdCuadrillaAsignada == idCuadrillaAsignada.Value);
+            }
+        }
 
         if (idCuadrillaSupervisora.HasValue)
             queryable = queryable.Where(r => r.IdCuadrillaSupervisora == idCuadrillaSupervisora.Value);
@@ -137,8 +159,48 @@ public class ReportesController : ControllerBase
         return Ok(resultado);
     }
 
-    [HttpGet("{id:int}", Name = "ObtenerReporte")]
+    [HttpGet("consulta")]
     [AllowAnonymous]
+    [OutputCache(Tags = new[] { "reportes" }, VaryByQueryKeys = new[] { "numeroContrato", "pagina", "registrosPorPagina" })]
+    public async Task<ActionResult<ReporteConsultaPaginadoDTO>> ConsultaPublica(
+        [FromQuery] string numeroContrato,
+        [FromQuery] int pagina = 1,
+        [FromQuery] int registrosPorPagina = 10)
+    {
+        if (string.IsNullOrWhiteSpace(numeroContrato))
+        {
+            return BadRequest(new { mensaje = "El número de contrato es obligatorio" });
+        }
+
+        var contratoNormalizado = numeroContrato.Trim();
+
+        var queryable = _context.Reportes
+            .Include(r => r.CuadrillaAsignada)
+            .Include(r => r.Evidencias)
+            .Where(r => r.NumeroContrato != null && r.NumeroContrato == contratoNormalizado)
+            .OrderByDescending(r => r.FechaRecibido);
+
+        var totalRegistros = await queryable.CountAsync();
+
+        var reportes = await queryable
+            .Paginar(pagina, registrosPorPagina)
+            .ToListAsync();
+
+        var dtos = _mapper.Map<List<ReportePublicoDTO>>(reportes);
+
+        var resultado = new ReporteConsultaPaginadoDTO
+        {
+            Data = dtos,
+            TotalRegistros = totalRegistros,
+            Pagina = pagina,
+            RegistrosPorPagina = registrosPorPagina,
+            TotalPaginas = (int)Math.Ceiling((double)totalRegistros / registrosPorPagina)
+        };
+
+        return Ok(resultado);
+    }
+
+    [HttpGet("{id:int}", Name = "ObtenerReporte")]
     [OutputCache(Tags = new[] { "reportes" })]
     public async Task<ActionResult<ReporteDetalleDTO>> Get(int id)
     {
@@ -156,6 +218,32 @@ public class ReportesController : ControllerBase
         }
 
         var dto = _mapper.Map<ReporteDetalleDTO>(reporte);
+        return Ok(dto);
+    }
+
+    [HttpGet("{id:int}/publico")]
+    [AllowAnonymous]
+    [OutputCache(Tags = new[] { "reportes" }, VaryByQueryKeys = new[] { "numeroContrato" })]
+    public async Task<ActionResult<ReportePublicoDTO>> GetPublico(int id, [FromQuery] string numeroContrato)
+    {
+        if (string.IsNullOrWhiteSpace(numeroContrato))
+        {
+            return BadRequest(new { mensaje = "El número de contrato es obligatorio" });
+        }
+
+        var contratoNormalizado = numeroContrato.Trim();
+
+        var reporte = await _context.Reportes
+            .Include(r => r.CuadrillaAsignada)
+            .Include(r => r.Evidencias)
+            .FirstOrDefaultAsync(r => r.Id == id && r.NumeroContrato != null && r.NumeroContrato == contratoNormalizado);
+
+        if (reporte == null)
+        {
+            return NotFound();
+        }
+
+        var dto = _mapper.Map<ReportePublicoDTO>(reporte);
         return Ok(dto);
     }
 
@@ -199,7 +287,23 @@ public class ReportesController : ControllerBase
         await _context.SaveChangesAsync();
         await _outputCacheStore.EvictByTagAsync("reportes", default);
 
-        var dto = _mapper.Map<ReporteDTO>(reporte);
+        var uploadToken = _jwtService.GenerarTokenSubidaEvidencia(reporte.Id, 60);
+
+        var dto = new ReporteCiudadanoRespuestaDTO
+        {
+            Id = reporte.Id,
+            TipoProblema = reporte.TipoProblema,
+            Categoria = reporte.Categoria,
+            Descripcion = reporte.Descripcion,
+            Latitud = reporte.Latitud,
+            Longitud = reporte.Longitud,
+            FechaRecibido = reporte.FechaRecibido,
+            Estatus = reporte.Estatus,
+            NumeroContrato = reporte.NumeroContrato,
+            NombreCiudadano = reporte.NombreCiudadano,
+            UploadToken = uploadToken,
+            UploadTokenExpiraEnMinutos = 60
+        };
         return CreatedAtRoute("ObtenerReporte", new { id = reporte.Id }, dto);
     }
 
@@ -492,6 +596,12 @@ public class ReportesController : ControllerBase
 
         reporte.Estatus = nuevoEstatus;
 
+        // Establecer fecha de resolución al completar
+        if (nuevoEstatus == EstatusReporte.Completado)
+        {
+            reporte.FechaResolucion = DateTime.UtcNow;
+        }
+
         if (reporte.IdCuadrillaAsignada.HasValue)
         {
             var cuadrilla = await _context.Cuadrillas.FindAsync(reporte.IdCuadrillaAsignada.Value);
@@ -530,28 +640,111 @@ public class ReportesController : ControllerBase
             return Forbid();
         }
 
-        var urlArchivo = await _almacenadorArchivos.GuardarArchivo(ContenedorEvidencias, creacionDTO.Archivo);
+        // Validar archivo antes de guardar
+        var validacion = await _almacenadorArchivos.ValidarArchivo(creacionDTO.Archivo);
+        if (!validacion.EsValido)
+        {
+            return BadRequest(new { mensaje = validacion.ErrorMessage });
+        }
+
+        var resultadoGuardado = await _almacenadorArchivos.GuardarArchivo(ContenedorEvidencias, creacionDTO.Archivo);
+        if (!resultadoGuardado.Exitoso)
+        {
+            return BadRequest(new { mensaje = resultadoGuardado.ErrorMessage });
+        }
 
         var evidencia = new Evidencia
         {
             IdReporte = id,
             Tipo = creacionDTO.Tipo,
-            Archivo = urlArchivo,
+            Archivo = resultadoGuardado.Url!,
             FechaCaptura = DateTime.UtcNow
         };
 
-        _context.Add(evidencia);
-        await _context.SaveChangesAsync();
-        await _outputCacheStore.EvictByTagAsync("reportes", default);
+        try
+        {
+            _context.Add(evidencia);
+            await _context.SaveChangesAsync();
+            await _outputCacheStore.EvictByTagAsync("reportes", default);
 
-        var dto = _mapper.Map<EvidenciaDTO>(evidencia);
-        dto.ArchivoUrl = urlArchivo;
+            var dto = _mapper.Map<EvidenciaDTO>(evidencia);
+            dto.ArchivoUrl = resultadoGuardado.Url!;
 
-        return CreatedAtRoute("ObtenerReporte", new { id = reporte.Id }, dto);
+            return CreatedAtRoute("ObtenerReporte", new { id = reporte.Id }, dto);
+        }
+        catch
+        {
+            // Rollback: borrar archivo si falla la BD
+            await _almacenadorArchivos.BorrarArchivo(ContenedorEvidencias, resultadoGuardado.Url!);
+            throw;
+        }
+    }
+
+    [HttpPost("{id:int}/evidencias/ciudadano")]
+    [AllowAnonymous]
+    public async Task<ActionResult<EvidenciaPublicoDTO>> PostEvidenciaCiudadano(int id, [FromForm] EvidenciaCreacionDTO creacionDTO, [FromQuery] string uploadToken)
+    {
+        if (string.IsNullOrWhiteSpace(uploadToken))
+        {
+            return BadRequest(new { mensaje = "Token de subida requerido" });
+        }
+
+        var (esValido, reporteIdToken) = _jwtService.ValidarTokenSubidaEvidencia(uploadToken);
+        if (!esValido || reporteIdToken != id)
+        {
+            return Unauthorized(new { mensaje = "Token de subida inválido o expirado" });
+        }
+
+        var reporte = await _context.Reportes.FindAsync(id);
+        if (reporte == null)
+        {
+            return NotFound();
+        }
+
+        if (creacionDTO.Tipo != TipoEvidencia.Inicial)
+        {
+            return BadRequest(new { mensaje = "Solo se permite evidencia inicial para ciudadano" });
+        }
+
+        // Validar archivo antes de guardar
+        var validacion = await _almacenadorArchivos.ValidarArchivo(creacionDTO.Archivo);
+        if (!validacion.EsValido)
+        {
+            return BadRequest(new { mensaje = validacion.ErrorMessage });
+        }
+
+        var resultadoGuardado = await _almacenadorArchivos.GuardarArchivo(ContenedorEvidencias, creacionDTO.Archivo);
+        if (!resultadoGuardado.Exitoso)
+        {
+            return BadRequest(new { mensaje = resultadoGuardado.ErrorMessage });
+        }
+
+        var evidencia = new Evidencia
+        {
+            IdReporte = id,
+            Tipo = creacionDTO.Tipo,
+            Archivo = resultadoGuardado.Url!,
+            FechaCaptura = DateTime.UtcNow
+        };
+
+        try
+        {
+            _context.Add(evidencia);
+            await _context.SaveChangesAsync();
+            await _outputCacheStore.EvictByTagAsync("reportes", default);
+
+            var dto = _mapper.Map<EvidenciaPublicoDTO>(evidencia);
+            return CreatedAtRoute("ObtenerReporte", new { id = reporte.Id }, dto);
+        }
+        catch
+        {
+            // Rollback: borrar archivo si falla la BD
+            await _almacenadorArchivos.BorrarArchivo(ContenedorEvidencias, resultadoGuardado.Url!);
+            throw;
+        }
     }
 
     [HttpGet("{id:int}/evidencias")]
-    [AllowAnonymous]
     [OutputCache(Tags = new[] { "reportes" })]
     public async Task<ActionResult<List<EvidenciaDTO>>> GetEvidencias(int id)
     {
@@ -561,11 +754,44 @@ public class ReportesController : ControllerBase
             return NotFound();
         }
 
+        if (_fieldOperationPolicy.IsCuadrilla(User) && !_fieldOperationPolicy.CanAccessAssignedReport(reporte, User))
+        {
+            return Forbid();
+        }
+
         var evidencias = await _context.Evidencias
             .Where(e => e.IdReporte == id)
             .ToListAsync();
 
         var dtos = _mapper.Map<List<EvidenciaDTO>>(evidencias);
+        return Ok(dtos);
+    }
+
+    [HttpGet("{id:int}/evidencias/publico")]
+    [AllowAnonymous]
+    [OutputCache(Tags = new[] { "reportes" }, VaryByQueryKeys = new[] { "numeroContrato" })]
+    public async Task<ActionResult<List<EvidenciaPublicoDTO>>> GetEvidenciasPublico(int id, [FromQuery] string numeroContrato)
+    {
+        if (string.IsNullOrWhiteSpace(numeroContrato))
+        {
+            return BadRequest(new { mensaje = "El número de contrato es obligatorio" });
+        }
+
+        var contratoNormalizado = numeroContrato.Trim();
+
+        var reporte = await _context.Reportes
+            .FirstOrDefaultAsync(r => r.Id == id && r.NumeroContrato != null && r.NumeroContrato == contratoNormalizado);
+
+        if (reporte == null)
+        {
+            return NotFound();
+        }
+
+        var evidencias = await _context.Evidencias
+            .Where(e => e.IdReporte == id)
+            .ToListAsync();
+
+        var dtos = _mapper.Map<List<EvidenciaPublicoDTO>>(evidencias);
         return Ok(dtos);
     }
 

@@ -93,14 +93,10 @@ export const cuadrillasService = {
     }
 
     if (!USE_MOCK_DATA) {
-      try {
-        await apiClient(`/cuadrillas/${id}/disponibilidad`, {
-          method: 'PUT',
-          body: JSON.stringify({ estatusDisponibilidad: estatus }),
-        });
-      } catch (err) {
-        console.warn('API error updating disponibilidad', err);
-      }
+      await apiClient(`/cuadrillas/${id}/disponibilidad`, {
+        method: 'PUT',
+        body: JSON.stringify({ estatusDisponibilidad: estatus }),
+      });
     }
   },
 
@@ -120,11 +116,7 @@ export const cuadrillasService = {
     persistLocalCuadrillas();
 
     if (!USE_MOCK_DATA) {
-      try {
-        await apiClient(`/cuadrillas/${id}`, { method: 'DELETE' });
-      } catch (err) {
-        console.warn('API error deleting cuadrilla', err);
-      }
+      await apiClient(`/cuadrillas/${id}`, { method: 'DELETE' });
     }
   },
 };

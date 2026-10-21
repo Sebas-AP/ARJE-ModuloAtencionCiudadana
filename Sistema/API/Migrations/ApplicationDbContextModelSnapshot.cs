@@ -103,12 +103,12 @@ namespace ARJE.Api.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<double?>("ConfianzaIA")
-                        .HasColumnType("float");
-
                     b.Property<string>("ComentariosResolucion")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
+
+                    b.Property<double?>("ConfianzaIA")
+                        .HasColumnType("float");
 
                     b.Property<string>("Descripcion")
                         .IsRequired()
@@ -124,6 +124,9 @@ namespace ARJE.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<DateTime?>("FechaResolucion")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("FechaSupervision")
                         .HasColumnType("datetime2");
@@ -148,13 +151,13 @@ namespace ARJE.Api.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("NumeroContrato")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
                     b.Property<string>("NotasSupervision")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("NumeroContrato")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int>("Prioridad")
                         .ValueGeneratedOnAdd()
@@ -271,7 +274,7 @@ namespace ARJE.Api.Migrations
                             Id = 1,
                             Activo = true,
                             Nombre = "Administrador",
-                            PasswordHash = "$2a$11$RxMNHoXITr575Hq/v4iSpO3ynDFjkjRelm7FoeJ0rWfC43WMfNtLi",
+                            PasswordHash = "$2a$11$I9l4ysKinQXn1lE2k5k1..IVpcktKiVYPsJKY12ElJY43ZqXR0c2C",
                             Rol = 1,
                             Usuario = "admin"
                         });

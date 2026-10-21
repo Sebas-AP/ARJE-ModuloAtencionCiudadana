@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { offlineService } from '../services/offline';
-import { OfflineReport } from '../types';
+import { OfflineReport, OfflineErrorKind } from '../types';
 
 export function useOfflineQueue() {
   const [queue, setQueue] = useState<OfflineReport[]>([]);
@@ -28,6 +28,14 @@ export function useOfflineQueue() {
     await offlineService.removeFromQueue(id);
   }, []);
 
+  const updateReport = useCallback(async (id: string, updates: Partial<OfflineReport>) => {
+    await offlineService.updateReport(id, updates);
+  }, []);
+
+  const retryFailed = useCallback(async (id: string) => {
+    await offlineService.retryFailed(id);
+  }, []);
+
   const syncQueue = useCallback(async () => {
     setIsSyncing(true);
     await offlineService.syncQueue();
@@ -46,14 +54,31 @@ export function useOfflineQueue() {
     return offlineService.getQueueCount();
   }, []);
 
+  const getPendingCount = useCallback(async () => {
+    return offlineService.getPendingCount();
+  }, []);
+
+  const getFailedCount = useCallback(async () => {
+    return offlineService.getFailedCount();
+  }, []);
+
+  const clearQueue = useCallback(async () => {
+    await offlineService.clearQueue();
+  }, []);
+
   return {
     queue,
     isSyncing,
     addToQueue,
     removeFromQueue,
+    updateReport,
+    retryFailed,
     syncQueue,
     startPeriodicSync,
     stopPeriodicSync,
     getQueueCount,
+    getPendingCount,
+    getFailedCount,
+    clearQueue,
   };
 }

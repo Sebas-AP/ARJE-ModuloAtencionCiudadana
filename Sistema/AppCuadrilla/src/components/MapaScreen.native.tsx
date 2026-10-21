@@ -51,6 +51,7 @@ export default function MapaScreen() {
 
   useEffect(() => {
     if (location) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUserLocation(location);
     }
   }, [location]);

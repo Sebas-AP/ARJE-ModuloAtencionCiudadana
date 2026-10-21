@@ -129,6 +129,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("permitirTodo");
+
+// Servir archivos estáticos (evidencias)
+app.UseStaticFiles();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseOutputCache();

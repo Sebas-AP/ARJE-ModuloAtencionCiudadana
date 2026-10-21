@@ -15,8 +15,8 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { COLORS, SPACING, FONT_SIZES, FONT_WEIGHTS, BORDER_RADIUS, TIPO_PROBLEMA_LABELS } from '../constants';
-import { useReportes } from '../hooks/useReportes';
-import { ReporteDTO, EstatusReporte } from '../types';
+import { useConsultaPublica, useReportePublicoDetalle } from '../hooks/useReportes';
+import { ReportePublicoDTO, EstatusReporte } from '../types';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -31,26 +31,26 @@ export const ConsultaReportesScreen = () => {
   const [filtroContrato, setFiltroContrato] = useState(initialContrato);
   const [hasSearched, setHasSearched] = useState(initialContrato.length > 0);
 
-  const { reportes, loading, error, refresh, fetchReportes } = useReportes();
+  const { reportes, loading, error, refresh, fetchReportes, loadMore, hasMore } = useConsultaPublica();
 
   // Cargar reportes al iniciar la pantalla
   useEffect(() => {
-    fetchReportes({
-      pagina: 1,
-      registrosPorPagina: 50,
-      numeroContrato: initialContrato ? initialContrato.trim() : undefined,
-    });
-  }, []);
+    if (initialContrato.trim()) {
+      fetchReportes(initialContrato.trim());
+    }
+  }, [fetchReportes]);
 
   const handleSearch = () => {
     const term = contratoInput.trim();
     setFiltroContrato(term);
     setHasSearched(true);
-    fetchReportes({
-      pagina: 1,
-      registrosPorPagina: 50,
-      numeroContrato: term || undefined,
-    });
+    fetchReportes(term);
+  };
+
+  const handleLoadMore = () => {
+    if (hasMore && !loading && filtroContrato.trim()) {
+      loadMore(filtroContrato.trim());
+    }
   };
 
   const reportesFiltrados = useMemo(() => {
@@ -135,12 +135,10 @@ export const ConsultaReportesScreen = () => {
     }
   };
 
-  const renderReportCard = (item: ReporteDTO) => {
+  const renderReportCard = (item: ReportePublicoDTO) => {
     const badge = getStatusBadge(item.estatus);
     const tiempo = getTiempoEstimado(item.estatus);
-    const folioStr = item.numeroContrato
-      ? `FOL-${item.id}`
-      : `FOL-${item.id}`;
+    const folioStr = item.folio;
 
     const tituloProblema =
       TIPO_PROBLEMA_LABELS[item.tipoProblema as keyof typeof TIPO_PROBLEMA_LABELS] ||
@@ -152,7 +150,7 @@ export const ConsultaReportesScreen = () => {
         key={item.id}
         style={styles.card}
         activeOpacity={0.85}
-        onPress={() => navigation.navigate('ReporteDetalle', { id: item.id })}
+        onPress={() => navigation.navigate('ReporteDetalle', { id: item.id, numeroContrato: filtroContrato })}
       >
         {/* Header de la tarjeta */}
         <View style={styles.cardHeader}>
@@ -196,7 +194,11 @@ export const ConsultaReportesScreen = () => {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={loading} onRefresh={refresh} colors={[COLORS.primary]} />
+              <RefreshControl
+                refreshing={loading}
+                onRefresh={() => refresh(filtroContrato)}
+                colors={[COLORS.primary]}
+              />
             }
           >
             {/* Barra superior de navegación interna */}
@@ -269,7 +271,7 @@ export const ConsultaReportesScreen = () => {
               <View style={styles.emptyBox}>
                 <MaterialCommunityIcons name="alert-circle-outline" size={40} color={COLORS.error} />
                 <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity style={styles.retryButton} onPress={refresh}>
+                <TouchableOpacity style={styles.retryButton} onPress={() => refresh(filtroContrato)}>
                   <Text style={styles.retryButtonText}>Reintentar</Text>
                 </TouchableOpacity>
               </View>
@@ -288,6 +290,15 @@ export const ConsultaReportesScreen = () => {
             ) : (
               <View style={styles.cardsList}>
                 {reportesFiltrados.map(renderReportCard)}
+                {hasMore && !loading && (
+                  <TouchableOpacity
+                    style={styles.loadMoreButton}
+                    onPress={handleLoadMore}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.loadMoreButtonText}>Cargar más</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </ScrollView>
@@ -532,6 +543,20 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: COLORS.primary,
     fontSize: FONT_SIZES.xs,
+    fontWeight: FONT_WEIGHTS.semibold,
+  },
+  loadMoreButton: {
+    marginTop: SPACING.md,
+    paddingVertical: SPACING.md,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    alignItems: 'center',
+  },
+  loadMoreButtonText: {
+    color: COLORS.primary,
+    fontSize: FONT_SIZES.sm,
     fontWeight: FONT_WEIGHTS.semibold,
   },
 });

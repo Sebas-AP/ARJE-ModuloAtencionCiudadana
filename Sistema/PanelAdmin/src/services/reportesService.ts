@@ -1,4 +1,4 @@
-import { apiClient, USE_MOCK_DATA } from './api';
+import { apiClient, apiClientWithHeaders, USE_MOCK_DATA } from './api';
 import {
   ReporteDTO,
   ReporteDetalleDTO,
@@ -108,8 +108,8 @@ export const reportesService = {
     if (filters.idCuadrillaAsignada) params.append('idCuadrillaAsignada', String(filters.idCuadrillaAsignada));
 
     const query = params.toString() ? `?${params.toString()}` : '';
-    const data = await loadRemoteReportes(() => apiClient<ReporteDTO[]>(`/reportes${query}`));
-    return { data, total: data.length };
+    const { data, total } = await loadRemoteReportes(() => apiClientWithHeaders<ReporteDTO[]>(`/reportes${query}`));
+    return { data, total };
   },
 
   /**
@@ -123,13 +123,7 @@ export const reportesService = {
       return rep;
     }
 
-    try {
-      return await apiClient<ReporteDetalleDTO>(`/reportes/${id}`);
-    } catch (err) {
-      const rep = localReportes.find((r) => r.id === id);
-      if (rep) return rep;
-      throw err;
-    }
+    return await apiClient<ReporteDetalleDTO>(`/reportes/${id}`);
   },
 
   /**
@@ -290,7 +284,8 @@ export const reportesService = {
         }),
       });
     } catch (err) {
-      console.warn('API error scheduling supervision', err);
+      console.error('API error scheduling supervision', err);
+      throw err;
     }
   },
 
@@ -308,13 +303,7 @@ export const reportesService = {
       return { enProceso, nuevos };
     }
 
-    try {
-      return await apiClient<LandingPageDTO>('/reportes/landing');
-    } catch {
-      const enProceso = localReportes.filter((r) => r.estatus === EstatusReporte.EnProceso);
-      const nuevos = localReportes.filter((r) => r.estatus === EstatusReporte.Nuevo);
-      return { enProceso, nuevos };
-    }
+    return await apiClient<LandingPageDTO>('/reportes/landing');
   },
 
   /**
@@ -330,6 +319,56 @@ export const reportesService = {
       } catch (err) {
         console.warn('API error deleting', err);
       }
+    }
+  },
+
+  /**
+   * Obtener última ubicación conocida de todas las cuadrillas
+   * Usa el endpoint /api/reportes/{id}/ubicaciones/ultima para cada reporte activo
+   */
+  async getCuadrillasUltimasUbicaciones(): Promise<{ idCuadrilla: number; lat: number; lng: number; fecha: string; nombre: string }[]> {
+    if (USE_MOCK_DATA) {
+      return [];
+    }
+
+    try {
+      // Obtener todos los reportes activos (en proceso, levantando info, asignado)
+      const { data: reportesActivos } = await this.getAll({
+        estatus: undefined,
+        registrosPorPagina: 1000,
+      });
+      
+      const reportesConCuadrilla = reportesActivos.filter(r => 
+        r.idCuadrillaAsignada && 
+        (r.estatus === EstatusReporte.Asignado || 
+         r.estatus === EstatusReporte.LevantandoInformacion || 
+         r.estatus === EstatusReporte.EnProceso)
+      );
+
+      // Obtener última ubicación para cada reporte con cuadrilla
+      const ubicacionesPromises = reportesConCuadrilla.map(async (reporte) => {
+        try {
+          const ultima = await apiClient<any>(`/reportes/${reporte.id}/ubicaciones/ultima`);
+          if (ultima && ultima.latitud && ultima.longitud) {
+            return {
+              idCuadrilla: reporte.idCuadrillaAsignada!,
+              lat: ultima.latitud,
+              lng: ultima.longitud,
+              fecha: ultima.fechaHora,
+              nombre: reporte.cuadrillaAsignadaNombre || `Cuadrilla ${reporte.idCuadrillaAsignada}`,
+            };
+          }
+          return null;
+        } catch {
+          return null;
+        }
+      });
+
+      const resultados = await Promise.all(ubicacionesPromises);
+      return resultados.filter((u): u is { idCuadrilla: number; lat: number; lng: number; fecha: string; nombre: string } => u !== null);
+    } catch (error) {
+      console.warn('Error obteniendo ubicaciones de cuadrillas:', error);
+      return [];
     }
   },
 };

@@ -56,7 +56,7 @@ function createCrewIcon() {
 interface MapViewProps {
   reportes?: ReporteDTO[];
   cuadrillas?: CuadrillaDTO[];
-  crewPositions?: { idCuadrilla: number; lat: number; lng: number; nombre: string }[];
+  crewPositions?: { idCuadrilla: number; lat: number; lng: number; nombre: string; fecha?: string }[];
   center?: [number, number];
   zoom?: number;
   height?: string;
@@ -91,22 +91,12 @@ export const MapView: React.FC<MapViewProps> = ({
   onSelectReporte,
   showRouteLine = false,
 }) => {
-  // Combinar cuadrillas con posiciones predeterminadas o calculadas
-  const effectiveCrews = [...crewPositions];
-  if (effectiveCrews.length === 0 && cuadrillas.length > 0) {
-    cuadrillas.forEach((c) => {
-      const coords = DEFAULT_CUADRILLA_COORDS[c.id] || [
-        21.8853 + (Math.sin(c.id * 1.5) * 0.035),
-        -102.2916 + (Math.cos(c.id * 1.5) * 0.035),
-      ];
-      effectiveCrews.push({
-        idCuadrilla: c.id,
-        nombre: c.nombre,
-        lat: coords[0],
-        lng: coords[1],
-      });
-    });
-  }
+  // Usar solo posiciones reales de crewPositions, sin fallback a coordenadas fabricadas
+  const effectiveCrews = crewPositions.filter(p => p.lat && p.lng);
+  const crewsWithoutPosition = cuadrillas.filter(c => 
+    !crewPositions.some(p => p.idCuadrilla === c.id)
+  );
+
   return (
     <div
       style={{
@@ -204,7 +194,7 @@ export const MapView: React.FC<MapViewProps> = ({
           );
         })}
 
-        {/* Marcadores de Cuadrillas */}
+        {/* Marcadores de Cuadrillas con posición real */}
         {effectiveCrews.map((crew) => (
           <Marker
             key={`crew-${crew.idCuadrilla}`}
@@ -219,13 +209,42 @@ export const MapView: React.FC<MapViewProps> = ({
                 <span style={{ color: '#059669', fontWeight: 600 }}>Unidad en Operación</span>
                 <p style={{ margin: '4px 0 0 0', color: '#64748B', fontSize: '11px' }}>
                   GPS: {crew.lat.toFixed(4)}, {crew.lng.toFixed(4)}
+                  {crew.fecha && (
+                    <>
+                      <br/>Última actualización: {new Date(crew.fecha).toLocaleString('es-MX')}
+                    </>
+                  )}
                 </p>
               </div>
             </Popup>
           </Marker>
         ))}
 
-        {/* Línea de ruta si hay un reporte y una cuadrilla */}
+        {/* Indicador de cuadrillas sin posición GPS */}
+        {crewsWithoutPosition.length > 0 && (
+          <div style={{ 
+            position: 'absolute', 
+            bottom: '20px', 
+            left: '20px', 
+            zIndex: 100,
+            backgroundColor: 'rgba(255,255,255,0.95)',
+            padding: '8px 12px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            border: '1px solid #FED7AA',
+            fontSize: '12px',
+            color: '#9A3412',
+          }}>
+            <strong>⚠ Cuadrillas sin GPS:</strong>
+            <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px' }}>
+              {crewsWithoutPosition.map(c => (
+                <li key={c.id} style={{ fontSize: '11px' }}>{c.nombre}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Línea de ruta si hay un reporte y una cuadrilla con posición */}
         {showRouteLine && reportes.length === 1 && effectiveCrews.length === 1 && (
           <Polyline
             positions={[

@@ -32,6 +32,8 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 interface EvidenciaLocal {
   uri: string;
   tipo: TipoEvidencia;
+  status: 'pending' | 'uploading' | 'synced' | 'failed';
+  error?: string;
 }
 
 export const CrearReporteScreen = () => {
@@ -51,6 +53,7 @@ export const CrearReporteScreen = () => {
   // Datos del Paso 2
   const [descripcion, setDescripcion] = useState('');
   const [evidencias, setEvidencias] = useState<EvidenciaLocal[]>([]);
+  const [evidenceUploadComplete, setEvidenceUploadComplete] = useState(false);
 
   // Modales
   const [modalAudioVisible, setModalAudioVisible] = useState(false);
@@ -142,43 +145,43 @@ export const CrearReporteScreen = () => {
       'Adjuntar evidencia',
       'Selecciona el origen del archivo',
       [
-        {
-          text: 'Cámara',
-          onPress: async () => {
-            const perm = await ImagePicker.requestCameraPermissionsAsync();
-            if (!perm.granted) {
-              Alert.alert('Permiso denegado', 'Se requiere acceso a la cámara.');
-              return;
-            }
-            const res = await ImagePicker.launchCameraAsync({
-              mediaTypes: ['images'],
-              quality: 0.7,
-              allowsEditing: true,
-            });
-            if (!res.canceled && res.assets[0]) {
-              setEvidencias((prev) => [
-                ...prev,
-                { uri: res.assets[0].uri, tipo: TipoEvidencia.Inicial },
-              ]);
-            }
+{
+            text: 'Cámara',
+            onPress: async () => {
+              const perm = await ImagePicker.requestCameraPermissionsAsync();
+              if (!perm.granted) {
+                Alert.alert('Permiso denegado', 'Se requiere acceso a la cámara.');
+                return;
+              }
+              const res = await ImagePicker.launchCameraAsync({
+                mediaTypes: ['images'],
+                quality: 0.7,
+                allowsEditing: true,
+              });
+              if (!res.canceled && res.assets[0]) {
+                setEvidencias((prev) => [
+                  ...prev,
+                  { uri: res.assets[0].uri, tipo: TipoEvidencia.Inicial, status: 'pending' },
+                ]);
+              }
+            },
           },
-        },
-        {
-          text: 'Galería de fotos',
-          onPress: async () => {
-            const res = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ['images'],
-              quality: 0.7,
-              allowsEditing: true,
-            });
-            if (!res.canceled && res.assets[0]) {
-              setEvidencias((prev) => [
-                ...prev,
-                { uri: res.assets[0].uri, tipo: TipoEvidencia.Inicial },
-              ]);
-            }
+          {
+            text: 'Galería de fotos',
+            onPress: async () => {
+              const res = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'],
+                quality: 0.7,
+                allowsEditing: true,
+              });
+              if (!res.canceled && res.assets[0]) {
+                setEvidencias((prev) => [
+                  ...prev,
+                  { uri: res.assets[0].uri, tipo: TipoEvidencia.Inicial, status: 'pending' },
+                ]);
+              }
+            },
           },
-        },
         { text: 'Cancelar', style: 'cancel' },
       ]
     );
@@ -196,6 +199,10 @@ export const CrearReporteScreen = () => {
     }
 
     setIsSubmitting(true);
+    setEvidenceUploadComplete(false);
+    // Marcar evidencias como subiendo
+    setEvidencias(prev => prev.map(e => ({ ...e, status: 'uploading' as const })));
+    
     try {
       // Clasificación automática mediante API (con fallback a keywords)
       let tipoFinal: TipoProblema = TipoProblema.Fuga;
@@ -228,31 +235,60 @@ export const CrearReporteScreen = () => {
         telefonoCiudadano: telefono.trim() || undefined,
       };
 
+      let reporteId: number | null = null;
+      let uploadToken: string | null = null;
+      let allEvidenceSynced = true;
+
       try {
         const reporteCreado = await reportesService.create(payload);
-        // Subir evidencias si existen
-        for (const ev of evidencias) {
-          try {
-            await reportesService.uploadEvidencia(
-              reporteCreado.id,
-              {
-                uri: ev.uri,
-                name: `evidencia_${Date.now()}.jpg`,
-                type: 'image/jpeg',
-              },
-              ev.tipo
-            );
-          } catch (e) {
-            console.warn('Error subiendo evidencia', e);
+        reporteId = reporteCreado.id;
+        uploadToken = reporteCreado.uploadToken;
+        
+        // Subir evidencias si existen usando el token de subida
+        if (evidencias.length > 0 && uploadToken) {
+          for (let i = 0; i < evidencias.length; i++) {
+            const ev = evidencias[i];
+            try {
+              await reportesService.uploadEvidenciaCiudadano(
+                reporteId,
+                {
+                  uri: ev.uri,
+                  name: `evidencia_${Date.now()}.jpg`,
+                  type: 'image/jpeg',
+                },
+                ev.tipo,
+                uploadToken
+              );
+              // Marcar como sincronizada
+              setEvidencias(prev => prev.map((e, idx) => idx === i ? { ...e, status: 'synced' as const } : e));
+            } catch (e) {
+              console.warn('Error subiendo evidencia', e);
+              allEvidenceSynced = false;
+              setEvidencias(prev => prev.map((e, idx) => idx === i ? { ...e, status: 'failed' as const, error: 'Error al subir' } : e));
+            }
           }
         }
       } catch (apiError) {
-        // Encolar offline
-        await addToQueue(payload, evidencias);
+        // Encolar offline - el reporte y las evidencias se sincronizarán luego
+        await addToQueue(payload, evidencias.map(e => ({ uri: e.uri, tipo: e.tipo })));
+        allEvidenceSynced = false;
+        // Marcar evidencias como pendientes de sincronización
+        setEvidencias(prev => prev.map(e => ({ ...e, status: 'pending' as const })));
       }
 
-      // Mostrar modal de éxito de Figma
-      setModalExitoVisible(true);
+      // Mostrar modal de éxito solo si todo se subió correctamente
+      if (allEvidenceSynced) {
+        setEvidenceUploadComplete(true);
+        setModalExitoVisible(true);
+      } else {
+        // Mostrar estado de evidencias pendientes
+        Alert.alert(
+          'Reporte creado',
+          reporteId 
+            ? 'El reporte se creó correctamente, pero algunas evidencias no pudieron subirse. Se reintentarían automáticamente cuando haya conexión.'
+            : 'El reporte se guardó en el dispositivo. Se enviará cuando haya conexión.'
+        );
+      }
     } catch (e) {
       Alert.alert('Error', 'Ocurrió un error al procesar el reporte. Inténtalo de nuevo.');
     } finally {
@@ -445,9 +481,22 @@ export const CrearReporteScreen = () => {
                         {evidencias.map((ev, index) => (
                           <View key={ev.uri + index} style={styles.previewItem}>
                             <Image source={{ uri: ev.uri }} style={styles.previewImage} />
+                            <View style={[
+                              styles.statusBadge,
+                              ev.status === 'synced' && styles.statusSynced,
+                              ev.status === 'uploading' && styles.statusUploading,
+                              ev.status === 'failed' && styles.statusFailed,
+                              ev.status === 'pending' && styles.statusPending,
+                            ]}>
+                              {ev.status === 'synced' && <Ionicons name="checkmark-circle" size={12} color={COLORS.white} />}
+                              {ev.status === 'uploading' && <ActivityIndicator size="small" color={COLORS.white} />}
+                              {ev.status === 'failed' && <Ionicons name="alert-circle" size={12} color={COLORS.white} />}
+                              {ev.status === 'pending' && <Ionicons name="time-outline" size={12} color={COLORS.white} />}
+                            </View>
                             <TouchableOpacity
                               style={styles.previewDelete}
                               onPress={() => handleRemoveEvidencia(ev.uri)}
+                              disabled={ev.status === 'uploading'}
                             >
                               <Ionicons name="close" size={14} color={COLORS.white} />
                             </TouchableOpacity>
@@ -814,6 +863,28 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: 'center',
     marginTop: SPACING.xs,
+  },
+  statusBadge: {
+    position: 'absolute',
+    top: 2,
+    left: 2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusSynced: {
+    backgroundColor: COLORS.success,
+  },
+  statusUploading: {
+    backgroundColor: COLORS.warning,
+  },
+  statusFailed: {
+    backgroundColor: COLORS.error,
+  },
+  statusPending: {
+    backgroundColor: COLORS.primary,
   },
 
   // Modal Audio (Crear reportes 4)

@@ -22,9 +22,15 @@ public class AutoMapperProfiles : Profile
             .ForMember(d => d.CuadrillaSupervisoraNombre, o => o.MapFrom(s => s.CuadrillaSupervisora != null ? s.CuadrillaSupervisora.Nombre : null))
             .ForMember(d => d.TotalEvidencias, o => o.MapFrom(s => s.Evidencias.Count));
 
+        CreateMap<Reporte, ReportePublicoDTO>()
+            .ForMember(d => d.Evidencias, o => o.MapFrom(s => s.Evidencias));
+
         CreateMap<ReporteCreacionDTO, Reporte>();
 
         CreateMap<Evidencia, EvidenciaDTO>()
+            .ForMember(d => d.ArchivoUrl, o => o.MapFrom(s => s.Archivo));
+
+        CreateMap<Evidencia, EvidenciaPublicoDTO>()
             .ForMember(d => d.ArchivoUrl, o => o.MapFrom(s => s.Archivo));
 
         CreateMap<EvidenciaCreacionDTO, Evidencia>()

@@ -10,6 +10,28 @@ Este README está dirigido a quienes mantienen y verifican la aplicación. La se
 - Desde `Sistema/AppCuadrilla`, `npm test` ejecuta las pruebas de servicios y políticas de campo; `npx tsc --noEmit` comprueba tipos; `npx expo lint` ejecuta ESLint. Estos tres comandos se verificaron en el worktree el 14 de octubre de 2026.
 - El inicio de sesión de cuadrilla utiliza la API. La lista y el detalle de reportes necesitan conexión para su primera carga; la aplicación no conserva una copia offline de esos datos.
 
+### Configuración del Mapa (Nativo y Web)
+
+#### Proveedor de mapas nativo
+- **Proveedor**: Google Maps a través de `react-native-maps` con `PROVIDER_GOOGLE`.
+- **Requisitos**: Requiere API Key de Google Maps configurada en `app.json` / `app.config.js` bajo `ios.config.googleMapsApiKey` y `android.config.googleMaps.apiKey`.
+- **Atribución**: Google Maps usa datos de © Google, © OpenStreetMap contributors. La atribución se muestra automáticamente en el mapa.
+
+#### Mapa web
+- **Implementación actual**: Pantalla informativa con coordenadas (ver `MapaScreen.web.tsx`).
+- **Pendiente**: Mapa interactivo con Leaflet/MapLibre GL JS para paridad con nativo.
+- **Atribución**: OpenStreetMap © OpenStreetMap contributors.
+
+#### Permisos de ubicación
+- **Foreground**: Requerido para mostrar la ubicación del usuario y el reporte en el mapa.
+- **Background**: Requerido para el seguimiento GPS continuo durante el levantamiento de información y el proceso (`EstatusReporte.LevantandoInformacion` y `EnProceso`).
+- **Configuración nativa**: `NSLocationWhenInUseUsageDescription`, `NSLocationAlwaysAndWhenInUseUsageDescription` (iOS) y `ACCESS_FINE_LOCATION`, `ACCESS_BACKGROUND_LOCATION` (Android) en `app.json` / `expo.plist` / `AndroidManifest.xml`.
+
+#### Atribución cartográfica
+- **Google Maps (nativo)**: © Google, © OpenStreetMap contributors. Se muestra automáticamente.
+- **OpenStreetMap (web/futuro)**: © OpenStreetMap contributors.
+- **Estilo de mapa personalizado**: Estilo JSON definido en `MapaScreen.native.tsx` (`mapStyle` array), basado en estilo "Light" de Google Maps.
+
 ### Inicio desde navegador o Expo Go en la red local
 
 No uses `10.0.2.2` ni una IP escrita permanentemente en el código desde un teléfono físico. Primero inicia la API para aceptar conexiones externas en el puerto 5170 (por ejemplo, enlazada a `0.0.0.0:5170`). Después conecta el teléfono y esta computadora a la misma red Wi-Fi; evita redes de invitados o perfiles que aíslen dispositivos.
@@ -43,9 +65,17 @@ La aplicación intenta sincronizar al recuperar la conectividad y también despu
 
 Si la API responde 401 o 403, la sincronización se detiene y conserva la operación; usa **Iniciar sesión** para renovar la sesión. Si responde 400 o 409, la operación queda marcada como rechazada y no se reenvía automáticamente. El indicador muestra cuántas operaciones fueron rechazadas y una advertencia genérica para revisar el reporte; la interfaz no muestra el motivo detallado que devolvió el servidor ni ofrece una acción para editar o descartar esa operación. Ante un error transitorio, las operaciones permanecen en la cola para un intento posterior. Si no se puede leer la cola, la interfaz bloquea nuevas transiciones y muestra un error.
 
+## Historial GPS vs Ruta (Panel Admin)
+
+En el Panel de Administración (`MapView.tsx`), la opción «Mostrar ruta» dibuja una **línea recta** entre el reporte y la última posición conocida de la cuadrilla. **No es una ruta calculada** (no usa servicio de routing como OSRM, GraphHopper o Google Directions). El historial real de puntos GPS se almacena en `SeguimientosUbicacion` y puede consultarse por reporte vía API (`/api/reportes/{id}/ubicaciones`).
+
 ## Límites conocidos y validación pendiente
 
 - La cola conserva la URI de cada foto, no una copia independiente del archivo. Una subida posterior depende de que la URI siga siendo accesible. No se ha validado esta persistencia tras reiniciar un dispositivo físico.
 - La entrega de GPS es al menos una vez: si la API acepta un lote y la aplicación se interrumpe antes de quitarlo de la cola, un reintento podría enviarlo de nuevo. No hay deduplicación implementada para ese caso.
 - La cola no identifica a la cuenta propietaria de cada operación. Se debe definir y validar una política antes de usar cuentas distintas en un dispositivo compartido.
 - No se ha ejecutado la secuencia completa en un dispositivo físico ni en emulador. Quedan por comprobar permisos, cámara/galería, GPS en segundo plano, acceso a archivos tras reinicio y presentación de los estados de sincronización.
+- **Mapa web**: La versión web (`MapaScreen.web.tsx`) muestra solo coordenadas y un aviso; falta implementar mapa interactivo con Leaflet/MapLibre GL JS.
+- **Evidencias en web**: En la versión web, las imágenes se almacenan en IndexedDB vía `webImageStorage.ts` para persistencia tras recargar; en nativo se usa `expo-file-system` con copia a `FileSystem.documentDirectory`.
+- **Evidencias de audio**: El botón «Grabar audio» muestra «No disponible» (pendiente de implementación).
+- **Validación GPS en segundo plano**: Pendiente de validar en dispositivo físico el funcionamiento continuo, consumo de batería y precisión.

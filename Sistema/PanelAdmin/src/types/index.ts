@@ -102,6 +102,11 @@ export interface CuadrillaDTO {
   activo?: boolean;
   disponible?: boolean;
   especialidades?: string[];
+  ultimaUbicacion?: {
+    lat: number;
+    lng: number;
+    fecha: string;
+  };
 }
 
 export interface CuadrillaCreacionDTO {
@@ -153,6 +158,7 @@ export interface ReporteDTO {
   telefonoCiudadano?: string | null;
   correoCiudadano?: string | null;
   totalEvidencias: number;
+  fechaResolucion?: string;
 }
 
 export interface ReporteDetalleDTO extends ReporteDTO {

@@ -68,7 +68,8 @@ export const useLocation = (idReporte?: number, estatusReporte?: number) => {
   useEffect(() => {
     if (!idReporte) return;
 
-    obtenerUbicacionActual();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void obtenerUbicacionActual();
 
     let subscription: Location.LocationSubscription | null = null;
     void watchLocation((loc) => {
@@ -84,6 +85,7 @@ export const useLocation = (idReporte?: number, estatusReporte?: number) => {
 
   useEffect(() => {
     if (tracking && !canTrack) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       void detenerSeguimiento();
     }
   }, [tracking, canTrack, detenerSeguimiento]);

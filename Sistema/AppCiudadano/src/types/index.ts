@@ -107,6 +107,62 @@ export interface PaginatedResponse<T> {
   totalPaginas: number;
 }
 
+export interface ReportePublicoDTO {
+  id: number;
+  folio: string;
+  tipoProblema: TipoProblema;
+  categoria?: string;
+  descripcion: string;
+  latitud: number;
+  longitud: number;
+  fechaRecibido: string;
+  estatus: EstatusReporte;
+  tiempoEstimado?: number;
+  numeroContrato?: string;
+  nombreCiudadano?: string;
+  evidencias: EvidenciaPublicoDTO[];
+}
+
+export interface EvidenciaPublicoDTO {
+  id: number;
+  tipo: TipoEvidencia;
+  archivoUrl: string;
+  fechaCaptura: string;
+}
+
+export interface ReporteConsultaPaginadoDTO {
+  data: ReportePublicoDTO[];
+  totalRegistros: number;
+  pagina: number;
+  registrosPorPagina: number;
+  totalPaginas: number;
+}
+
+export interface ReporteCiudadanoRespuestaDTO {
+  id: number;
+  folio: string;
+  tipoProblema: TipoProblema;
+  categoria?: string;
+  descripcion: string;
+  latitud: number;
+  longitud: number;
+  fechaRecibido: string;
+  estatus: EstatusReporte;
+  numeroContrato?: string;
+  nombreCiudadano?: string;
+  uploadToken: string;
+  uploadTokenExpiraEnMinutos: number;
+}
+
+export type OfflineErrorKind = 'transient' | 'auth' | 'validation' | 'unknown';
+
+export interface OfflineError {
+  type: OfflineErrorKind;
+  message: string;
+  statusCode?: number;
+  timestamp: number;
+}
+
 export interface ApiError {
   message: string;
   statusCode: number;
@@ -121,10 +177,16 @@ export interface ClassificationResult {
 
 export interface OfflineReport {
   id: string;
+  idempotencyKey: string;
   data: ReporteCreacionDTO;
   evidencias: { uri: string; tipo: TipoEvidencia }[];
   timestamp: number;
   retries: number;
+  stage: 'pending_creation' | 'creation_confirmed' | 'uploading_evidence' | 'completed' | 'failed';
+  evidenceStatus: { uri: string; tipo: TipoEvidencia; status: 'pending' | 'uploading' | 'synced' | 'failed'; remoteId?: number; error?: string }[];
+  remoteId?: number;
+  lastError?: OfflineError;
+  retryable: boolean;
 }
 
 export interface UserProfile {

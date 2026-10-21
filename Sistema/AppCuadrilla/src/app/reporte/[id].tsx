@@ -27,24 +27,63 @@ export default function ReporteDetalleScreen() {
   const [reporte, setReporte] = useState<ReporteDTO | null>(null); const [loading, setLoading] = useState(true); const [guardando, setGuardando] = useState(false);
   const [statusNeedsRefresh, setStatusNeedsRefresh] = useState(false); const [resolviendo, setResolviendo] = useState(false); const [comentario, setComentario] = useState('');
   const [estimado, setEstimado] = useState(''); const [ubicacionActual, setUbicacionActual] = useState<{ latitude: number; longitude: number } | null>(null); const [evidenceConfirmed, setEvidenceConfirmed] = useState(false);
-  const sync = useFieldSync(); const operationsRef = useRef(sync.operations); operationsRef.current = sync.operations;
+  const sync = useFieldSync(); 
+  const operationsRef = useRef(sync.operations);
+  
+  // Update ref when sync.operations changes
+  useEffect(() => {
+    operationsRef.current = sync.operations;
+  }, [sync.operations]);
+  
   const { location, obtenerUbicacionActual } = useLocation(reporteId, reporte?.estatus);
   const cargarReporte = useCallback(async () => {
     try { const data = await reportesService.getDetalle(reporteId); setReporte(data); setEstimado(data.tiempoEstimado ? String(data.tiempoEstimado) : ''); return true; }
     catch (error: unknown) { Alert.alert('Error', error instanceof Error ? error.message : 'No se pudo cargar el reporte'); return false; }
     finally { setLoading(false); }
   }, [reporteId]);
-  useEffect(() => { void cargarReporte(); setEvidenceConfirmed(false); setStatusNeedsRefresh(false); }, [cargarReporte]);
+  
+  // Initial load
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      await cargarReporte();
+      if (mounted) {
+        setEvidenceConfirmed(false);
+        setStatusNeedsRefresh(false);
+      }
+    };
+    void load();
+    return () => { mounted = false; };
+  }, [cargarReporte]);
+  
   const pendingStatus = sync.operations.some((operation) => operation.kind === 'status' && operation.reportId === reporteId);
   const pendingReportOperation = sync.operations.some((operation) => 'reportId' in operation && operation.reportId === reporteId);
+  
+  // Update statusNeedsRefresh when pendingStatus changes
   useEffect(() => {
-    if (pendingStatus) setStatusNeedsRefresh(true);
+    if (pendingStatus) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setStatusNeedsRefresh(true);
+    }
+  }, [pendingStatus]);
+  
+  // Auto-refresh when status operation completes
+  useEffect(() => {
     if (!statusNeedsRefresh || guardando || sync.isLoading || sync.error || !sync.isOnline) return;
     let cancelled = false;
-    void refreshReportAfterStatus(reporteId, operationsRef.current, cargarReporte).then((refreshed) => { if (refreshed && !cancelled) setStatusNeedsRefresh(false); });
+    refreshReportAfterStatus(reporteId, operationsRef.current, cargarReporte).then((refreshed) => {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (refreshed && !cancelled) setStatusNeedsRefresh(false);
+    });
     return () => { cancelled = true; };
   }, [pendingStatus, statusNeedsRefresh, guardando, sync.isLoading, sync.isSyncing, sync.error, sync.isOnline, reporteId, cargarReporte]);
-  useEffect(() => { if (location) setUbicacionActual(location); }, [location]);
+  
+  useEffect(() => {
+    if (location) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setUbicacionActual(location);
+    }
+  }, [location]);
   const resolutionReady = evidenceConfirmed || hasResolutionEvidence(reporteId, reporte?.evidencias ?? [], sync.operations);
   const pending = pendingReportOperation || statusNeedsRefresh || guardando || sync.isLoading || !!sync.error;
   const handleActualizarEstatus = async (nuevoEstatus: FieldStatus, comentariosResolucion?: string) => {

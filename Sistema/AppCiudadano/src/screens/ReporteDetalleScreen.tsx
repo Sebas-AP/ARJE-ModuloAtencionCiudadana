@@ -12,7 +12,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Card, Button, StatusChip } from '../components';
-import { useReporteDetalle } from '../hooks';
+import { useReportePublicoDetalle } from '../hooks/useReportes';
 import { reportesService } from '../services/reportes';
 import {
   COLORS,
@@ -28,7 +28,7 @@ import {
   ESTATUS_REPORTE_ICONS,
   TIPO_EVIDENCIA_LABELS,
 } from '../constants';
-import { EstatusReporte, SeguimientoUbicacionDTO } from '../types';
+import { EstatusReporte, SeguimientoUbicacionDTO, EvidenciaPublicoDTO, ReportePublicoDTO } from '../types';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 type ReporteDetalleRouteProp = RouteProp<RootStackParamList, 'ReporteDetalle'>;
@@ -37,8 +37,8 @@ type ReporteDetalleNavigationProp = NativeStackNavigationProp<RootStackParamList
 export const ReporteDetalleScreen = () => {
   const route = useRoute<ReporteDetalleRouteProp>();
   const navigation = useNavigation<ReporteDetalleNavigationProp>();
-  const { id } = route.params;
-  const { reporte, loading, error, refetch } = useReporteDetalle(id);
+  const { id, numeroContrato } = route.params;
+  const { reporte, loading, error, refetch } = useReportePublicoDetalle();
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);
@@ -58,6 +58,13 @@ export const ReporteDetalleScreen = () => {
     </View>
   );
 
+  // Cargar reporte al montar o cuando cambie el id/contrato
+  useEffect(() => {
+    if (id && numeroContrato) {
+      refetch(id, numeroContrato);
+    }
+  }, [id, numeroContrato, refetch]);
+
   if (loading) {
     return (
       <View style={styles.centerBox}>
@@ -72,7 +79,7 @@ export const ReporteDetalleScreen = () => {
       <View style={styles.centerBox}>
         <MaterialCommunityIcons name="alert-circle-outline" size={48} color={COLORS.error} />
         <Text style={styles.centerText}>{error || 'No se pudo cargar el reporte'}</Text>
-        <Button title="Reintentar" onPress={refetch} variant="outline" size="sm" />
+        <Button title="Reintentar" onPress={() => id && numeroContrato && refetch(id, numeroContrato)} variant="outline" size="sm" />
       </View>
     );
   }
@@ -80,7 +87,9 @@ export const ReporteDetalleScreen = () => {
   const tipoColor = TIPO_PROBLEMA_COLORS[reporte.tipoProblema] || COLORS.primary;
   const estatusColor = ESTATUS_REPORTE_COLORS[reporte.estatus] || COLORS.textTertiary;
   const evidencias = reporte.evidencias || [];
-  const seguimientos = reporte.seguimientosUbicacion;
+
+  // Mapear estatus Completado a "Resuelto" para el ciudadano
+  const estatusLabel = reporte.estatus === EstatusReporte.Completado ? 'Resuelto' : (ESTATUS_REPORTE_LABELS[reporte.estatus] || 'Sin estado');
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -91,12 +100,12 @@ export const ReporteDetalleScreen = () => {
           </View>
           <View style={styles.headerInfo}>
             <Text style={styles.headerTitle}>{TIPO_PROBLEMA_LABELS[reporte.tipoProblema] || 'Reporte'}</Text>
-            <Text style={styles.headerId}>Reporte #{reporte.id}</Text>
+            <Text style={styles.headerId}>{reporte.folio}</Text>
           </View>
         </View>
 
         <StatusChip
-          status={ESTATUS_REPORTE_LABELS[reporte.estatus] || 'Sin estado'}
+          status={estatusLabel}
           label="Estatus"
           color={estatusColor}
           icon={<MaterialCommunityIcons name={ESTATUS_REPORTE_ICONS[reporte.estatus] as any} size={16} color={estatusColor} />}
@@ -130,22 +139,10 @@ export const ReporteDetalleScreen = () => {
               <Text style={styles.infoValue}>{reporte.nombreCiudadano}</Text>
             </View>
           )}
-          {reporte.telefonoCiudadano && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Teléfono</Text>
-              <Text style={styles.infoValue}>{reporte.telefonoCiudadano}</Text>
-            </View>
-          )}
           {reporte.tiempoEstimado != null && (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Tiempo estimado</Text>
               <Text style={styles.infoValue}>{reporte.tiempoEstimado} min</Text>
-            </View>
-          )}
-          {reporte.cuadrillaAsignada && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Cuadrilla asignada</Text>
-              <Text style={styles.infoValue}>{reporte.cuadrillaAsignada.nombre}</Text>
             </View>
           )}
         </Card>
@@ -156,7 +153,7 @@ export const ReporteDetalleScreen = () => {
             <Text style={styles.emptyText}>Sin evidencias</Text>
           ) : (
             <View style={styles.evidenciaGrid}>
-              {evidencias.map((ev) => (
+              {evidencias.map((ev: EvidenciaPublicoDTO) => (
                 <View key={ev.id} style={styles.evidenciaItem}>
                   <Image source={{ uri: ev.archivoUrl }} style={styles.evidenciaImg} resizeMode="cover" />
                   <Text style={styles.evidenciaLabel}>{TIPO_EVIDENCIA_LABELS[ev.tipo] || 'Evidencia'}</Text>
@@ -168,13 +165,7 @@ export const ReporteDetalleScreen = () => {
 
         <Card style={styles.card}>
           <Text style={styles.cardSectionTitle}>Seguimiento de cuadrilla</Text>
-          {seguimientos.length === 0 ? (
-            <Text style={styles.emptyText}>Sin seguimiento aún</Text>
-          ) : (
-            <View>
-              {seguimientos.map((s) => renderSeguimiento({ item: s }))}
-            </View>
-          )}
+          <Text style={styles.emptyText}>No disponible en consulta pública</Text>
         </Card>
 
         {reporte.estatus !== EstatusReporte.Cerrado && (

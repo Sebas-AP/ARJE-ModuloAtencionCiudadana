@@ -18,6 +18,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Xunit;
 
 namespace ARJE.Api.Tests;
@@ -30,6 +31,7 @@ public class FieldOperationControllerTests : IDisposable
     private readonly IMapper mapper = new MapperConfiguration(c => c.AddProfile<AutoMapperProfiles>(), NullLoggerFactory.Instance).CreateMapper();
     private readonly ServiceProvider services;
     private readonly IOutputCacheStore cache;
+    private readonly Mock<IJwtService> jwtServiceMock = new();
 
     public FieldOperationControllerTests()
     {
@@ -45,6 +47,8 @@ public class FieldOperationControllerTests : IDisposable
         context.SaveChanges();
         services = new ServiceCollection().AddLogging().AddOutputCache().BuildServiceProvider();
         cache = services.GetRequiredService<IOutputCacheStore>();
+        jwtServiceMock.Setup(x => x.GenerarTokenSubidaEvidencia(It.IsAny<int>(), It.IsAny<int>())).Returns("mock-upload-token");
+        jwtServiceMock.Setup(x => x.ValidarTokenSubidaEvidencia(It.IsAny<string>())).Returns((true, 1));
     }
 
     [Theory]
@@ -355,7 +359,7 @@ public class FieldOperationControllerTests : IDisposable
     }
 
     private ReportesController Reports(string? subject = "1", string type = "Cuadrilla", string role = "Cuadrilla") =>
-        Authenticate(new ReportesController(context, mapper, cache, new TestFileStorage(), null!), subject, type, role);
+        Authenticate(new ReportesController(context, mapper, cache, new TestFileStorage(), null!, jwtServiceMock.Object), subject, type, role);
 
     private static T Authenticate<T>(T controller, string? subject = "1", string type = "Cuadrilla", string role = "Cuadrilla")
         where T : ControllerBase
@@ -389,9 +393,13 @@ public class FieldOperationControllerTests : IDisposable
 
     private sealed class TestFileStorage : IAlmacenadorArchivos
     {
-        public Task<string> GuardarArchivo(string contenedor, IFormFile archivo) => Task.FromResult("/evidencias/resolution.jpg");
-        public Task<string> EditarArchivo(string contenedor, IFormFile archivo, string rutaArchivoActual) => throw new NotSupportedException();
-        public Task BorrarArchivo(string contenedor, string rutaArchivo) => throw new NotSupportedException();
+        public Task<ArchivoValidacionResult> ValidarArchivo(IFormFile archivo) => 
+            Task.FromResult(new ArchivoValidacionResult { EsValido = true });
+        public Task<ArchivoGuardadoResult> GuardarArchivo(string contenedor, IFormFile archivo) => 
+            Task.FromResult(new ArchivoGuardadoResult { Exitoso = true, Url = "/evidencias/resolution.jpg" });
+        public Task<ArchivoGuardadoResult> EditarArchivo(string contenedor, IFormFile archivo, string rutaArchivoActual) => 
+            Task.FromResult(new ArchivoGuardadoResult { Exitoso = true, Url = "/evidencias/resolution-editada.jpg" });
+        public Task BorrarArchivo(string contenedor, string rutaArchivo) => Task.CompletedTask;
     }
 
     private sealed class TransactionSpy : DbTransactionInterceptor

@@ -2,7 +2,7 @@ export type RootStackParamList = {
   Inicio: undefined;
   CrearReporte: { step?: 1 | 2 } | undefined;
   ConsultaReportes: { numeroContrato?: string } | undefined;
-  ReporteDetalle: { id: number };
+  ReporteDetalle: { id: number; numeroContrato?: string };
   // Aliases de compatibilidad
   Home?: undefined;
   MisReportes?: undefined;

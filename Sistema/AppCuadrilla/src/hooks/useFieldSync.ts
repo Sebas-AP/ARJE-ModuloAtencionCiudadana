@@ -60,6 +60,7 @@ export function useFieldSync() {
 
   useEffect(() => {
     mounted.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
     let wasOnline = false;
     const unsubscribe = subscribeToConnectivity((online) => {

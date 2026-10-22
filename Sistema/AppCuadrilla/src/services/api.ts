@@ -104,6 +104,8 @@ export const getReportesAsignados = async (idCuadrilla: number) => {
   return apiRequest<ReporteDTO[]>(buildAssignedReportsPath(idCuadrilla));
 };
 
+export const getMisReportes = async () => apiRequest<ReporteDTO[]>(fieldApiPaths.misReportes);
+
 export const getReportesSupervisados = async (idCuadrilla: number) => {
   return apiRequest<ReporteDTO[]>(buildSupervisedReportsPath(idCuadrilla));
 };

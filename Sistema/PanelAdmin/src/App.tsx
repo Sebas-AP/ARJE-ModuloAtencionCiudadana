@@ -30,7 +30,6 @@ import { reportesService } from './services/reportesService';
 import { cuadrillasService } from './services/cuadrillasService';
 import { indicadoresService } from './services/indicadoresService';
 import { authService } from './services/authService';
-import { USE_MOCK_DATA, toggleMockData } from './services/api';
 import { CheckCircle2, AlertCircle, X } from 'lucide-react';
 
 interface ToastState {
@@ -66,7 +65,6 @@ export function App() {
 
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
-  const [isMockActive, setIsMockActive] = useState<boolean>(USE_MOCK_DATA);
 
   // Estados de Modales
   const [asignarReporte, setAsignarReporte] = useState<ReporteDTO | null>(null);
@@ -149,18 +147,6 @@ export function App() {
     setCurrentUser(null);
     setCurrentTab('dashboard');
     showToast('Sesión finalizada correctamente', 'info');
-  };
-
-  const handleToggleMockMode = () => {
-    const nextMode = toggleMockData();
-    setIsMockActive(nextMode);
-    showToast(
-      nextMode
-        ? 'Cambiado a Modo Offline (Mock Data)'
-        : 'Cambiado a Modo Online (API Real ASP.NET Core)',
-      'info'
-    );
-    loadData();
   };
 
   // Selección de reporte para seguimiento
@@ -351,8 +337,6 @@ export function App() {
       onSelectTab={(tab) => setCurrentTab(tab)}
       currentUser={currentUser}
       onLogout={handleLogout}
-      isMockActive={isMockActive}
-      onToggleMock={handleToggleMockMode}
       reportes={reportes}
       onRefresh={loadData}
       isRefreshing={refreshing}

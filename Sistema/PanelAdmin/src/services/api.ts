@@ -16,13 +16,14 @@ export let USE_MOCK_DATA = resolveMockMode(
 );
 
 export function setUseMockData(useMock: boolean): void {
-  USE_MOCK_DATA = useMock;
-  localStorage.setItem('arje_use_mock', useMock ? 'true' : 'false');
+  void useMock;
+  USE_MOCK_DATA = false;
+  localStorage.removeItem('arje_use_mock');
 }
 
 export function toggleMockData(): boolean {
-  setUseMockData(!USE_MOCK_DATA);
-  return USE_MOCK_DATA;
+  setUseMockData(false);
+  return false;
 }
 
 // Helper para obtener token JWT de localStorage

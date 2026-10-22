@@ -418,6 +418,12 @@ public class ReportesController : ControllerBase
             return NotFound();
         }
 
+        var cuadrilla = await _context.Cuadrillas.FindAsync(dto.IdCuadrilla);
+        if (cuadrilla == null)
+        {
+            return BadRequest(new { mensaje = "La cuadrilla seleccionada no existe." });
+        }
+
         reporte.IdCuadrillaAsignada = dto.IdCuadrilla;
         reporte.Estatus = EstatusReporte.Asignado;
 
@@ -426,11 +432,7 @@ public class ReportesController : ControllerBase
             reporte.TiempoEstimado = dto.TiempoEstimado.Value;
         }
 
-        var cuadrilla = await _context.Cuadrillas.FindAsync(dto.IdCuadrilla);
-        if (cuadrilla != null)
-        {
-            cuadrilla.EstatusDisponibilidad = EstatusCuadrilla.Ocupada;
-        }
+        cuadrilla.EstatusDisponibilidad = EstatusCuadrilla.Ocupada;
 
         await _context.SaveChangesAsync();
         await _outputCacheStore.EvictByTagAsync("reportes", default);

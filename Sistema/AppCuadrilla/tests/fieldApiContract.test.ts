@@ -11,6 +11,10 @@ import {
   isVisibleAssignedStatus,
 } from '../src/services/fieldApiContract.ts';
 
+test('usa una ruta dedicada para los reportes de la cuadrilla autenticada', () => {
+  assert.equal(fieldApiPaths.misReportes, '/cuadrillas/me/reportes');
+});
+
 test('solicita todos los reportes de una cuadrilla y conserva los estados operativos', () => {
   assert.equal(
     buildAssignedReportsPath(17),

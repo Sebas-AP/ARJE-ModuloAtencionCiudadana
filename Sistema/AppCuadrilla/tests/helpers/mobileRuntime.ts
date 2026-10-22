@@ -70,6 +70,7 @@ export function mobileRuntime() {
     runInNewContext(code, {
       module, exports: module.exports, process, console,
       require: (specifier: string) => specifier in natives ? natives[specifier]
+        : specifier === 'expo-file-system/legacy' ? natives['expo-file-system']
         : specifier.startsWith('.') ? load(specifier, dirname(path)) : createRequire(path)(specifier),
       fetch: async (url: string, options: any) => { requests.push({ url, options }); return respond(url, options); },
       FormData: class {

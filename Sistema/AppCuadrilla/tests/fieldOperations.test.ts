@@ -44,18 +44,17 @@ test('assigned report list includes completed reports so the Figma completed fil
   assert.deepEqual(reportes.map((report: any) => report.estatus), [2, 3, 4, 5, 6, 7]);
 });
 
-test('report list merges assigned and supervised reports without duplicates', async () => {
+test('report list uses the authenticated crew endpoint without trusting a client crew id', async () => {
   const app = mobileRuntime();
-  app.respondWith(async (url) => ({ ok: true, status: 200, json: async () =>
-    url.includes('idCuadrillaSupervisora')
-      ? [{ id: 7, estatus: 6 }, { id: 8, estatus: 7 }]
-      : [{ id: 2, estatus: 3 }, { id: 7, estatus: 6 }],
-  }));
+  app.respondWith(async (url) => {
+    assert.equal(url.endsWith('/cuadrillas/me/reportes'), true);
+    return { ok: true, status: 200, json: async () => [{ id: 2, estatus: 3 }, { id: 7, estatus: 6 }] };
+  });
 
   const reportes = await app.load('reportesService').reportesService.getAsignados(8);
 
-  assert.deepEqual(reportes.map((report: any) => report.id), [2, 7, 8]);
-  assert.equal(app.requests.filter(({ url }) => url.includes('/reportes?')).length, 2);
+  assert.deepEqual(reportes.map((report: any) => report.id), [2, 7]);
+  assert.equal(app.requests.length, 1);
 });
 
 test('resolution comment is synchronized before the completion status', async () => {
@@ -171,6 +170,21 @@ test('logout clears active tracking before a later background location can be qu
 
   assert.deepEqual(app.pending(), []);
   assert.equal(app.requests.length, 0);
+});
+
+test('a successful crew login publishes the authenticated crew to the navigation session', async () => {
+  const app = mobileRuntime();
+  app.respondWith(async (url) => ({ ok: true, status: 200, json: async () =>
+    url.endsWith('/cuadrillas/login') ? { token: 'new-token', cuadrilla: app.cuadrilla } : app.cuadrilla,
+  }));
+  const auth = app.load('authService').authService;
+  const sessions: Array<number | null> = [];
+
+  const unsubscribe = auth.subscribe((cuadrilla: { id: number } | null) => sessions.push(cuadrilla?.id ?? null));
+  await auth.login('norte', 'password');
+  unsubscribe();
+
+  assert.deepEqual(sessions, [8]);
 });
 
 for (const trigger of ['login', 'restore']) {

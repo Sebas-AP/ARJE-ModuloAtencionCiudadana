@@ -1,5 +1,6 @@
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
+import { Platform } from 'react-native';
 import { fieldOperationQueue, setFieldOperationOwner, syncFieldOperations } from './fieldOperationsService';
 import { secureStorage } from './secureStorage';
 
@@ -31,7 +32,7 @@ function parseActiveTracking(value: string | null): ActiveTracking | null {
   }
 }
 
-TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
+if (Platform.OS !== 'web') TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   if (error) {
     console.error('Background location task error:', error);
     return;
@@ -100,6 +101,10 @@ const getActiveTracking = async (): Promise<ActiveTracking | null> => {
 };
 
 export const startLocationTracking = async (idReporte: number): Promise<void> => {
+  if (Platform.OS === 'web') {
+    throw new Error('El seguimiento GPS en segundo plano sólo está disponible en la aplicación móvil.');
+  }
+
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== 'granted') {
     throw new Error('Permiso de ubicación denegado');
@@ -130,9 +135,11 @@ export const startLocationTracking = async (idReporte: number): Promise<void> =>
 };
 
 export const stopLocationTracking = async (): Promise<void> => {
-  const isRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK);
-  if (isRegistered) {
-    await Location.stopLocationUpdatesAsync(LOCATION_TASK);
+  if (Platform.OS !== 'web') {
+    const isRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK);
+    if (isRegistered) {
+      await Location.stopLocationUpdatesAsync(LOCATION_TASK);
+    }
   }
   await setActiveReporteId(null);
 };

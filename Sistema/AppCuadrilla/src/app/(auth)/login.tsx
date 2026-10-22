@@ -25,8 +25,8 @@ export default function LoginScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.logoFrame}><Image accessibilityLabel="Logotipo ARJE" source={require('../../../assets/arje-cuadrilla-logo.png')} style={styles.logo} resizeMode="contain" /></View>
         <View style={styles.form}>
-          <Text style={styles.usernameLabel}>Usuario</Text>
-          <View style={styles.usernameInputShell}><Ionicons name="person-outline" size={19} color="#015FEB" /><TextInput style={styles.input} value={usuario} onChangeText={setUsuario} placeholder="ej. Juan Lopez" placeholderTextColor="#8FAFD9" autoCapitalize="none" autoComplete="username" textContentType="username" accessibilityLabel="Usuario" /></View>
+          <Text style={styles.usernameLabel}>Usuario de cuadrilla</Text>
+          <View style={styles.usernameInputShell}><Ionicons name="person-outline" size={19} color="#015FEB" /><TextInput style={styles.input} value={usuario} onChangeText={setUsuario} placeholder="ej. cuadrilla_norte" placeholderTextColor="#8FAFD9" autoCapitalize="none" autoComplete="username" textContentType="username" accessibilityLabel="Usuario de cuadrilla" /></View>
           <Text style={styles.passwordLabel}>Contraseña</Text>
           <View style={styles.passwordInputShell}><Ionicons name="lock-closed-outline" size={19} color="#2200FF" /><TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Ingresa tu contraseña" placeholderTextColor="#8FAFD9" secureTextEntry autoComplete="current-password" textContentType="password" accessibilityLabel="Contraseña" /></View>
         </View>

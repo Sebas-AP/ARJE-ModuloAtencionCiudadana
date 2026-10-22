@@ -75,8 +75,8 @@ public class ReportAdministrationAuthorizationTests : IAsyncLifetime
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             await db.Database.EnsureCreatedAsync();
             db.Cuadrillas.AddRange(
-                new Cuadrilla { Id = 1, Nombre = "One", UsuarioApp = "one" },
-                new Cuadrilla { Id = 2, Nombre = "Two", UsuarioApp = "two" });
+                new Cuadrilla { Id = 1, Nombre = "One", UsuarioApp = "one", PasswordHash = BCrypt.Net.BCrypt.HashPassword("OnePassword123!") },
+                new Cuadrilla { Id = 2, Nombre = "Two", UsuarioApp = "two", PasswordHash = BCrypt.Net.BCrypt.HashPassword("TwoPassword123!") });
             db.Reportes.Add(new Reporte
             {
                 Id = 1, Descripcion = "Original", Categoria = "Original", TipoProblema = TipoProblema.Fuga,
@@ -156,6 +156,78 @@ public class ReportAdministrationAuthorizationTests : IAsyncLifetime
         }
     }
 
+    [Fact]
+    public async Task Administrator_can_assign_a_registered_crew_and_that_crew_only_sees_its_report()
+    {
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",
+            jwt.GenerarTokenUsuario(new UsuarioSistema { Id = 7, Usuario = "admin", Rol = RolUsuario.Administrador }));
+
+        using var assignment = await client.PutAsJsonAsync("api/reportes/1/asignar", new { idCuadrilla = 1 });
+        Assert.Equal(HttpStatusCode.NoContent, assignment.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = null;
+        using var login = await client.PostAsJsonAsync("api/cuadrillas/login", new { usuario = "one", password = "OnePassword123!" });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        var session = await login.Content.ReadFromJsonAsync<CuadrillaLoginResponse>();
+        Assert.NotNull(session);
+        Assert.Equal(1, session!.Cuadrilla.Id);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.Token);
+        using var reports = await client.GetAsync("api/reportes?registrosPorPagina=50");
+        Assert.Equal(HttpStatusCode.OK, reports.StatusCode);
+        var assigned = await reports.Content.ReadFromJsonAsync<List<ReporteResponse>>();
+        var report = Assert.Single(assigned!);
+        Assert.Equal(1, report.Id);
+    }
+
+    [Fact]
+    public async Task Administrator_cannot_assign_a_report_to_a_missing_crew()
+    {
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",
+            jwt.GenerarTokenUsuario(new UsuarioSistema { Id = 7, Usuario = "admin", Rol = RolUsuario.Administrador }));
+
+        using var response = await client.PutAsJsonAsync("api/reportes/1/asignar", new { idCuadrilla = 999 });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var scope = app.Services.CreateScope();
+        var report = await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Reportes.FindAsync(1);
+        Assert.NotNull(report);
+        Assert.Equal(2, report!.IdCuadrillaAsignada);
+        Assert.Equal(EstatusReporte.EnProceso, report.Estatus);
+    }
+
+    [Fact]
+    public async Task Crew_jwt_cannot_read_the_administrative_crew_catalog()
+    {
+        AuthenticateCuadrilla();
+
+        using var response = await client.GetAsync("api/cuadrillas?registrosPorPagina=50");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Crew_can_read_only_its_assigned_reports_from_its_dedicated_endpoint()
+    {
+        using (var scope = app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.Reportes.Add(new Reporte
+            {
+                Id = 2, Descripcion = "Asignado a One", Categoria = "Prueba", TipoProblema = TipoProblema.Fuga,
+                IdCuadrillaAsignada = 1, Estatus = EstatusReporte.Asignado, Prioridad = PrioridadReporte.Media
+            });
+            await db.SaveChangesAsync();
+        }
+        AuthenticateCuadrilla();
+
+        using var response = await client.GetAsync("api/cuadrillas/me/reportes");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var reports = await response.Content.ReadFromJsonAsync<List<ReporteResponse>>();
+        var report = Assert.Single(reports!);
+        Assert.Equal(2, report.Id);
+    }
+
     private void AuthenticateCuadrilla() =>
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",
             jwt.GenerarTokenCuadrilla(new Cuadrilla { Id = 1, Nombre = "One", UsuarioApp = "one" }));
@@ -194,5 +266,21 @@ public class ReportAdministrationAuthorizationTests : IAsyncLifetime
         public Task<ArchivoGuardadoResult> EditarArchivo(string contenedor, IFormFile archivo, string rutaArchivoActual) => 
             Task.FromResult(new ArchivoGuardadoResult { Exitoso = true, Url = "/test/evidencia-editada.jpg" });
         public Task BorrarArchivo(string contenedor, string rutaArchivo) => Task.CompletedTask;
+    }
+
+    private sealed class CuadrillaLoginResponse
+    {
+        public string Token { get; set; } = string.Empty;
+        public CuadrillaResponse Cuadrilla { get; set; } = null!;
+    }
+
+    private sealed class CuadrillaResponse
+    {
+        public int Id { get; set; }
+    }
+
+    private sealed class ReporteResponse
+    {
+        public int Id { get; set; }
     }
 }

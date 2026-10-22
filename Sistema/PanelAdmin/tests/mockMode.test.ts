@@ -6,6 +6,10 @@ test('la configuración explícita de entorno desactiva un mock persistido', () 
   assert.equal(resolveMockMode('false', 'true'), false);
 });
 
-test('conserva la preferencia persistida cuando no hay configuración de entorno', () => {
-  assert.equal(resolveMockMode(undefined, 'true'), true);
+test('ignora un modo mock persistido cuando no hay configuración de entorno', () => {
+  assert.equal(resolveMockMode(undefined, 'true'), false);
+});
+
+test('no habilita datos mock aunque exista una configuración heredada', () => {
+  assert.equal(resolveMockMode('true', 'true'), false);
 });

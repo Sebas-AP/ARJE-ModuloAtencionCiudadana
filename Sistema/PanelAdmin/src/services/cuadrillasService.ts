@@ -28,12 +28,7 @@ export const cuadrillasService = {
       return [...localCuadrillas];
     }
 
-    try {
-      return await apiClient<CuadrillaDTO[]>('/cuadrillas');
-    } catch (err) {
-      console.warn('API error fetching cuadrillas, using local state', err);
-      return [...localCuadrillas];
-    }
+    return apiClient<CuadrillaDTO[]>('/cuadrillas?registrosPorPagina=100');
   },
 
   /**
@@ -46,13 +41,7 @@ export const cuadrillasService = {
       return c;
     }
 
-    try {
-      return await apiClient<CuadrillaDTO>(`/cuadrillas/${id}`);
-    } catch {
-      const c = localCuadrillas.find((x) => x.id === id);
-      if (c) return c;
-      throw new Error(`Cuadrilla ${id} no encontrada`);
-    }
+    return apiClient<CuadrillaDTO>(`/cuadrillas/${id}`);
   },
 
   /**

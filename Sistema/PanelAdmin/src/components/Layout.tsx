@@ -8,8 +8,6 @@ interface LayoutProps {
   onSelectTab: (tab: ScreenTab) => void;
   currentUser: UsuarioDTO | null;
   onLogout: () => void;
-  isMockActive: boolean;
-  onToggleMock: () => void;
   reportes: ReporteDTO[];
   onRefresh: () => void;
   isRefreshing?: boolean;
@@ -22,8 +20,6 @@ export const Layout: React.FC<LayoutProps> = ({
   onSelectTab,
   currentUser,
   onLogout,
-  isMockActive,
-  onToggleMock,
   reportes,
   onRefresh,
   isRefreshing = false,
@@ -56,8 +52,6 @@ export const Layout: React.FC<LayoutProps> = ({
         onSelectTab={onSelectTab}
         currentUser={currentUser}
         onLogout={onLogout}
-        isMockActive={isMockActive}
-        onToggleMock={onToggleMock}
         isCollapsed={isCollapsed}
         onToggleCollapse={handleToggleCollapse}
       />

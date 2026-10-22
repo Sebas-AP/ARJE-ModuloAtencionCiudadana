@@ -10,6 +10,18 @@ Este README está dirigido a quienes mantienen y verifican la aplicación. La se
 - Desde `Sistema/AppCuadrilla`, `npm test` ejecuta las pruebas de servicios y políticas de campo; `npx tsc --noEmit` comprueba tipos; `npx expo lint` ejecuta ESLint. Estos tres comandos se verificaron en el worktree el 14 de octubre de 2026.
 - El inicio de sesión de cuadrilla utiliza la API. La lista y el detalle de reportes necesitan conexión para su primera carga; la aplicación no conserva una copia offline de esos datos.
 
+### Flujo de asignación y cuentas iniciales
+
+El administrador registra y consulta las cuadrillas desde el Panel Admin, y asigna cada reporte a una cuadrilla registrada. La aplicación de campo autentica la cuenta de la cuadrilla y la API filtra sus reportes por la cuadrilla incluida en el JWT; una cuenta no puede consultar reportes de otra.
+
+Al iniciar la API se crean únicamente si no existen estas cuentas iniciales de demostración. Cámbialas o crea cuentas reales desde el Panel Admin antes de operar en producción:
+
+| Cuadrilla | Usuario app | Contraseña inicial |
+| --- | --- | --- |
+| Cuadrilla Norte | `cuadrilla_norte` | `Norte2026!` |
+| Cuadrilla Centro | `cuadrilla_centro` | `Centro2026!` |
+| Cuadrilla Sur | `cuadrilla_sur` | `Sur2026!` |
+
 ### Configuración del Mapa (Nativo y Web)
 
 #### Proveedor de mapas nativo
@@ -47,6 +59,16 @@ El script detecta la IP privada actual del equipo, define para esa sesión `EXPO
 ```bash
 EXPO_LOCAL_IP=192.168.1.50 ./scripts/start-lan.sh
 ```
+
+### Teléfono Android por USB
+
+Para un teléfono físico conectado por USB, `10.0.2.2` no apunta a la computadora: sólo funciona en el emulador. Con la depuración USB autorizada, inicia la API y después ejecuta:
+
+```bash
+./scripts/start-usb.sh
+```
+
+El script configura `adb reverse` para Metro y la API, por lo que la aplicación usa `http://127.0.0.1:5170/api` dentro del teléfono. Si la pantalla de reportes muestra un error de conexión, confirma primero que `dotnet run` sigue activo en el puerto 5170.
 
 La API debe permitir tráfico entrante desde la red local en el puerto 5170. Si el inicio de sesión falla en el teléfono pero funciona en navegador, comprueba que el firewall del equipo no bloquee ese puerto y abre desde el navegador del teléfono `http://<IP-LOCAL>:5170` para confirmar que puede alcanzar el servidor.
 

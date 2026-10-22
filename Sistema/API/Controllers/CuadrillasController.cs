@@ -8,6 +8,7 @@ using AutoMapper;
 using ARJE.Api.Entidades;
 using ARJE.Api.Entidades.Enums;
 using ARJE.Api.DTOs.Cuadrilla;
+using ARJE.Api.DTOs.Reporte;
 using ARJE.Api.Servicios;
 using ARJE.Api.Utilidades;
 
@@ -30,6 +31,27 @@ public class CuadrillasController : CustomBaseController<Cuadrilla, CuadrillaCre
     {
         _jwtService = jwtService;
     }
+
+    [HttpGet]
+    [Authorize(Roles = "Administrador")]
+    public override Task<ActionResult<List<CuadrillaDTO>>> Get(int pagina = 1, int registrosPorPagina = 10) =>
+        base.Get(pagina, registrosPorPagina);
+
+    [HttpGet("{id:int}", Name = "ObtenerPorId")]
+    [Authorize(Roles = "Administrador")]
+    public override Task<ActionResult<CuadrillaDTO>> Get(int id) => base.Get(id);
+
+    [HttpPost]
+    [Authorize(Roles = "Administrador")]
+    public override Task<ActionResult> Post([FromBody] CuadrillaCreacionDTO creacionDTO) => base.Post(creacionDTO);
+
+    [HttpPut("{id:int}")]
+    [Authorize(Roles = "Administrador")]
+    public override Task<ActionResult> Put(int id, [FromBody] CuadrillaCreacionDTO creacionDTO) => base.Put(id, creacionDTO);
+
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Administrador")]
+    public override Task<ActionResult> Delete(int id) => base.Delete(id);
 
     [HttpPost("login")]
     [AllowAnonymous]
@@ -74,7 +96,28 @@ public class CuadrillasController : CustomBaseController<Cuadrilla, CuadrillaCre
         return Ok(_mapper.Map<CuadrillaDTO>(cuadrilla));
     }
 
+    [HttpGet("me/reportes")]
+    [Authorize(Roles = "Cuadrilla")]
+    public async Task<ActionResult<List<ReporteDTO>>> GetMisReportes()
+    {
+        var idStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(idStr) || !int.TryParse(idStr, out var id))
+        {
+            return Unauthorized();
+        }
+
+        var reportes = await _context.Reportes
+            .Include(r => r.CuadrillaAsignada)
+            .Include(r => r.Evidencias)
+            .Where(r => r.IdCuadrillaAsignada == id)
+            .OrderByDescending(r => r.FechaRecibido)
+            .ToListAsync();
+
+        return Ok(_mapper.Map<List<ReporteDTO>>(reportes));
+    }
+
     [HttpGet("disponibles")]
+    [Authorize(Roles = "Administrador")]
     [OutputCache(Tags = new[] { "cuadrillas" })]
     public async Task<ActionResult<List<CuadrillaDTO>>> GetDisponibles()
     {

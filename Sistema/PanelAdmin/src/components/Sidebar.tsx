@@ -22,8 +22,6 @@ interface SidebarProps {
   onSelectTab: (tab: ScreenTab) => void;
   currentUser: UsuarioDTO | null;
   onLogout: () => void;
-  isMockActive: boolean;
-  onToggleMock: () => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
 }
@@ -33,8 +31,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTab,
   currentUser,
   onLogout,
-  isMockActive,
-  onToggleMock,
   isCollapsed = false,
   onToggleCollapse,
 }) => {
@@ -246,49 +242,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)')}
           >
             <PanelLeftOpen size={18} />
-          </button>
-        </div>
-      )}
-
-      {/* Selector de Modo de Conectividad (Mock / API Real) */}
-      {!isCollapsed && (
-        <div
-          style={{
-            padding: '12px 16px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.15)',
-          }}
-        >
-          <button
-            onClick={onToggleMock}
-            title="Alternar entre modo Mock y API real"
-            style={{
-              width: '100%',
-              padding: '7px 10px',
-              backgroundColor: isMockActive
-                ? 'rgba(245, 154, 30, 0.2)'
-                : 'rgba(34, 197, 94, 0.2)',
-              border: isMockActive
-                ? '1px solid #F59A1E'
-                : '1px solid #22C55E',
-              borderRadius: '4px',
-              color: '#FFFFFF',
-              fontSize: '11px',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              cursor: 'pointer',
-            }}
-          >
-            <span>{isMockActive ? 'Modo: Mock Offline' : 'Modo: API .NET Real'}</span>
-            <span
-              style={{
-                width: '7px',
-                height: '7px',
-                borderRadius: '50%',
-                backgroundColor: isMockActive ? '#F59A1E' : '#22C55E',
-              }}
-            />
           </button>
         </div>
       )}

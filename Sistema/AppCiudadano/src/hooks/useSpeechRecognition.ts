@@ -3,11 +3,22 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import type { ExpoSpeechRecognitionOptions } from 'expo-speech-recognition';
 
-// Expo Go cannot load this third-party native module. Do not require it in
-// that runtime: the report form remains usable and simply omits dictation.
-const speechRecognitionModule = Constants.executionEnvironment === 'storeClient'
-  ? null
-  : require('expo-speech-recognition').ExpoSpeechRecognitionModule;
+// Expo Go and development builds created before this module was added cannot
+// load it. Keep the report form available and enable dictation after a new
+// development build includes the native module.
+function loadNativeSpeechRecognitionModule() {
+  if (Platform.OS === 'web' || Constants.executionEnvironment === 'storeClient') {
+    return null;
+  }
+
+  try {
+    return require('expo-speech-recognition').ExpoSpeechRecognitionModule;
+  } catch {
+    return null;
+  }
+}
+
+const speechRecognitionModule = loadNativeSpeechRecognitionModule();
 
 // Web Speech API detection
 const webSpeechRecognition = Platform.OS === 'web' && typeof window !== 'undefined' 

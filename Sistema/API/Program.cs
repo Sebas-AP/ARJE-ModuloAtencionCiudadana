@@ -119,6 +119,8 @@ using (var scope = app.Services.CreateScope())
     {
         dbContext.Database.Migrate();
     }
+
+    await CuadrillasIniciales.AsegurarRegistradasAsync(dbContext);
 }
 
 if (app.Environment.IsDevelopment())

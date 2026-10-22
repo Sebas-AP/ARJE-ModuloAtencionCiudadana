@@ -1,6 +1,5 @@
 import {
-  getReportesAsignados,
-  getReportesSupervisados,
+  getMisReportes,
   getReporteDetalle,
 } from './api';
 import { ReporteDTO, ActualizarEstatusDTO } from '../types';
@@ -10,13 +9,8 @@ import type { SyncResult } from './syncService';
 
 export const reportesService = {
   async getAsignados(idCuadrilla: number): Promise<ReporteDTO[]> {
-    const [asignados, supervisados] = await Promise.all([
-      getReportesAsignados(idCuadrilla),
-      getReportesSupervisados(idCuadrilla),
-    ]);
-    const assignedIds = new Set(asignados.map((reporte) => reporte.id));
-    return asignados
-      .concat(supervisados.filter((reporte) => !assignedIds.has(reporte.id)))
+    void idCuadrilla;
+    return (await getMisReportes())
       .filter((reporte) => isVisibleAssignedStatus(reporte.estatus));
   },
 

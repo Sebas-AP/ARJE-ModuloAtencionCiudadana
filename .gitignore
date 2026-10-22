@@ -23,6 +23,11 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
+# Base SQLite local de desarrollo y archivos de journal generados al ejecutar la API.
+Sistema/API/arje_desarrollo.db
+Sistema/API/*.db-shm
+Sistema/API/*.db-wal
+
 # Logs y bases de datos locales temporales
 *.log
 api.log

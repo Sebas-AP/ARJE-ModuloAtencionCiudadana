@@ -5,6 +5,12 @@ import { setFieldOperationOwner, syncFieldOperations } from './fieldOperationsSe
 import { clearLocationSession, setLocationSessionOwner, stopLocationTracking } from './locationService';
 
 let currentCuadrilla: CuadrillaDTO | null = null;
+type SessionListener = (cuadrilla: CuadrillaDTO | null) => void;
+const sessionListeners = new Set<SessionListener>();
+
+function notifySessionChange(): void {
+  sessionListeners.forEach((listener) => listener(currentCuadrilla));
+}
 
 async function syncAfterSession(): Promise<void> {
   try {
@@ -21,6 +27,7 @@ export const authService = {
     const response = createCuadrillaSession(await loginCuadrilla(usuario, password));
     await setAuthToken(response.token);
     currentCuadrilla = response.cuadrilla;
+    notifySessionChange();
     setFieldOperationOwner(response.cuadrilla.id);
     await setLocationSessionOwner(response.cuadrilla.id);
     await syncAfterSession();
@@ -32,6 +39,7 @@ export const authService = {
     setFieldOperationOwner(null);
     await clearAuthToken();
     currentCuadrilla = null;
+    notifySessionChange();
   },
 
   async getCurrentCuadrilla(): Promise<CuadrillaDTO | null> {
@@ -43,6 +51,7 @@ export const authService = {
     try {
       const cuadrilla = await getCuadrillaActual();
       currentCuadrilla = cuadrilla;
+      notifySessionChange();
       setFieldOperationOwner(cuadrilla.id);
       await setLocationSessionOwner(cuadrilla.id);
       await syncAfterSession();
@@ -61,9 +70,15 @@ export const authService = {
     return !!token;
   },
 
+  subscribe(listener: SessionListener): () => void {
+    sessionListeners.add(listener);
+    return () => sessionListeners.delete(listener);
+  },
+
   setCurrentCuadrilla(cuadrilla: CuadrillaDTO | null) {
     const changedSession = currentCuadrilla?.id !== cuadrilla?.id;
     currentCuadrilla = cuadrilla;
+    notifySessionChange();
     setFieldOperationOwner(cuadrilla?.id ?? null);
     void setLocationSessionOwner(cuadrilla?.id ?? null);
     if (changedSession) {

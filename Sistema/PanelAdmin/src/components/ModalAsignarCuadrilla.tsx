@@ -43,6 +43,10 @@ export const ModalAsignarCuadrilla: React.FC<ModalAsignarCuadrillaProps> = ({
             else setSelectedCuadrillaId(list[0].id);
           }
         })
+        .catch((cause: unknown) => {
+          setCuadrillas([]);
+          setError(cause instanceof Error ? cause.message : 'No se pudieron cargar las cuadrillas registradas.');
+        })
         .finally(() => setLoading(false));
     }
   }, [isOpen]);

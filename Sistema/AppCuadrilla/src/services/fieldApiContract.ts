@@ -14,6 +14,7 @@ export interface CuadrillaLoginPayload {
 }
 
 export const fieldApiPaths = {
+  misReportes: '/cuadrillas/me/reportes',
   estatus: (idReporte: number) => `/reportes/${idReporte}/estatus`,
   evidencias: (idReporte: number) => `/reportes/${idReporte}/evidencias`,
   ubicaciones: (idReporte: number) => `/reportes/${idReporte}/ubicaciones`,

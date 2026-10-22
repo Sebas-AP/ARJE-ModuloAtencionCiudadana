@@ -17,13 +17,23 @@ export default function RootLayout() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
+    let active = true;
+    const unsubscribe = authService.subscribe((cuadrilla) => {
+      if (active) setUser(cuadrilla);
+    });
     const loadUser = async () => {
       const currentUser = await authService.getCurrentCuadrilla();
-      setUser(currentUser);
-      setUserLoaded(true);
-      SplashScreen.hideAsync();
+      if (active) {
+        setUser(currentUser);
+        setUserLoaded(true);
+        void SplashScreen.hideAsync();
+      }
     };
-    loadUser();
+    void loadUser();
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   if (!userLoaded || !fontsLoaded) {
@@ -36,14 +46,15 @@ export default function RootLayout() {
         headerShown: false,
       }}
     >
-      {user ? (
-        <>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="reporte/[id]" />
-        </>
-      ) : (
-        <Stack.Screen name="(auth)/login" />
-      )}
+      <Stack.Protected guard={!user}>
+        <Stack.Screen name="(auth)" />
+      </Stack.Protected>
+      <Stack.Protected guard={!!user}>
+        <Stack.Screen name="(tabs)" />
+      </Stack.Protected>
+      <Stack.Protected guard={!!user}>
+        <Stack.Screen name="reporte/[id]" />
+      </Stack.Protected>
     </Stack>
   );
 }

@@ -43,7 +43,8 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddScoped<IAlmacenadorArchivos, AlmacenadorArchivosLocal>();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<IAlmacenadorArchivos, AlmacenadorArchivosImgbb>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddHttpContextAccessor();
 

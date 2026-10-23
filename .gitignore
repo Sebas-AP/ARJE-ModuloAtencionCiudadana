@@ -49,3 +49,6 @@ api.log
 .worktrees/
 /mise.toml
 /run-tunnel.sh
+/docs
+/.superpowers
+/.playwright-mcp

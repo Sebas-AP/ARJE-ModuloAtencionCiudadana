@@ -1,23 +1,65 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { useFocusEffect } from 'expo-router';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Camera, type CameraRef, Map, Marker } from '@maplibre/maplibre-react-native';
 import * as Location from 'expo-location';
+
 import { useLocation } from '../hooks/useLocation';
 import { authService } from '../services/authService';
 import { reportesService } from '../services/reportesService';
 import { ReporteDTO, EstatusReporteLabels } from '../types';
 import { APP_THEME } from '../theme/appTheme';
 import { isActiveAssignedStatus } from '../services/fieldApiContract';
+import { getNativeMaptilerConfig } from '../services/maptilerConfig';
+import { buildAssignedMapModel } from '../services/mapaAsignadosModel';
+
+const DEFAULT_CENTER: [number, number] = [-102.2916, 21.8853];
+const ATTRIBUTION_TEXT = '© MapTiler © OpenStreetMap contributors';
+
+function parseReporteId(value: string | undefined): number | null {
+  const parsed = Number.parseInt(value ?? '', 10);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+}
 
 export default function MapaScreen() {
-  const [reporte, setReporte] = useState<ReporteDTO | null>(null);
+  const { reporteId } = useLocalSearchParams<{ reporteId?: string }>();
+  const [reportes, setReportes] = useState<ReporteDTO[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(parseReporteId(reporteId));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const mapRef = useRef<MapView>(null);
+  const [mapError, setMapError] = useState(false);
+  const [mapAttempt, setMapAttempt] = useState(0);
+  const [ownLocation, setOwnLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const cameraRef = useRef<CameraRef>(null);
+  const lastCenteredId = useRef<number | null>(null);
+  const maptilerConfig = useMemo(() => getNativeMaptilerConfig(), []);
+  const requestedReporteId = parseReporteId(reporteId);
 
-  const { location, iniciarSeguimiento, detenerSeguimiento, tracking, canTrack, error: trackingError } = useLocation(reporte?.id, reporte?.estatus);
+  const assignedReportes = useMemo(
+    () => reportes.filter((reporte) => isActiveAssignedStatus(reporte.estatus)),
+    [reportes],
+  );
+  const activeTrackingReporte = useMemo(
+    () => assignedReportes.find((reporte) => reporte.estatus === 4)
+      ?? assignedReportes.find((reporte) => reporte.estatus === 3)
+      ?? assignedReportes[0]
+      ?? null,
+    [assignedReportes],
+  );
+  const model = useMemo(
+    () => buildAssignedMapModel(assignedReportes, selectedId),
+    [assignedReportes, selectedId],
+  );
+  const selectedReporte = assignedReportes.find((reporte) => reporte.id === model.selectedId) ?? null;
+
+  const {
+    location,
+    iniciarSeguimiento,
+    detenerSeguimiento,
+    tracking,
+    canTrack,
+    error: trackingError,
+  } = useLocation(activeTrackingReporte?.id, activeTrackingReporte?.estatus);
 
   const cargarDatos = useCallback(async () => {
     try {
@@ -25,14 +67,11 @@ export default function MapaScreen() {
       const cuadrilla = await authService.getCurrentCuadrilla();
       if (!cuadrilla) {
         setError('No se encontró cuadrilla asignada');
-        setLoading(false);
         return;
       }
 
-      const reportes = await reportesService.getAsignados(cuadrilla.id);
-      const reportesActivos = reportes.filter((report) => isActiveAssignedStatus(report.estatus));
-      const reporteActivo = reportesActivos.find(r => r.estatus === 4 || r.estatus === 3) || reportesActivos[0];
-      setReporte(reporteActivo ?? null);
+      const asignados = await reportesService.getAsignados(cuadrilla.id);
+      setReportes(asignados);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'No se pudieron cargar los reportes');
     } finally {
@@ -40,64 +79,47 @@ export default function MapaScreen() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { void cargarDatos(); }, [cargarDatos]));
+  useFocusEffect(useCallback(() => {
+    if (requestedReporteId !== null) setSelectedId(requestedReporteId);
+    void cargarDatos();
+  }, [cargarDatos, requestedReporteId]));
 
   useEffect(() => {
-    // Obtener ubicación inicial
-    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
-      .then(loc => setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude }))
+    if (activeTrackingReporte) return;
+    void Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
+      .then((loc) => setOwnLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude }))
       .catch(() => {});
+  }, [activeTrackingReporte]);
+
+  const userLocation = location ?? ownLocation;
+
+  const moveCamera = useCallback((latitude: number, longitude: number, zoom = 15) => {
+    try {
+      cameraRef.current?.easeTo({ center: [longitude, latitude], zoom, duration: 600 });
+    } catch {
+      // La cámara aún no está lista; el siguiente gesto del usuario la ubicará.
+    }
   }, []);
 
   useEffect(() => {
-    if (location) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setUserLocation(location);
-    }
-  }, [location]);
-
-  const region = reporte
-    ? {
-        latitude: reporte.latitud,
-        longitude: reporte.longitud,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }
-    : userLocation
-    ? {
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }
-    : {
-        latitude: 21.8853,
-        longitude: -102.2916,
-        latitudeDelta: 0.5,
-        longitudeDelta: 0.5,
-      };
+    if (!selectedReporte || lastCenteredId.current === selectedReporte.id) return;
+    lastCenteredId.current = selectedReporte.id;
+    moveCamera(selectedReporte.latitud, selectedReporte.longitud);
+  }, [selectedReporte, moveCamera]);
 
   const centrarEnReporte = () => {
-    if (reporte && mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: reporte.latitud,
-        longitude: reporte.longitud,
-        latitudeDelta: 0.005,
-        longitudeDelta: 0.005,
-      }, 1000);
-    }
+    if (selectedReporte) moveCamera(selectedReporte.latitud, selectedReporte.longitud);
   };
 
   const centrarEnUsuario = () => {
-    if (userLocation && mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
-        latitudeDelta: 0.005,
-        longitudeDelta: 0.005,
-      }, 1000);
-    }
+    if (userLocation) moveCamera(userLocation.latitude, userLocation.longitude);
   };
+
+  const initialCenter: [number, number] = selectedReporte
+    ? [selectedReporte.longitud, selectedReporte.latitud]
+    : userLocation
+      ? [userLocation.longitude, userLocation.latitude]
+      : DEFAULT_CENTER;
 
   if (loading) {
     return (
@@ -112,7 +134,7 @@ export default function MapaScreen() {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>⚠ {error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={cargarDatos}>
+        <TouchableOpacity style={styles.retryButton} onPress={() => { void cargarDatos(); }}>
           <Text style={styles.retryButtonText}>Reintentar</Text>
         </TouchableOpacity>
       </View>
@@ -121,56 +143,95 @@ export default function MapaScreen() {
 
   return (
     <View style={styles.container}>
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_GOOGLE}
-        style={styles.map}
-        initialRegion={region}
-        showsUserLocation={true}
-        showsMyLocationButton={true}
-        customMapStyle={mapStyle}
-      >
-        {/* Marcador del reporte */}
-        {reporte && (
-          <Marker
-            coordinate={{ latitude: reporte.latitud, longitude: reporte.longitud }}
-            title={reporte.categoria || 'Reporte'}
-            description={reporte.direccion || ''}
-            pinColor="#EF4444"
-          >
-            <View style={styles.markerContainer}>
-              <View style={styles.markerPin} />
-            </View>
-          </Marker>
-        )}
+      {maptilerConfig ? (
+        <Map
+          key={mapAttempt}
+          style={styles.map}
+          mapStyle={maptilerConfig.styleUrl}
+          attribution
+          logo
+          compass
+          onDidFailLoadingMap={() => setMapError(true)}
+          onDidFinishLoadingMap={() => setMapError(false)}
+        >
+          <Camera
+            ref={cameraRef}
+            initialViewState={{ center: initialCenter, zoom: 14 }}
+            minZoom={4}
+            maxZoom={19}
+          />
 
-        {/* Marcador de ubicación del usuario */}
-        {userLocation && (
-          <Marker
-            coordinate={userLocation}
-            title="Tu ubicación"
-            description={tracking ? 'Seguimiento activo' : 'Ubicación actual'}
-            pinColor="#253C96"
-          >
-            <View style={styles.userMarkerContainer}>
-              <View style={[
-                styles.userMarkerPin,
-                tracking && styles.userMarkerPinActive,
-              ]} />
-            </View>
-          </Marker>
-        )}
-      </MapView>
+          {model.markers.map((marker) => {
+            const reporte = assignedReportes.find((item) => item.id === marker.id);
+            const isSelected = marker.id === model.selectedId;
+            const isTracking = marker.id === activeTrackingReporte?.id && tracking;
+            return (
+              <Marker
+                key={`reporte-${marker.id}`}
+                id={`reporte-${marker.id}`}
+                lngLat={[marker.longitud, marker.latitud]}
+                anchor="bottom"
+                onPress={() => setSelectedId(marker.id)}
+              >
+                <View style={styles.markerContainer}>
+                  <View style={[
+                    styles.markerPin,
+                    isTracking && styles.markerPinTracking,
+                    isSelected && styles.markerPinSelected,
+                  ]} />
+                  {reporte ? (
+                    <Text style={[styles.markerLabel, isSelected && styles.markerLabelSelected]} numberOfLines={1}>
+                      {reporte.folio || `REP-${reporte.id}`}
+                    </Text>
+                  ) : null}
+                </View>
+              </Marker>
+            );
+          })}
 
-      {/* Panel inferior con info */}
+          {userLocation ? (
+            <Marker
+              id="mi-ubicacion"
+              lngLat={[userLocation.longitude, userLocation.latitude]}
+              anchor="center"
+            >
+              <View style={styles.userMarkerContainer}>
+                <View style={[styles.userMarkerPin, tracking && styles.userMarkerPinActive]} />
+              </View>
+            </Marker>
+          ) : null}
+        </Map>
+      ) : (
+        <View style={styles.mapUnavailable}>
+          <Text style={styles.errorText}>⚠ Mapa no disponible: falta la clave MapTiler.</Text>
+        </View>
+      )}
+
+      {mapError ? (
+        <View style={styles.mapErrorOverlay}>
+          <Text style={styles.mapErrorText}>No se pudo cargar el mapa.</Text>
+          <TouchableOpacity
+            style={styles.mapRetryButton}
+            onPress={() => {
+              setMapError(false);
+              setMapAttempt((attempt) => attempt + 1);
+            }}
+          >
+            <Text style={styles.mapRetryButtonText}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      <Text style={styles.attribution}>{ATTRIBUTION_TEXT}</Text>
+
       <View style={styles.bottomPanel}>
-        {reporte ? (
+        {selectedReporte ? (
           <>
             <View style={styles.infoRow}>
               <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>{reporte.categoria || 'Sin categoría'}</Text>
-                <Text style={styles.infoValue}>{reporte.folio || `REP-${reporte.id}`}</Text>
-                <Text style={styles.infoLabel}>{EstatusReporteLabels[reporte.estatus]}</Text>
+                <Text style={styles.infoLabel}>{selectedReporte.categoria || 'Sin categoría'}</Text>
+                <Text style={styles.infoValue}>{selectedReporte.folio || `REP-${selectedReporte.id}`}</Text>
+                <Text style={styles.infoLabel}>{EstatusReporteLabels[selectedReporte.estatus]}</Text>
               </View>
               <TouchableOpacity style={styles.centerButton} onPress={centrarEnReporte}>
                 <Text style={styles.centerButtonText}>Centrar reporte</Text>
@@ -179,29 +240,31 @@ export default function MapaScreen() {
             <View style={styles.infoRow}>
               <View style={styles.infoItem}>
                 <Text style={styles.infoLabel}>Dirección</Text>
-                <Text style={styles.infoValue} numberOfLines={2}>{reporte.direccion || 'No disponible'}</Text>
+                <Text style={styles.infoValue} numberOfLines={2}>
+                  {selectedReporte.direccion || 'No disponible'}
+                </Text>
               </View>
-              <TouchableOpacity style={styles.centerButton} onPress={centrarEnUsuario}>
+              <TouchableOpacity style={styles.centerButton} onPress={centrarEnUsuario} disabled={!userLocation}>
                 <Text style={styles.centerButtonText}>Mi ubicación</Text>
               </TouchableOpacity>
             </View>
+            <Text style={styles.reportCount}>
+              {assignedReportes.length} reporte{assignedReportes.length === 1 ? '' : 's'} asignado
+              {assignedReportes.length === 1 ? '' : 's'} · toca un marcador para cambiar
+            </Text>
           </>
         ) : (
           <View style={styles.noReporte}>
             <Text style={styles.noReporteText}>No hay reportes asignados</Text>
-            <TouchableOpacity style={styles.centerButton} onPress={centrarEnUsuario}>
+            <TouchableOpacity style={styles.centerButton} onPress={centrarEnUsuario} disabled={!userLocation}>
               <Text style={styles.centerButtonText}>Ver mi ubicación</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Botón de seguimiento */}
-        {reporte && (
+        {activeTrackingReporte ? (
           <TouchableOpacity
-            style={[
-              styles.trackingButton,
-              tracking && styles.trackingButtonActive,
-            ]}
+            style={[styles.trackingButton, tracking && styles.trackingButtonActive]}
             onPress={() => {
               if (tracking) {
                 void detenerSeguimiento();
@@ -211,273 +274,90 @@ export default function MapaScreen() {
             }}
             disabled={!canTrack}
           >
-            <Text style={[
-              styles.trackingButtonText,
-              tracking && styles.trackingButtonTextActive,
-            ]}>
-              {tracking ? '● Seguimiento ACTIVO' : '○ Activar seguimiento GPS'}
+            <Text style={[styles.trackingButtonText, tracking && styles.trackingButtonTextActive]}>
+              {tracking
+                ? '● Seguimiento ACTIVO'
+                : `○ Activar seguimiento GPS · ${activeTrackingReporte.folio || `REP-${activeTrackingReporte.id}`}`}
             </Text>
           </TouchableOpacity>
-        )}
-        {trackingError && <Text style={styles.errorText}>{trackingError}</Text>}
+        ) : null}
+        {trackingError ? <Text style={styles.errorText}>{trackingError}</Text> : null}
       </View>
     </View>
   );
 }
 
-const mapStyle = [
-  {
-    elementType: 'geometry',
-    stylers: [{ color: '#F5F5F5' }],
-  },
-  {
-    elementType: 'labels.icon',
-    stylers: [{ visibility: 'off' }],
-  },
-  {
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#616161' }],
-  },
-  {
-    elementType: 'labels.text.stroke',
-    stylers: [{ color: '#F5F5F5' }],
-  },
-  {
-    featureType: 'administrative.land_parcel',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#BDBDBD' }],
-  },
-  {
-    featureType: 'poi',
-    elementType: 'geometry',
-    stylers: [{ color: '#EEEEEE' }],
-  },
-  {
-    featureType: 'poi',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#757575' }],
-  },
-  {
-    featureType: 'poi.park',
-    elementType: 'geometry',
-    stylers: [{ color: '#E8E8E8' }],
-  },
-  {
-    featureType: 'poi.park',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#9E9E9E' }],
-  },
-  {
-    featureType: 'road',
-    elementType: 'geometry',
-    stylers: [{ color: '#FFFFFF' }],
-  },
-  {
-    featureType: 'road.arterial',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#757575' }],
-  },
-  {
-    featureType: 'road.highway',
-    elementType: 'geometry',
-    stylers: [{ color: '#DADADA' }],
-  },
-  {
-    featureType: 'road.highway',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#616161' }],
-  },
-  {
-    featureType: 'road.local',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#9E9E9E' }],
-  },
-  {
-    featureType: 'transit.line',
-    elementType: 'geometry',
-    stylers: [{ color: '#E5E5E5' }],
-  },
-  {
-    featureType: 'transit.station',
-    elementType: 'geometry',
-    stylers: [{ color: '#EEEEEE' }],
-  },
-  {
-    featureType: 'water',
-    elementType: 'geometry',
-    stylers: [{ color: '#C9C9C9' }],
-  },
-  {
-    featureType: 'water',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#9E9E9E' }],
-  },
-];
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: APP_THEME.colors.canvas,
+  container: { flex: 1, backgroundColor: APP_THEME.colors.canvas },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
+  loadingText: { fontSize: 16, color: '#64748B' },
+  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 16 },
+  errorText: { fontSize: 16, color: '#EF4444', textAlign: 'center' },
+  retryButton: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#253C96', borderRadius: 8 },
+  retryButtonText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
+  map: { flex: 1 },
+  mapUnavailable: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  mapErrorOverlay: {
+    position: 'absolute', top: 20, left: 20, right: 20, zIndex: 20,
+    backgroundColor: 'rgba(127,29,29,0.94)', borderRadius: 10, padding: 12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#64748B',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    gap: 16,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#EF4444',
-    textAlign: 'center',
-  },
-  retryButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: '#253C96',
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  map: {
-    flex: 1,
+  mapErrorText: { color: '#FFFFFF', fontSize: 13, flex: 1 },
+  mapRetryButton: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 5 },
+  mapRetryButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  attribution: {
+    position: 'absolute', left: 8, bottom: 230, zIndex: 10,
+    fontSize: 10, color: '#475569', backgroundColor: 'rgba(255,255,255,0.8)',
+    paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4,
   },
   bottomPanel: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    padding: 20, paddingBottom: 30, shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 12,
+    elevation: 8, borderWidth: 1, borderColor: '#E2E8F0',
   },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  infoItem: {
-    flex: 1,
-  },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  infoItem: { flex: 1 },
   infoLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 2,
+    fontSize: 11, fontWeight: '700', color: '#64748B', textTransform: 'uppercase',
+    letterSpacing: 0.5, marginBottom: 2,
   },
-  infoValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#19244E',
-  },
+  infoValue: { fontSize: 15, fontWeight: '600', color: '#19244E' },
   centerButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
+    paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#EFF6FF', borderRadius: 8,
+    borderWidth: 1, borderColor: '#BFDBFE',
   },
-  centerButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#253C96',
-  },
-  noReporte: {
-    alignItems: 'center',
-    gap: 12,
-  },
-  noReporteText: {
-    fontSize: 15,
-    color: '#64748B',
-    fontWeight: '500',
-  },
+  centerButtonText: { fontSize: 13, fontWeight: '600', color: '#253C96' },
+  reportCount: { fontSize: 12, color: '#64748B', marginBottom: 10 },
+  noReporte: { alignItems: 'center', gap: 12 },
+  noReporteText: { fontSize: 15, color: '#64748B', fontWeight: '500' },
   trackingButton: {
-    marginTop: 8,
-    paddingVertical: 14,
-    borderRadius: 10,
-    backgroundColor: '#FFF7ED',
-    borderWidth: 2,
-    borderColor: '#F36B2E',
-    alignItems: 'center',
+    marginTop: 8, paddingVertical: 14, borderRadius: 10, backgroundColor: '#FFF7ED',
+    borderWidth: 2, borderColor: '#F36B2E', alignItems: 'center',
   },
-  trackingButtonActive: {
-    backgroundColor: '#253C96',
-    borderColor: '#253C96',
-  },
-  trackingButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#F36B2E',
-  },
-  trackingButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  markerContainer: {
-    width: 36,
-    height: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  trackingButtonActive: { backgroundColor: '#253C96', borderColor: '#253C96' },
+  trackingButtonText: { fontSize: 15, fontWeight: '700', color: '#F36B2E' },
+  trackingButtonTextActive: { color: '#FFFFFF' },
+  markerContainer: { alignItems: 'center', maxWidth: 128 },
   markerPin: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#EF4444',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    width: 24, height: 24, borderRadius: 12, backgroundColor: '#EF4444',
+    borderWidth: 3, borderColor: '#FFFFFF', shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 4,
   },
-  userMarkerContainer: {
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
+  markerPinTracking: { backgroundColor: '#22C55E' },
+  markerPinSelected: { width: 30, height: 30, borderRadius: 15, borderWidth: 4 },
+  markerLabel: {
+    marginTop: 3, fontSize: 10, fontWeight: '700', color: '#19244E',
+    backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 4,
+    paddingHorizontal: 4, paddingVertical: 1,
   },
+  markerLabelSelected: { color: '#253C96', fontSize: 11 },
+  userMarkerContainer: { width: 32, height: 32, justifyContent: 'center', alignItems: 'center' },
   userMarkerPin: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#253C96',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    width: 20, height: 20, borderRadius: 10, backgroundColor: '#253C96',
+    borderWidth: 3, borderColor: '#FFFFFF', shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 4,
   },
-  userMarkerPinActive: {
-    backgroundColor: '#22C55E',
-    borderColor: '#FFFFFF',
-  },
+  userMarkerPinActive: { backgroundColor: '#22C55E', borderColor: '#FFFFFF' },
 });

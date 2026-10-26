@@ -9,4 +9,7 @@ public class SeguimientoUbicacionDTO
     public decimal Latitud { get; set; }
     public decimal Longitud { get; set; }
     public DateTime FechaHora { get; set; }
+    public DateTime? FechaRecepcion { get; set; }
+    public string? IdMuestra { get; set; }
+    public double? PrecisionMetros { get; set; }
 }

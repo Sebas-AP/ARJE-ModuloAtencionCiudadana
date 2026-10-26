@@ -25,4 +25,11 @@ public class SeguimientoUbicacion : IId
 
     [Required]
     public DateTime FechaHora { get; set; } = DateTime.UtcNow;
+
+    public DateTime? FechaRecepcion { get; set; }
+
+    [StringLength(100)]
+    public string? IdMuestra { get; set; }
+
+    public double? PrecisionMetros { get; set; }
 }

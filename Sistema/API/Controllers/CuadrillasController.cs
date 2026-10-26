@@ -21,15 +21,28 @@ public class CuadrillasController : CustomBaseController<Cuadrilla, CuadrillaCre
 {
     private readonly IJwtService _jwtService;
     private readonly FieldOperationPolicy _fieldOperationPolicy = new();
+    private readonly IUbicacionesCuadrillaService? _ubicacionesCuadrillaService;
 
     public CuadrillasController(
         ApplicationDbContext context,
         IMapper mapper,
         IOutputCacheStore outputCacheStore,
-        IJwtService jwtService)
+        IJwtService jwtService,
+        IUbicacionesCuadrillaService? ubicacionesCuadrillaService = null)
         : base(context, mapper, outputCacheStore, "cuadrillas")
     {
         _jwtService = jwtService;
+        _ubicacionesCuadrillaService = ubicacionesCuadrillaService;
+    }
+
+    [HttpGet("ubicaciones/ultimas")]
+    [Authorize(Roles = "Administrador")]
+    public async Task<ActionResult<List<UltimaUbicacionCuadrillaDTO>>> GetUltimasUbicaciones()
+    {
+        Response.Headers.CacheControl = "no-store";
+        var service = _ubicacionesCuadrillaService ?? new UbicacionesCuadrillaService(_context);
+        var ubicaciones = await service.GetUltimasAsync(HttpContext.RequestAborted);
+        return Ok(ubicaciones);
     }
 
     [HttpGet]

@@ -46,6 +46,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IAlmacenadorArchivos, AlmacenadorArchivosImgbb>();
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IUbicacionesCuadrillaService, UbicacionesCuadrillaService>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHttpContextAccessor();
 
 // Configuración de Autenticación JWT

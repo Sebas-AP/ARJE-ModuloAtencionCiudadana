@@ -48,7 +48,10 @@ public class AutoMapperProfiles : Profile
             .ForMember(d => d.CuadrillaNombre, o => o.MapFrom(s => s.Cuadrilla != null ? s.Cuadrilla.Nombre : string.Empty));
 
         CreateMap<SeguimientoUbicacionCreacionDTO, SeguimientoUbicacion>()
-            .ForMember(d => d.FechaHora, o => o.MapFrom(_ => DateTime.UtcNow));
+            .ForMember(d => d.FechaHora, o => o.Ignore())
+            .ForMember(d => d.FechaRecepcion, o => o.Ignore())
+            .ForMember(d => d.Reporte, o => o.Ignore())
+            .ForMember(d => d.Cuadrilla, o => o.Ignore());
 
         CreateMap<UsuarioSistema, UsuarioDTO>()
             .ForMember(d => d.Rol, o => o.MapFrom(s => s.Rol.ToString()));

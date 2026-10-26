@@ -207,8 +207,15 @@ namespace ARJE.Api.Migrations
                     b.Property<DateTime>("FechaHora")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("FechaRecepcion")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("IdCuadrilla")
                         .HasColumnType("int");
+
+                    b.Property<string>("IdMuestra")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<int>("IdReporte")
                         .HasColumnType("int");
@@ -219,11 +226,20 @@ namespace ARJE.Api.Migrations
                     b.Property<decimal>("Longitud")
                         .HasColumnType("decimal(18,15)");
 
+                    b.Property<double?>("PrecisionMetros")
+                        .HasColumnType("float");
+
                     b.HasKey("Id");
 
                     b.HasIndex("FechaHora");
 
                     b.HasIndex("IdCuadrilla");
+
+                    b.HasIndex("IdCuadrilla", "FechaHora", "Id");
+
+                    b.HasIndex("IdCuadrilla", "IdMuestra")
+                        .IsUnique()
+                        .HasFilter("[IdMuestra] IS NOT NULL");
 
                     b.HasIndex("IdReporte");
 

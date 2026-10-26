@@ -36,6 +36,31 @@ public sealed class ReporteSchemaMigrationTests : IDisposable
         Assert.Contains("ComentariosResolucion", columns);
         Assert.Contains("FechaSupervision", columns);
         Assert.Contains("NotasSupervision", columns);
+
+        await using var locationCommand = connection.CreateCommand();
+        locationCommand.CommandText = "PRAGMA table_info('SeguimientosUbicacion');";
+        await using var locationReader = await locationCommand.ExecuteReaderAsync();
+        var locationColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        while (await locationReader.ReadAsync())
+        {
+            locationColumns.Add(locationReader.GetString(locationReader.GetOrdinal("name")));
+        }
+
+        Assert.Contains("IdMuestra", locationColumns);
+        Assert.Contains("FechaRecepcion", locationColumns);
+        Assert.Contains("PrecisionMetros", locationColumns);
+
+        await using var indexCommand = connection.CreateCommand();
+        indexCommand.CommandText = "PRAGMA index_list('SeguimientosUbicacion');";
+        await using var indexReader = await indexCommand.ExecuteReaderAsync();
+        var indexes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        while (await indexReader.ReadAsync())
+        {
+            indexes.Add(indexReader.GetString(indexReader.GetOrdinal("name")));
+        }
+
+        Assert.Contains("IX_SeguimientosUbicacion_IdCuadrilla_IdMuestra", indexes);
+        Assert.Contains("IX_SeguimientosUbicacion_IdCuadrilla_FechaHora_Id", indexes);
     }
 
     public void Dispose() => connection.Dispose();

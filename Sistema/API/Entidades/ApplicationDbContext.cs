@@ -70,6 +70,10 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.IdReporte);
             entity.HasIndex(e => e.IdCuadrilla);
             entity.HasIndex(e => e.FechaHora);
+            entity.HasIndex(e => new { e.IdCuadrilla, e.IdMuestra })
+                  .IsUnique()
+                  .HasFilter("[IdMuestra] IS NOT NULL");
+            entity.HasIndex(e => new { e.IdCuadrilla, e.FechaHora, e.Id });
         });
 
         modelBuilder.Entity<UsuarioSistema>(entity =>

@@ -25,17 +25,20 @@ public class SeguimientosUbicacionController : ControllerBase
     private readonly IOutputCacheStore _outputCacheStore;
     private readonly FieldOperationPolicy _fieldOperationPolicy = new();
     private readonly TimeProvider _timeProvider;
+    private readonly IUbicacionesPublisher? _ubicacionesPublisher;
 
     public SeguimientosUbicacionController(
         ApplicationDbContext context,
         IMapper mapper,
         IOutputCacheStore outputCacheStore,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        IUbicacionesPublisher? ubicacionesPublisher = null)
     {
         _context = context;
         _mapper = mapper;
         _outputCacheStore = outputCacheStore;
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _ubicacionesPublisher = ubicacionesPublisher;
     }
 
     [HttpPost]
@@ -127,6 +130,21 @@ public class SeguimientosUbicacionController : ControllerBase
         }
 
         await _outputCacheStore.EvictByTagAsync("ubicaciones", default);
+
+        if (_ubicacionesPublisher != null)
+        {
+            try
+            {
+                await _ubicacionesPublisher.PublicarUltimaAsync(idCuadrilla, HttpContext.RequestAborted);
+            }
+            catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
+            {
+            }
+            catch
+            {
+                // La persistencia ya se confirmó; REST permite recuperar una emisión perdida.
+            }
+        }
 
         return Ok(new { mensaje = $"{pendientes.Count} ubicaciones registradas" });
     }

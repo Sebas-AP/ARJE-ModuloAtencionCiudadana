@@ -1,12 +1,11 @@
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using ARJE.Api.Entidades;
 using ARJE.Api.Servicios;
 using ARJE.Api.Utilidades;
+using ARJE.Api.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,49 +31,18 @@ builder.Services.AddOutputCache(options =>
     options.DefaultExpirationTimeSpan = TimeSpan.FromSeconds(60);
 });
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("permitirTodo", policy =>
-    {
-        policy.SetIsOriginAllowed(_ => true)
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
-    });
-});
+builder.Services.AddArjeCors(builder.Configuration["origenesPermitidos"]);
 
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IAlmacenadorArchivos, AlmacenadorArchivosImgbb>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IUbicacionesCuadrillaService, UbicacionesCuadrillaService>();
+builder.Services.AddScoped<IUbicacionesPublisher, UbicacionesPublisher>();
+builder.Services.AddSignalR();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHttpContextAccessor();
 
-// Configuración de Autenticación JWT
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "ARJE_Clave_Secreta_JWT_Super_Segura_2026_Agua_Potable_Token_Key_Length_32+";
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "ARJE.Api";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "ARJE.Apps";
-
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtIssuer,
-        ValidAudience = jwtAudience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-        ClockSkew = TimeSpan.Zero
-    };
-});
-
+builder.Services.AddArjeJwtAuthentication(builder.Configuration);
 builder.Services.AddAuthorization();
 
 // HTTP Client para NVIDIA API (timeout ágil de 10s para fallback inmediato en caso de red lenta)
@@ -133,7 +101,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("permitirTodo");
+app.UseCors(ArjeCorsConfiguration.PolicyName);
 
 // Servir archivos estáticos (evidencias)
 app.UseStaticFiles();
@@ -142,5 +110,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseOutputCache();
 app.MapControllers();
+app.MapHub<UbicacionesHub>(ArjeAuthenticationConfiguration.HubPath, options =>
+{
+    options.CloseOnAuthenticationExpiration = true;
+});
 
 app.Run();

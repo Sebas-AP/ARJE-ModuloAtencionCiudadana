@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ArrowLeft,
   MapPin,
@@ -18,7 +18,9 @@ import {
 import { ReporteDTO, CuadrillaDTO, EstatusReporte, EvidenciaDTO, ReporteDetalleDTO } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { PrioridadBadge } from '../components/PrioridadBadge';
-import { MapView } from '../components/MapView';
+import { MapView, type MapFocusTarget } from '../components/MapView';
+import { useUbicacionesCuadrillas } from '../hooks/useUbicacionesCuadrillas';
+import { toCrewMapPositions } from '../services/ubicacionesModel';
 import { reportesService } from '../services/reportesService';
 
 interface SeguimientoScreenProps {
@@ -52,6 +54,18 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
   );
   const [ubicacionMarcada, setUbicacionMarcada] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [focusTarget, setFocusTarget] = useState<MapFocusTarget | undefined>();
+  const focusRequestId = useRef(0);
+  const { posiciones } = useUbicacionesCuadrillas(true);
+  const assignedCrewId = currentReporte?.idCuadrillaAsignada ?? reporte.idCuadrillaAsignada;
+  const assignedCuadrillas = useMemo(
+    () => assignedCrewId ? cuadrillas.filter((cuadrilla) => cuadrilla.id === assignedCrewId) : [],
+    [cuadrillas, assignedCrewId],
+  );
+  const crewPositions = useMemo(
+    () => toCrewMapPositions(posiciones).filter((crew) => crew.idCuadrilla === assignedCrewId),
+    [posiciones, assignedCrewId],
+  );
 
   useEffect(() => {
     const loadReporteDetalle = async () => {
@@ -108,6 +122,13 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
 
   // Acción para marcar/resaltar la ubicación (Figma Comentario #11)
   const handleMarcarUbicacion = () => {
+    const target = currentReporte ?? reporte;
+    focusRequestId.current += 1;
+    setFocusTarget({
+      latitud: target.latitud,
+      longitud: target.longitud,
+      requestId: focusRequestId.current,
+    });
     setUbicacionMarcada(true);
     setTimeout(() => setUbicacionMarcada(false), 3000);
   };
@@ -415,7 +436,9 @@ export const SeguimientoScreen: React.FC<SeguimientoScreenProps> = ({
             >
               <MapView
                 reportes={currentReporte ? [currentReporte] : [reporte]}
-                cuadrillas={cuadrillas}
+                cuadrillas={assignedCuadrillas}
+                crewPositions={crewPositions}
+                focusTarget={focusTarget}
                 height="240px"
               />
             </div>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   MapPin,
   Truck,
@@ -16,8 +16,10 @@ import {
 import { ReporteDTO, CuadrillaDTO, EstatusReporte } from '../types';
 import { CategoriaBadge } from '../components/CategoriaBadge';
 import { StatusBadge } from '../components/StatusBadge';
-import { MapView } from '../components/MapView';
-import { reportesService } from '../services/reportesService';
+import { MapView, type MapFocusTarget } from '../components/MapView';
+import { useUbicacionesCuadrillas } from '../hooks/useUbicacionesCuadrillas';
+import { countVisibleReports, isValidCoordinatePair, toCrewMapPositions } from '../services/ubicacionesModel';
+import { getReportesParaMapa } from '../services/mapaReportesService';
 
 const ESTATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: 'todos', label: 'Todos los estatus' },
@@ -49,28 +51,46 @@ export const MapaScreen: React.FC<MapaScreenProps> = ({
   const [filterEstatus, setFilterEstatus] = useState<string>('todos');
   const [showCuadrillas, setShowCuadrillas] = useState<boolean>(true);
   const [selectedReporteId, setSelectedReporteId] = useState<number | null>(null);
-  const [crewPositions, setCrewPositions] = useState<{ idCuadrilla: number; lat: number; lng: number; fecha: string; nombre: string }[]>([]);
-  const [loadingPositions, setLoadingPositions] = useState(false);
+  const [mapReportes, setMapReportes] = useState<ReporteDTO[]>([]);
+  const [reportsError, setReportsError] = useState<string | null>(null);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [focusTarget, setFocusTarget] = useState<MapFocusTarget | undefined>();
+  const focusRequestId = useRef(0);
+  const reportsAbort = useRef<AbortController | null>(null);
+  const { posiciones, estado: ubicacionesEstado, error: ubicacionesError } = useUbicacionesCuadrillas(true);
+  const crewPositions = useMemo(() => toCrewMapPositions(posiciones), [posiciones]);
 
-  // Cargar posiciones reales de cuadrillas
-  useEffect(() => {
-    const cargarPosiciones = async () => {
-      setLoadingPositions(true);
-      try {
-        const posiciones = await reportesService.getCuadrillasUltimasUbicaciones();
-        setCrewPositions(posiciones);
-      } catch (error) {
-        console.warn('Error cargando posiciones de cuadrillas:', error);
-      } finally {
-        setLoadingPositions(false);
-      }
-    };
-    cargarPosiciones();
+  const loadAllReportes = useCallback(async () => {
+    reportsAbort.current?.abort();
+    const controller = new AbortController();
+    reportsAbort.current = controller;
+    setReportsLoading(true);
+    try {
+      const all = await getReportesParaMapa(controller.signal);
+      if (controller.signal.aborted) return;
+      setMapReportes(all);
+      setReportsError(null);
+    } catch (error) {
+      if (controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) return;
+      setReportsError(error instanceof Error ? error.message : 'No se pudieron cargar todos los reportes.');
+    } finally {
+      if (!controller.signal.aborted) setReportsLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    void loadAllReportes();
+    const interval = setInterval(() => { void loadAllReportes(); }, 60_000);
+    return () => {
+      clearInterval(interval);
+      reportsAbort.current?.abort();
+    };
+  }, [loadAllReportes]);
+
   // Filtrar reportes para el mapa
+  const sourceReportes = mapReportes.length > 0 ? mapReportes : reportes;
   const filteredReportes = useMemo(() => {
-    return reportes.filter((r) => {
+    return sourceReportes.filter((r) => {
       const matchCat =
         filterCategoria === 'todas' ||
         (r.categoria &&
@@ -82,10 +102,23 @@ export const MapaScreen: React.FC<MapaScreenProps> = ({
 
       return matchCat && matchEst;
     });
-  }, [reportes, filterCategoria, filterEstatus]);
+  }, [sourceReportes, filterCategoria, filterEstatus]);
 
   // Reporte seleccionado para el Drawer
-  const selectedReporte = reportes.find((r) => r.id === selectedReporteId);
+  const selectedReporte = sourceReportes.find((r) => r.id === selectedReporteId);
+  const visibleCount = countVisibleReports(filteredReportes);
+
+  const centrarMapa = () => {
+    const target = selectedReporte ?? filteredReportes.find((reporte) =>
+      isValidCoordinatePair(reporte.latitud, reporte.longitud));
+    if (!target) return;
+    focusRequestId.current += 1;
+    setFocusTarget({
+      latitud: target.latitud,
+      longitud: target.longitud,
+      requestId: focusRequestId.current,
+    });
+  };
 
   return (
     <div
@@ -125,7 +158,7 @@ export const MapaScreen: React.FC<MapaScreenProps> = ({
                 borderRadius: 'var(--radius-full)',
               }}
             >
-              {filteredReportes.length} visibles
+              {visibleCount} visibles{reportsLoading ? ' · actualizando…' : ''}
             </span>
           </div>
 
@@ -191,10 +224,60 @@ export const MapaScreen: React.FC<MapaScreenProps> = ({
               style={{ cursor: 'pointer' }}
             />
             <Truck size={16} color="var(--color-royal-blue)" />
-            <span>Ver Cuadrillas en Ruta ({cuadrillas.length})</span>
+            <span>Ver cuadrillas ({cuadrillas.length})</span>
           </label>
+          <button
+            onClick={centrarMapa}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--color-border)',
+              backgroundColor: 'var(--color-white)',
+              color: 'var(--color-royal-blue)',
+              fontSize: '12.5px',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            Centrar mapa
+          </button>
         </div>
       </div>
+
+      {(reportsError || ubicacionesEstado === 'degradado' || ubicacionesError) && (
+        <div
+          style={{
+            padding: '10px 14px',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid #F5C26B',
+            backgroundColor: '#FFF7E6',
+            color: '#92400E',
+            fontSize: '12.5px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+          }}
+        >
+          <span>
+            {reportsError && `Reportes: ${reportsError}`}
+            {reportsError && (ubicacionesError || ubicacionesEstado === 'degradado') && ' · '}
+            {showCuadrillas && (ubicacionesError || ubicacionesEstado === 'degradado')
+              && `Ubicaciones: ${ubicacionesError || 'conexión en tiempo real degradada'}`}
+          </span>
+          {reportsError && (
+            <button
+              onClick={() => { void loadAllReportes(); }}
+              style={{
+                border: '1px solid #B45309', background: 'transparent', color: '#92400E',
+                borderRadius: '5px', padding: '3px 8px', fontSize: '11.5px', cursor: 'pointer',
+              }}
+            >
+              Reintentar reportes
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Contenedor del Mapa con Drawer Lateral */}
       <div
@@ -212,6 +295,7 @@ export const MapaScreen: React.FC<MapaScreenProps> = ({
           cuadrillas={showCuadrillas ? cuadrillas : []}
           crewPositions={showCuadrillas ? crewPositions : []}
           onSelectReporte={(id) => setSelectedReporteId(id)}
+          focusTarget={focusTarget}
           height="100%"
         />
 
@@ -462,6 +546,14 @@ export const MapaScreen: React.FC<MapaScreenProps> = ({
               >
                 <Eye size={16} />
                 <span>Ver Seguimiento Detallado</span>
+              </button>
+
+              <button
+                onClick={centrarMapa}
+                className="btn"
+                style={{ width: '100%', fontSize: '13px', backgroundColor: 'var(--color-white)', border: '1px solid var(--color-border)' }}
+              >
+                Centrar en el mapa
               </button>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>

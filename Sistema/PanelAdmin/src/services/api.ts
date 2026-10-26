@@ -1,4 +1,4 @@
-import { resolveMockMode } from './mockMode';
+import { resolveMockMode } from './mockMode.ts';
 
 /**
  * Configuración centralizada de cliente HTTP y Mock Layer
@@ -9,16 +9,19 @@ import { resolveMockMode } from './mockMode';
  * - Asegúrate de que Sistema/API esté corriendo (ej. en http://localhost:5000 o https://localhost:7001).
  */
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5170/api';
+const browserStorage = typeof localStorage === 'undefined' ? null : localStorage;
+const viteEnv = import.meta.env ?? {};
+
+export const API_BASE_URL = viteEnv.VITE_API_BASE_URL || 'http://localhost:5170/api';
 export let USE_MOCK_DATA = resolveMockMode(
-  import.meta.env.VITE_USE_MOCK,
-  localStorage.getItem('arje_use_mock'),
+  viteEnv.VITE_USE_MOCK,
+  browserStorage?.getItem('arje_use_mock') ?? null,
 );
 
 export function setUseMockData(useMock: boolean): void {
   void useMock;
   USE_MOCK_DATA = false;
-  localStorage.removeItem('arje_use_mock');
+  browserStorage?.removeItem('arje_use_mock');
 }
 
 export function toggleMockData(): boolean {
@@ -28,18 +31,18 @@ export function toggleMockData(): boolean {
 
 // Helper para obtener token JWT de localStorage
 export function getAuthToken(): string | null {
-  return localStorage.getItem('arje_admin_token');
+  return browserStorage?.getItem('arje_admin_token') ?? null;
 }
 
 // Helper para guardar token JWT
 export function setAuthToken(token: string): void {
-  localStorage.setItem('arje_admin_token', token);
+  browserStorage?.setItem('arje_admin_token', token);
 }
 
 // Helper para remover token JWT
 export function removeAuthToken(): void {
-  localStorage.removeItem('arje_admin_token');
-  localStorage.removeItem('arje_admin_user');
+  browserStorage?.removeItem('arje_admin_token');
+  browserStorage?.removeItem('arje_admin_user');
 }
 
 // Cliente HTTP genérico para conectar con los endpoints de ASP.NET Core
@@ -89,6 +92,18 @@ export async function apiClient<T>(
   }
 }
 
+export function parsePaginationTotal(headers: Headers): number {
+  const raw = headers.get('x-total-count') ?? headers.get('cantidadTotalRegistros');
+  if (raw === null || raw.trim() === '') {
+    throw new Error('La API no informó el total de registros; no se puede paginar el mapa.');
+  }
+  const total = Number(raw);
+  if (!Number.isSafeInteger(total) || total < 0) {
+    throw new Error('La API devolvió un total de registros inválido.');
+  }
+  return total;
+}
+
 // Cliente HTTP que devuelve respuesta completa con headers para paginación
 export async function apiClientWithHeaders<T>(
   endpoint: string,
@@ -130,8 +145,7 @@ export async function apiClientWithHeaders<T>(
     }
 
     const data = (await response.json()) as T;
-    const total = parseInt(response.headers.get('x-total-count') || '0', 10);
-    return { data, total };
+    return { data, total: parsePaginationTotal(response.headers) };
   } catch (error) {
     console.error(`[API Error] ${endpoint}:`, error);
     throw error;

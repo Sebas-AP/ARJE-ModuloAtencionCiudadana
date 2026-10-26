@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Eye, ArrowLeft, MapPin, User, Plus, Truck } from 'lucide-react';
 import { CuadrillaDTO, ReporteDTO, EstatusCuadrilla } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
-import { MapView } from '../components/MapView';
+import { MapView, type MapFocusTarget } from '../components/MapView';
 import { UserBlobatar } from '../components/UserBlobatar';
+import { useUbicacionesCuadrillas } from '../hooks/useUbicacionesCuadrillas';
+import { toCrewMapPositions } from '../services/ubicacionesModel';
 
 interface CuadrillasScreenProps {
   cuadrillas: CuadrillaDTO[];
@@ -21,6 +23,22 @@ export const CuadrillasScreen: React.FC<CuadrillasScreenProps> = ({
   onViewReportesDeCuadrilla,
 }) => {
   const [selectedCuadrilla, setSelectedCuadrilla] = useState<CuadrillaDTO | null>(null);
+  const [focusTarget, setFocusTarget] = useState<MapFocusTarget | undefined>();
+  const focusRequestId = useRef(0);
+  const { posiciones } = useUbicacionesCuadrillas(selectedCuadrilla !== null);
+  const crewPositions = useMemo(
+    () => selectedCuadrilla
+      ? toCrewMapPositions(posiciones).filter((crew) => crew.idCuadrilla === selectedCuadrilla.id)
+      : [],
+    [posiciones, selectedCuadrilla],
+  );
+
+  const centrarCuadrilla = () => {
+    const crew = crewPositions[0];
+    if (!crew) return;
+    focusRequestId.current += 1;
+    setFocusTarget({ latitud: crew.lat, longitud: crew.lng, requestId: focusRequestId.current });
+  };
 
   // Cuadrillas activas e inactivas según el diseño de Figma
   const cuadrillasActivas = cuadrillas.filter(
@@ -173,16 +191,32 @@ export const CuadrillasScreen: React.FC<CuadrillasScreenProps> = ({
 
         {/* 2. Última Ubicación Registrada (Figma: Mapa) */}
         <div>
-          <h3
-            style={{
-              fontSize: '16px',
-              fontWeight: 700,
-              color: '#19244E',
-              marginBottom: '12px',
-            }}
-          >
-            Última ubicación registrada
-          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+            <h3
+              style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: '#19244E',
+                marginBottom: '12px',
+              }}
+            >
+              Última ubicación registrada
+            </h3>
+            <button
+              onClick={centrarCuadrilla}
+              disabled={crewPositions.length === 0}
+              style={{
+                padding: '5px 10px', borderRadius: '6px',
+                border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF',
+                color: crewPositions.length === 0 ? '#94A3B8' : '#0057D9',
+                fontSize: '12px', fontWeight: 700,
+                cursor: crewPositions.length === 0 ? 'not-allowed' : 'pointer',
+                marginBottom: '12px',
+              }}
+            >
+              Centrar cuadrilla
+            </button>
+          </div>
 
           <div
             style={{
@@ -196,6 +230,8 @@ export const CuadrillasScreen: React.FC<CuadrillasScreenProps> = ({
             <MapView
               cuadrillas={[selectedCuadrilla]}
               reportes={reportesDeCuadrilla}
+              crewPositions={crewPositions}
+              focusTarget={focusTarget}
               height="240px"
             />
           </div>

@@ -30,6 +30,7 @@ import { reportesService } from './services/reportesService';
 import { cuadrillasService } from './services/cuadrillasService';
 import { indicadoresService } from './services/indicadoresService';
 import { authService } from './services/authService';
+import { ubicacionesStore } from './hooks/useUbicacionesCuadrillas';
 import { CheckCircle2, AlertCircle, X } from 'lucide-react';
 
 interface ToastState {
@@ -136,6 +137,17 @@ export function App() {
     }
   }, [currentUser, loadData]);
 
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      ubicacionesStore.reset();
+      setCurrentUser(null);
+      setCurrentTab('dashboard');
+      showToast('La sesión expiró. Inicia sesión de nuevo.', 'error');
+    };
+    window.addEventListener('arje:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('arje:unauthorized', handleUnauthorized);
+  }, [showToast]);
+
   // Manejo de Autenticación
   const handleLoginSuccess = (user: UsuarioDTO) => {
     setCurrentUser(user);
@@ -143,6 +155,7 @@ export function App() {
   };
 
   const handleLogout = () => {
+    ubicacionesStore.reset();
     authService.logout();
     setCurrentUser(null);
     setCurrentTab('dashboard');

@@ -1,5 +1,6 @@
 import { apiClient, USE_MOCK_DATA } from './api';
 import { CuadrillaDTO, CuadrillaCreacionDTO, EstatusCuadrilla } from '../types';
+import type { UltimaUbicacionCuadrilla } from '../types/ubicaciones';
 import { INITIAL_CUADRILLAS } from './mockData';
 
 let localCuadrillas: CuadrillaDTO[] = (() => {
@@ -29,6 +30,26 @@ export const cuadrillasService = {
     }
 
     return apiClient<CuadrillaDTO[]>('/cuadrillas?registrosPorPagina=100');
+  },
+
+  /**
+   * Obtener la última posición conocida de todas las cuadrillas en una sola solicitud.
+   */
+  async getUltimasUbicaciones(signal?: AbortSignal): Promise<UltimaUbicacionCuadrilla[]> {
+    if (USE_MOCK_DATA) {
+      await new Promise((r) => setTimeout(r, 50));
+      return localCuadrillas.map((cuadrilla) => ({
+        idCuadrilla: cuadrilla.id,
+        cuadrillaNombre: cuadrilla.nombre,
+        posicion: null,
+      }));
+    }
+
+    const ubicaciones = await apiClient<UltimaUbicacionCuadrilla[]>(
+      '/cuadrillas/ubicaciones/ultimas',
+      { signal },
+    );
+    return Array.isArray(ubicaciones) ? ubicaciones : [];
   },
 
   /**

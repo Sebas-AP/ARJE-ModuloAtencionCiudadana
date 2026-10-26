@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#F7F9FC"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.arje.cuadrilla",
@@ -73,7 +75,8 @@
           "backgroundColor": "#253C96"
         }
       ],
-      "expo-status-bar"
+      "expo-status-bar",
+      "@maplibre/maplibre-react-native"
     ],
     "scheme": "arje-cuadrilla",
     "experiments": {

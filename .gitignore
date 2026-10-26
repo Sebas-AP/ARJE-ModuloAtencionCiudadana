@@ -52,3 +52,8 @@ api.log
 /docs
 /.superpowers
 /.playwright-mcp
+# Variables de entorno con valores reales
+.env
+.env.*
+!.env.example
+!*.env.example

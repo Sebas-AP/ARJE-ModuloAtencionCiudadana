@@ -30,7 +30,8 @@
           "microphonePermission": "Permitir a ARJE Reportes usar el micrófono para dictar la descripción.",
           "speechRecognitionPermission": "Permitir a ARJE Reportes usar el reconocimiento de voz para dictar la descripción."
         }
-      ]
+      ],
+      "@maplibre/maplibre-react-native"
     ]
   }
 }

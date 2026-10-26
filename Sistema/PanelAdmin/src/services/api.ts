@@ -12,6 +12,10 @@ import { resolveMockMode } from './mockMode.ts';
 const browserStorage = typeof localStorage === 'undefined' ? null : localStorage;
 const viteEnv = import.meta.env ?? {};
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
 export const API_BASE_URL = viteEnv.VITE_API_BASE_URL || 'http://localhost:5170/api';
 export let USE_MOCK_DATA = resolveMockMode(
   viteEnv.VITE_USE_MOCK,
@@ -87,7 +91,9 @@ export async function apiClient<T>(
 
     return (await response.json()) as T;
   } catch (error) {
-    console.error(`[API Error] ${endpoint}:`, error);
+    if (!isAbortError(error)) {
+      console.error(`[API Error] ${endpoint}:`, error);
+    }
     throw error;
   }
 }
@@ -147,7 +153,9 @@ export async function apiClientWithHeaders<T>(
     const data = (await response.json()) as T;
     return { data, total: parsePaginationTotal(response.headers) };
   } catch (error) {
-    console.error(`[API Error] ${endpoint}:`, error);
+    if (!isAbortError(error)) {
+      console.error(`[API Error] ${endpoint}:`, error);
+    }
     throw error;
   }
 }

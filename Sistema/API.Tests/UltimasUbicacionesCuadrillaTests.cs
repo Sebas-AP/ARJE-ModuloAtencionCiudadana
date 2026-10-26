@@ -55,6 +55,7 @@ public class UltimasUbicacionesCuadrillaTests : IDisposable
         Assert.Equal(2, norte.Posicion.IdReporte);
         Assert.Equal("FOL-2", norte.Posicion.FolioReporte);
         Assert.Equal(Base.AddMinutes(20), norte.Posicion.FechaHora);
+        Assert.Equal(DateTimeKind.Utc, norte.Posicion.FechaHora.Kind);
 
         var sur = rows.Single(r => r.IdCuadrilla == 2);
         Assert.Equal(12, sur.Posicion!.IdSeguimiento);

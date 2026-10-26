@@ -25,9 +25,10 @@ npm run lint
 npm run build
 npx playwright install chromium
 npm run test:e2e
+npm run test:integration
 ```
 
-`test:e2e` requiere Chromium de Playwright y no necesita una API ni una key real: intercepta reportes, cuadrillas, SignalR y tiles de MapTiler. Consulta [docs/operacion/validacion-maptiler.md](../../docs/operacion/validacion-maptiler.md) para saber qué cubre y qué sigue pendiente.
+`test:e2e` requiere Chromium de Playwright y no necesita una API ni una key real: intercepta reportes, cuadrillas, SignalR y tiles de MapTiler. `test:integration` levanta una API real con SQLite aislado en `/tmp/arje-mapas-integracion.db` y el Panel compilado en `127.0.0.1:4180`; sólo intercepta los tiles de MapTiler. Requiere .NET 8 y elimina esa base temporal en cada corrida. Consulta [docs/operacion/validacion-maptiler.md](../../docs/operacion/validacion-maptiler.md) para saber qué cubre y qué sigue pendiente.
 
 ## Operación de mapas
 

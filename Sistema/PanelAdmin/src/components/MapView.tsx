@@ -40,10 +40,16 @@ function createReportIcon(estatus: EstatusReporte, reportId: number) {
   });
 }
 
-function createCrewIcon(reciente: boolean, crewId: number) {
+function createCrewIcon(
+  reciente: boolean,
+  crewId: number,
+  lat: number,
+  lng: number,
+  fechaHora: string,
+) {
   const fill = reciente ? '#253C96' : '#94A3B8';
   const svgIcon = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="36" height="36" opacity="${reciente ? '1' : '0.75'}" data-crew-id="${crewId}" data-reciente="${reciente}" role="img" aria-label="Cuadrilla ${crewId}">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="36" height="36" opacity="${reciente ? '1' : '0.75'}" data-crew-id="${crewId}" data-crew-lat="${lat}" data-crew-lng="${lng}" data-crew-time="${fechaHora}" data-reciente="${reciente}" role="img" aria-label="Cuadrilla ${crewId}">
       <filter id="cshadow" x="-20%" y="-20%" width="140%" height="140%">
         <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.35"/>
       </filter>
@@ -262,7 +268,7 @@ export const MapView: React.FC<MapViewProps> = ({
           <Marker
             key={`crew-${crew.idCuadrilla}`}
             position={[crew.lat, crew.lng]}
-            icon={createCrewIcon(crew.reciente, crew.idCuadrilla)}
+            icon={createCrewIcon(crew.reciente, crew.idCuadrilla, crew.lat, crew.lng, crew.fechaHora)}
             title={`Cuadrilla ${crew.nombre}`}
           >
             <Popup>

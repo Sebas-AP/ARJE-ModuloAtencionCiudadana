@@ -122,6 +122,7 @@ export const MapaScreen: React.FC<MapaScreenProps> = ({
 
   return (
     <div
+      data-ubicaciones-state={ubicacionesEstado}
       style={{
         display: 'flex',
         flexDirection: 'column',

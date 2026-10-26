@@ -681,7 +681,7 @@ export const CrearReporteScreen = () => {
               {/* Transcripción en tiempo real si existe */}
               {speech.transcript ? (
                 <Text style={styles.transcriptPreview} numberOfLines={2}>
-                  "{speech.transcript}"
+                  &quot;{speech.transcript}&quot;
                 </Text>
               ) : null}
 

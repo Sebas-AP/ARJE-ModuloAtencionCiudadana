@@ -1,7 +1,6 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Modal, Animated, Keyboard, Platform, DimensionValue } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Modal, Animated, Keyboard, Platform, DimensionValue, Easing } from 'react-native';
 import { COLORS, BORDER_RADIUS, SPACING, FONT_SIZES, FONT_WEIGHTS } from '../constants';
-import { Button } from './Button';
 
 interface ModalProps {
   visible: boolean;
@@ -28,8 +27,8 @@ export const ModalContainer = ({
   footer,
   style,
 }: ModalProps) => {
-  const fadeAnim = React.useRef(new Animated.Value(0)).current;
-  const slideAnim = React.useRef(new Animated.Value(50)).current;
+  const [fadeAnim] = React.useState(() => new Animated.Value(0));
+  const [slideAnim] = React.useState(() => new Animated.Value(50));
 
   React.useEffect(() => {
     if (visible) {
@@ -111,8 +110,6 @@ export const ModalContainer = ({
   );
 };
 
-import { Easing } from 'react-native';
-
 export const BottomSheet = ({
   visible,
   onClose,
@@ -130,7 +127,9 @@ export const BottomSheet = ({
   handleStyle?: any;
   contentStyle?: any;
 }) => {
-  const translateY = React.useRef(new Animated.Value(Platform.OS === 'ios' ? 0 : 1)).current;
+  const [translateY] = React.useState(
+    () => new Animated.Value(Platform.OS === 'ios' ? 0 : 1),
+  );
 
   React.useEffect(() => {
     Animated.timing(translateY, {

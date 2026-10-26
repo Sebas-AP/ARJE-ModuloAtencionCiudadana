@@ -30,6 +30,8 @@ import {
 } from '../constants';
 import { EstatusReporte, SeguimientoUbicacionDTO, EvidenciaPublicoDTO, ReportePublicoDTO } from '../types';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import ReporteLocationMap from '../components/ReporteLocationMap';
+import { isValidReportCoordinate } from '../services/reportLocationModel';
 
 type ReporteDetalleRouteProp = RouteProp<RootStackParamList, 'ReporteDetalle'>;
 type ReporteDetalleNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ReporteDetalle'>;
@@ -119,6 +121,16 @@ export const ReporteDetalleScreen = () => {
 
           <Text style={styles.cardSectionTitle}>Ubicación</Text>
           <Text style={styles.coords}>{reporte.latitud.toFixed(6)}, {reporte.longitud.toFixed(6)}</Text>
+          {isValidReportCoordinate({ latitud: reporte.latitud, longitud: reporte.longitud }) ? (
+            <View style={styles.locationMap}>
+              <ReporteLocationMap
+                coordinate={{ latitud: reporte.latitud, longitud: reporte.longitud }}
+                editable={false}
+              />
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>Ubicación no disponible</Text>
+          )}
 
           <View style={styles.divider} />
 
@@ -196,6 +208,7 @@ const styles = StyleSheet.create({
   description: { fontSize: FONT_SIZES.md, color: COLORS.text, lineHeight: 24 },
   divider: { height: 1, backgroundColor: COLORS.border, marginVertical: SPACING.md },
   coords: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary },
+  locationMap: { marginTop: SPACING.sm },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', gap: SPACING.md, marginBottom: SPACING.sm },
   infoLabel: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary },
   infoValue: { fontSize: FONT_SIZES.sm, color: COLORS.text, fontWeight: FONT_WEIGHTS.medium, flexShrink: 1, textAlign: 'right' },

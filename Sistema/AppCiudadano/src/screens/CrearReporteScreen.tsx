@@ -23,7 +23,9 @@ import { useLocation } from '../hooks/useLocation';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { reportesService, clasificacionService } from '../services/reportes';
-import { TipoProblema, TipoEvidencia } from '../types';
+import { Coordenadas, TipoProblema, TipoEvidencia } from '../types';
+import ReporteLocationMap from '../components/ReporteLocationMap';
+import { getConfirmedReportLocation, applySuggestedCoordinate, selectCoordinate } from '../services/reportLocationModel';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -39,7 +41,12 @@ interface EvidenciaLocal {
 export const CrearReporteScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const speech = useSpeechRecognition();
-  const { coordinates, requestPermission, getCurrentLocation } = useLocation();
+  const {
+    requestPermission,
+    getCurrentLocation,
+    error: locationError,
+    isLoading: isLocating,
+  } = useLocation();
   const { addToQueue } = useOfflineQueue();
 
   // Paso actual (1 o 2)
@@ -52,6 +59,8 @@ export const CrearReporteScreen = () => {
 
   // Datos del Paso 2
   const [descripcion, setDescripcion] = useState('');
+  const [selectedCoordinate, setSelectedCoordinate] = useState<Coordenadas | null>(null);
+  const [locationConfirmed, setLocationConfirmed] = useState(false);
   const [evidencias, setEvidencias] = useState<EvidenciaLocal[]>([]);
   const [evidenceUploadComplete, setEvidenceUploadComplete] = useState(false);
 
@@ -72,7 +81,10 @@ export const CrearReporteScreen = () => {
     (async () => {
       try {
         await requestPermission();
-        await getCurrentLocation();
+        const initialLocation = await getCurrentLocation();
+        if (initialLocation) {
+          setSelectedCoordinate((current) => applySuggestedCoordinate(current, initialLocation));
+        }
       } catch (err) {
         console.warn('No se pudo obtener ubicación inicial', err);
       }
@@ -191,10 +203,34 @@ export const CrearReporteScreen = () => {
     setEvidencias((prev) => prev.filter((e) => e.uri !== uri));
   };
 
+  const handleCoordinateChange = (next: Coordenadas) => {
+    const selection = selectCoordinate(next);
+    setSelectedCoordinate(selection.coordenada);
+    setLocationConfirmed(selection.confirmada);
+  };
+
+  const handleUseMyLocation = async () => {
+    const currentLocation = await getCurrentLocation();
+    if (!currentLocation) return;
+    const selection = selectCoordinate(currentLocation);
+    setSelectedCoordinate(selection.coordenada);
+    setLocationConfirmed(selection.confirmada);
+  };
+
+  const handleConfirmLocation = () => {
+    if (selectedCoordinate) setLocationConfirmed(true);
+  };
+
   // Enviar reporte final
   const handleSubmitReport = async () => {
     if (!descripcion.trim()) {
       Alert.alert('Descripción requerida', 'Por favor describe el incidente antes de enviar.');
+      return;
+    }
+
+    const coords = getConfirmedReportLocation(selectedCoordinate, locationConfirmed);
+    if (!coords) {
+      Alert.alert('Ubicación requerida', 'Selecciona y confirma la ubicación exacta del incidente antes de enviar.');
       return;
     }
 
@@ -218,11 +254,6 @@ export const CrearReporteScreen = () => {
       } catch (err) {
         console.warn('Fallback clasificación', err);
       }
-
-      const coords = coordinates || {
-        latitud: 21.8853,
-        longitud: -102.2916,
-      };
 
       const payload = {
         tipoProblema: tipoFinal,
@@ -440,6 +471,69 @@ export const CrearReporteScreen = () => {
                         textAlignVertical="top"
                       />
                     </View>
+                  </View>
+
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>Ubicación del incidente</Text>
+                    <Text style={styles.locationHint}>
+                      Ajusta el pin al punto exacto y confirma la ubicación.
+                    </Text>
+
+                    <ReporteLocationMap
+                      coordinate={selectedCoordinate}
+                      onCoordinateChange={handleCoordinateChange}
+                      editable
+                    />
+
+                    <TouchableOpacity
+                      style={styles.locationButton}
+                      onPress={handleUseMyLocation}
+                      disabled={isLocating}
+                      activeOpacity={0.78}
+                    >
+                      {isLocating ? (
+                        <ActivityIndicator size="small" color={COLORS.actionBlue} />
+                      ) : (
+                        <Ionicons name="locate-outline" size={18} color={COLORS.actionBlue} />
+                      )}
+                      <Text style={styles.locationButtonText}>Mi ubicación</Text>
+                    </TouchableOpacity>
+
+                    {locationError ? (
+                      <Text style={styles.locationError}>{locationError}. Puedes elegir el punto manualmente en el mapa.</Text>
+                    ) : null}
+
+                    {selectedCoordinate ? (
+                      <Text style={styles.coordinatesText}>
+                        {selectedCoordinate.latitud.toFixed(6)}, {selectedCoordinate.longitud.toFixed(6)}
+                      </Text>
+                    ) : (
+                      <Text style={styles.locationError}>Selecciona un punto en el mapa.</Text>
+                    )}
+
+                    <TouchableOpacity
+                      style={[
+                        styles.confirmLocationButton,
+                        locationConfirmed && styles.confirmLocationButtonActive,
+                      ]}
+                      onPress={handleConfirmLocation}
+                      disabled={!selectedCoordinate}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons
+                        name={locationConfirmed ? 'checkmark-circle' : 'pin-outline'}
+                        size={18}
+                        color={locationConfirmed ? COLORS.white : COLORS.actionBlue}
+                      />
+                      <Text
+                        style={[
+                          styles.confirmLocationText,
+                          locationConfirmed && styles.confirmLocationTextActive,
+                        ]}
+                      >
+                        {locationConfirmed ? 'Ubicación confirmada' : 'Confirmar ubicación'}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
 
                   {/* Sección: Adjuntos */}
@@ -822,6 +916,60 @@ const styles = StyleSheet.create({
     height: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  locationHint: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textSecondary,
+    lineHeight: 18,
+  },
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    borderWidth: 1.5,
+    borderColor: COLORS.cyan,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingVertical: SPACING.sm,
+    backgroundColor: COLORS.cardBg,
+  },
+  locationButtonText: {
+    color: COLORS.actionBlue,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: FONT_WEIGHTS.semibold,
+  },
+  locationError: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.error,
+    lineHeight: 18,
+  },
+  coordinatesText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  confirmLocationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    borderWidth: 1.5,
+    borderColor: COLORS.actionBlue,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingVertical: SPACING.sm,
+    backgroundColor: COLORS.cardBg,
+  },
+  confirmLocationButtonActive: {
+    backgroundColor: COLORS.success,
+    borderColor: COLORS.success,
+  },
+  confirmLocationText: {
+    color: COLORS.actionBlue,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: FONT_WEIGHTS.bold,
+  },
+  confirmLocationTextActive: {
+    color: COLORS.white,
   },
   bottomActions: {
     marginTop: SPACING.lg,

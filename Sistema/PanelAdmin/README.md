@@ -1,32 +1,36 @@
-# React + TypeScript + Vite
+# PanelAdmin
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Panel web de administración de ARJE. Usa React, TypeScript, Vite, Leaflet y SignalR.
 
-Currently, two official plugins are available:
+## Desarrollo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+cp .env.example .env
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Variables principales:
+
+- `VITE_API_BASE_URL`: base de la API, por ejemplo `http://localhost:5170/api`.
+- `VITE_MAPTILER_API_KEY`: key pública de MapTiler restringida por dominio.
+- `VITE_MAPTILER_MAP_ID`: estilo de MapTiler; por defecto `streets-v4`.
+- `VITE_USE_MOCK`: sólo para desarrollo sin API.
+
+## Verificación
+
+```bash
+npm test
+npm run lint
+npm run build
+npx playwright install chromium
+npm run test:e2e
+```
+
+`test:e2e` requiere Chromium de Playwright y no necesita una API ni una key real: intercepta reportes, cuadrillas, SignalR y tiles de MapTiler. Consulta [docs/operacion/validacion-maptiler.md](../../docs/operacion/validacion-maptiler.md) para saber qué cubre y qué sigue pendiente.
+
+## Operación de mapas
+
+El mapa general muestra reportes paginados y la última ubicación de cada cuadrilla. Las posiciones se actualizan por SignalR y se reconcilian por REST cada 30 segundos. Una posición con más de 120 segundos se muestra como desactualizada.
+
+La configuración de MapTiler, restricciones de keys, contratos de API y diagnóstico están en [docs/operacion/mapas-maptiler.md](../../docs/operacion/mapas-maptiler.md).

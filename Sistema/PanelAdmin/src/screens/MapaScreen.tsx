@@ -164,6 +164,7 @@ export const MapaScreen: React.FC<MapaScreenProps> = ({
 
           {/* Filtro por Categoría */}
           <select
+            aria-label="Filtrar por categoría"
             value={filterCategoria}
             onChange={(e) => setFilterCategoria(e.target.value)}
             style={{
@@ -186,6 +187,7 @@ export const MapaScreen: React.FC<MapaScreenProps> = ({
 
           {/* Filtro por Estatus */}
           <select
+            aria-label="Filtrar por estatus"
             value={filterEstatus}
             onChange={(e) => setFilterEstatus(e.target.value)}
             style={{
@@ -355,6 +357,7 @@ export const MapaScreen: React.FC<MapaScreenProps> = ({
               </div>
 
               <button
+                aria-label="Cerrar detalle"
                 onClick={() => setSelectedReporteId(null)}
                 style={{
                   background: 'none',

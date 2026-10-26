@@ -51,6 +51,16 @@ Panel de administración web para:
 
 Cada componente tiene su propia configuración. Revisar los archivos README en cada carpeta para instrucciones específicas.
 
+### Mapas y seguimiento de ubicaciones
+
+Las tres aplicaciones usan MapTiler. El PanelAdmin y las variantes web usan Leaflet; las apps móviles usan MapLibre. Cada aplicación requiere su propia key en el archivo `.env` local o en el entorno de compilación:
+
+- `Sistema/PanelAdmin`: `VITE_MAPTILER_API_KEY`.
+- `Sistema/AppCuadrilla`: `EXPO_PUBLIC_MAPTILER_API_KEY` (nativo) y `EXPO_PUBLIC_MAPTILER_WEB_API_KEY` (web).
+- `Sistema/AppCiudadano`: `EXPO_PUBLIC_MAPTILER_API_KEY` (nativo) y `EXPO_PUBLIC_MAPTILER_WEB_API_KEY` (web).
+
+La configuración de keys, restricciones, despliegue y diagnóstico está en [docs/operacion/mapas-maptiler.md](docs/operacion/mapas-maptiler.md). El estado de las pruebas y las validaciones físicas pendientes está en [docs/operacion/validacion-maptiler.md](docs/operacion/validacion-maptiler.md).
+
 ## Licencia
 
 Proyecto privado - ARJE

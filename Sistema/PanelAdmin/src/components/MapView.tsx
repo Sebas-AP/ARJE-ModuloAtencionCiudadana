@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { ReporteDTO, CuadrillaDTO, EstatusReporte } from '../types';
@@ -13,7 +13,7 @@ function formatLocationTime(fechaHora: string): string {
   return Number.isNaN(date.getTime()) ? 'Hora no disponible' : date.toLocaleString('es-MX');
 }
 
-function createReportIcon(estatus: EstatusReporte) {
+function createReportIcon(estatus: EstatusReporte, reportId: number) {
   let color = '#EF4444';
   if (estatus === EstatusReporte.Asignado) color = '#3B82F6';
   else if (estatus === EstatusReporte.EnProceso || estatus === EstatusReporte.LevantandoInformacion) color = '#F97316';
@@ -22,7 +22,7 @@ function createReportIcon(estatus: EstatusReporte) {
   else if (estatus === EstatusReporte.Cerrado) color = '#64748B';
 
   const svgIcon = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="34" height="34">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="34" height="34" data-report-id="${reportId}" role="img" aria-label="Reporte ${reportId}">
       <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
         <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.3"/>
       </filter>
@@ -40,10 +40,10 @@ function createReportIcon(estatus: EstatusReporte) {
   });
 }
 
-function createCrewIcon(reciente: boolean) {
+function createCrewIcon(reciente: boolean, crewId: number) {
   const fill = reciente ? '#253C96' : '#94A3B8';
   const svgIcon = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="36" height="36" opacity="${reciente ? '1' : '0.75'}">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="36" height="36" opacity="${reciente ? '1' : '0.75'}" data-crew-id="${crewId}" data-reciente="${reciente}" role="img" aria-label="Cuadrilla ${crewId}">
       <filter id="cshadow" x="-20%" y="-20%" width="140%" height="140%">
         <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.35"/>
       </filter>
@@ -101,6 +101,28 @@ function FocusMap({ target }: { target?: MapFocusTarget }) {
   return null;
 }
 
+function MapCenterProbe({ onChange }: { onChange: (center: [number, number]) => void }) {
+  const map = useMap();
+  const lastCenter = useRef<string | null>(null);
+
+  useEffect(() => {
+    const update = () => {
+      const center = map.getCenter();
+      const key = `${center.lat}:${center.lng}`;
+      if (lastCenter.current === key) return;
+      lastCenter.current = key;
+      onChange([center.lat, center.lng]);
+    };
+    map.on('moveend', update);
+    update();
+    return () => {
+      map.off('moveend', update);
+    };
+  }, [map, onChange]);
+
+  return null;
+}
+
 export const MapView: React.FC<MapViewProps> = ({
   reportes = [],
   cuadrillas = [],
@@ -115,6 +137,10 @@ export const MapView: React.FC<MapViewProps> = ({
   const maptilerConfig = useMemo(() => getMaptilerConfigFromEnv(), []);
   const [tileError, setTileError] = useState(false);
   const [tileAttempt, setTileAttempt] = useState(0);
+  const [mapCenter, setMapCenter] = useState<[number, number]>(center);
+  const handleMapCenterChange = useCallback((next: [number, number]) => {
+    setMapCenter(next);
+  }, []);
 
   const visibleReportes = reportes.filter((reporte) =>
     isValidCoordinatePair(reporte.latitud, reporte.longitud));
@@ -130,6 +156,9 @@ export const MapView: React.FC<MapViewProps> = ({
 
   return (
     <div
+      data-testid="panel-map"
+      data-map-center-lat={mapCenter[0]}
+      data-map-center-lng={mapCenter[1]}
       style={{
         height,
         width: '100%',
@@ -148,6 +177,7 @@ export const MapView: React.FC<MapViewProps> = ({
       >
         <RecenterMap center={center} zoom={zoom} />
         <FocusMap target={focusTarget} />
+        <MapCenterProbe onChange={handleMapCenterChange} />
         {maptilerConfig && (
           <TileLayer
             key={`${maptilerConfig.tileUrl}-${tileAttempt}`}
@@ -162,7 +192,8 @@ export const MapView: React.FC<MapViewProps> = ({
           <Marker
             key={`rep-${rep.id}`}
             position={[rep.latitud, rep.longitud]}
-            icon={createReportIcon(rep.estatus)}
+            icon={createReportIcon(rep.estatus, rep.id)}
+            title={`Reporte ${rep.folio || rep.id}`}
           >
             <Popup>
               <div style={{ minWidth: '220px', padding: '4px' }}>
@@ -231,7 +262,8 @@ export const MapView: React.FC<MapViewProps> = ({
           <Marker
             key={`crew-${crew.idCuadrilla}`}
             position={[crew.lat, crew.lng]}
-            icon={createCrewIcon(crew.reciente)}
+            icon={createCrewIcon(crew.reciente, crew.idCuadrilla)}
+            title={`Cuadrilla ${crew.nombre}`}
           >
             <Popup>
               <div style={{ padding: '4px', fontSize: '12.5px' }}>

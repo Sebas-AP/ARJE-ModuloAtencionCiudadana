@@ -7,7 +7,8 @@ Este README está dirigido a quienes mantienen y verifican la aplicación. La se
 ## Configuración y verificación
 
 - Requiere las dependencias del proyecto instaladas y una API accesible desde el dispositivo. La aplicación usa `EXPO_PUBLIC_API_BASE_URL`; si no se define, usa `http://10.0.2.2:5170/api`, dirección exclusiva del emulador Android configurada en `src/services/api.ts`.
-- Desde `Sistema/AppCuadrilla`, `npm test` ejecuta las pruebas de servicios y políticas de campo; `npx tsc --noEmit` comprueba tipos; `npx expo lint` ejecuta ESLint. Estos tres comandos se verificaron en el worktree el 14 de octubre de 2026.
+- Copia `.env.example` a `.env` y define `EXPO_PUBLIC_API_BASE_URL`, `EXPO_PUBLIC_MAPTILER_API_KEY`, `EXPO_PUBLIC_MAPTILER_WEB_API_KEY` y, opcionalmente, `EXPO_PUBLIC_MAPTILER_MAP_ID`.
+- Desde `Sistema/AppCuadrilla`, `npm test` ejecuta las pruebas de servicios y políticas de campo; `npm run typecheck` comprueba tipos; `npm run lint` ejecuta ESLint. Estos tres comandos se verificaron en el worktree el 26 de octubre de 2026.
 - El inicio de sesión de cuadrilla utiliza la API. La lista y el detalle de reportes necesitan conexión para su primera carga; la aplicación no conserva una copia offline de esos datos.
 
 ### Flujo de asignación y cuentas iniciales
@@ -22,27 +23,30 @@ Al iniciar la API se crean únicamente si no existen estas cuentas iniciales de 
 | Cuadrilla Centro | `cuadrilla_centro` | `Centro2026!` |
 | Cuadrilla Sur | `cuadrilla_sur` | `Sur2026!` |
 
-### Configuración del Mapa (Nativo y Web)
+### Mapas y ubicación
 
-#### Proveedor de mapas nativo
-- **Proveedor**: Google Maps a través de `react-native-maps` con `PROVIDER_GOOGLE`.
-- **Requisitos**: Requiere API Key de Google Maps configurada en `app.json` / `app.config.js` bajo `ios.config.googleMapsApiKey` y `android.config.googleMaps.apiKey`.
-- **Atribución**: Google Maps usa datos de © Google, © OpenStreetMap contributors. La atribución se muestra automáticamente en el mapa.
+#### Mapa nativo
+
+- **Tecnología**: MapLibre con `@maplibre/maplibre-react-native`.
+- **Datos**: estilo raster de MapTiler; por defecto `streets-v4`.
+- **Key**: `EXPO_PUBLIC_MAPTILER_API_KEY`.
+- **Atribución**: © MapTiler y © OpenStreetMap contributors, visible en el mapa.
+- **Desarrollo**: MapLibre es un módulo nativo. Usa un development build (`npx expo run:android` o EAS); Expo Go no incluye este módulo.
 
 #### Mapa web
-- **Implementación actual**: Pantalla informativa con coordenadas (ver `MapaScreen.web.tsx`).
-- **Pendiente**: Mapa interactivo con Leaflet/MapLibre GL JS para paridad con nativo.
-- **Atribución**: OpenStreetMap © OpenStreetMap contributors.
+
+- **Tecnología**: Leaflet con `react-leaflet`.
+- **Datos**: tiles y atribución de MapTiler.
+- **Key**: `EXPO_PUBLIC_MAPTILER_WEB_API_KEY`.
+- **Comportamiento**: permite enfocar el reporte, reintentar la carga y centrar el mapa en la ubicación propia.
+
+Las keys de cliente son públicas en el bundle. Restringe cada una por plataforma: dominio para web y `User-Agent` real del build para nativo. Captura el `User-Agent` antes de aplicar la restricción; no lo supongas. Consulta [docs/operacion/mapas-maptiler.md](../../docs/operacion/mapas-maptiler.md).
 
 #### Permisos de ubicación
-- **Foreground**: Requerido para mostrar la ubicación del usuario y el reporte en el mapa.
-- **Background**: Requerido para el seguimiento GPS continuo durante el levantamiento de información y el proceso (`EstatusReporte.LevantandoInformacion` y `EnProceso`).
-- **Configuración nativa**: `NSLocationWhenInUseUsageDescription`, `NSLocationAlwaysAndWhenInUseUsageDescription` (iOS) y `ACCESS_FINE_LOCATION`, `ACCESS_BACKGROUND_LOCATION` (Android) en `app.json` / `expo.plist` / `AndroidManifest.xml`.
 
-#### Atribución cartográfica
-- **Google Maps (nativo)**: © Google, © OpenStreetMap contributors. Se muestra automáticamente.
-- **OpenStreetMap (web/futuro)**: © OpenStreetMap contributors.
-- **Estilo de mapa personalizado**: Estilo JSON definido en `MapaScreen.native.tsx` (`mapStyle` array), basado en estilo "Light" de Google Maps.
+- **Primer plano**: requerido para mostrar la ubicación del usuario y el reporte en el mapa.
+- **Segundo plano**: requerido para el seguimiento GPS continuo durante `EstatusReporte.LevantandoInformacion` y `EnProceso`.
+- **Configuración nativa**: `NSLocationWhenInUseUsageDescription`, `NSLocationAlwaysAndWhenInUseUsageDescription` (iOS) y `ACCESS_FINE_LOCATION`, `ACCESS_BACKGROUND_LOCATION` (Android) en `app.json`.
 
 ### Inicio desde navegador o Expo Go en la red local
 
@@ -54,7 +58,7 @@ Desde `Sistema/AppCuadrilla`, ejecuta:
 ./scripts/start-lan.sh
 ```
 
-El script detecta la IP privada actual del equipo, define para esa sesión `EXPO_PUBLIC_API_BASE_URL=http://<IP-LOCAL>:5170/api` e inicia Expo con `--lan --clear`, sin túnel. Escanea el QR con Expo Go o abre la URL web que muestre Expo. Si el equipo tiene más de una red activa o la detección no elige la interfaz Wi-Fi, fija la IP explícitamente:
+El script detecta la IP privada actual del equipo, define para esa sesión `EXPO_PUBLIC_API_BASE_URL=http://<IP-LOCAL>:5170/api` e inicia Expo con `--lan --clear`, sin túnel. Escanea el QR o abre la URL web que muestre Expo. Ten en cuenta que el mapa nativo MapLibre requiere un development build, no Expo Go. Si el equipo tiene más de una red activa o la detección no elige la interfaz Wi-Fi, fija la IP explícitamente:
 
 ```bash
 EXPO_LOCAL_IP=192.168.1.50 ./scripts/start-lan.sh
@@ -97,7 +101,9 @@ En el Panel de Administración (`MapView.tsx`), la opción «Mostrar ruta» dibu
 - La entrega de GPS es al menos una vez: si la API acepta un lote y la aplicación se interrumpe antes de quitarlo de la cola, un reintento podría enviarlo de nuevo. No hay deduplicación implementada para ese caso.
 - La cola no identifica a la cuenta propietaria de cada operación. Se debe definir y validar una política antes de usar cuentas distintas en un dispositivo compartido.
 - No se ha ejecutado la secuencia completa en un dispositivo físico ni en emulador. Quedan por comprobar permisos, cámara/galería, GPS en segundo plano, acceso a archivos tras reinicio y presentación de los estados de sincronización.
-- **Mapa web**: La versión web (`MapaScreen.web.tsx`) muestra solo coordenadas y un aviso; falta implementar mapa interactivo con Leaflet/MapLibre GL JS.
-- **Evidencias en web**: En la versión web, las imágenes se almacenan en IndexedDB vía `webImageStorage.ts` para persistencia tras recargar; en nativo se usa `expo-file-system` con copia a `FileSystem.documentDirectory`.
-- **Evidencias de audio**: El botón «Grabar audio» muestra «No disponible» (pendiente de implementación).
-- **Validación GPS en segundo plano**: Pendiente de validar en dispositivo físico el funcionamiento continuo, consumo de batería y precisión.
+- **Evidencias en web**: en la versión web, las imágenes se almacenan en IndexedDB vía `webImageStorage.ts` para persistencia tras recargar; en nativo se usa `expo-file-system` con copia a `FileSystem.documentDirectory`.
+- **Evidencias de audio**: el botón «Grabar audio» muestra «No disponible» (pendiente de implementación).
+- **Validación GPS en segundo plano**: pendiente de validar en dispositivo físico el funcionamiento continuo, consumo de batería y precisión.
+- **MapTiler y dispositivo físico**: pendiente validar la restricción de key por `User-Agent`, el mapa nativo en dispositivo y el comportamiento con red intermitente.
+
+El estado detallado de pruebas automatizadas y pendientes está en [docs/operacion/validacion-maptiler.md](../../docs/operacion/validacion-maptiler.md).

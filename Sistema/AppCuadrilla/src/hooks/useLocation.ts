@@ -1,12 +1,26 @@
 import { useState, useEffect, useCallback } from 'react';
+import { AppState } from 'react-native';
 import * as Location from 'expo-location';
-import { watchLocation, getCurrentLocation, startLocationTracking, stopLocationTracking } from '../services/locationService';
+import {
+  watchLocation,
+  getCurrentLocation,
+  getTrackingState,
+  startLocationTracking,
+  stopLocationTracking,
+  subscribeTrackingState,
+} from '../services/locationService';
+import {
+  canTrackReportStatus,
+  isTrackingSelectedReport,
+  type TrackingState,
+} from '../services/locationTrackingPolicy';
 
 export const useLocation = (idReporte?: number, estatusReporte?: number) => {
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tracking, setTracking] = useState(false);
-  const canTrack = estatusReporte === 3 || estatusReporte === 4;
+  const [trackingState, setTrackingState] = useState<TrackingState | null>(null);
+  const canTrack = canTrackReportStatus(estatusReporte);
+  const tracking = isTrackingSelectedReport(trackingState, idReporte);
 
   const requestPermissions = useCallback(async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -53,7 +67,7 @@ export const useLocation = (idReporte?: number, estatusReporte?: number) => {
 
     try {
       await startLocationTracking(idReporte);
-      setTracking(true);
+      setTrackingState(await getTrackingState());
       setError(null);
     } catch (err: any) {
       setError(err.message);
@@ -62,8 +76,35 @@ export const useLocation = (idReporte?: number, estatusReporte?: number) => {
 
   const detenerSeguimiento = useCallback(async () => {
     await stopLocationTracking();
-    setTracking(false);
+    setTrackingState(null);
   }, []);
+
+  useEffect(() => subscribeTrackingState(setTrackingState), []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      void (async () => {
+        const current = await getTrackingState().catch(() => null);
+        setTrackingState(current);
+        if (!isTrackingSelectedReport(current, idReporte)) return;
+        if (!canTrack) {
+          await detenerSeguimiento();
+          return;
+        }
+        const [foreground, background] = await Promise.all([
+          Location.getForegroundPermissionsAsync(),
+          Location.getBackgroundPermissionsAsync(),
+        ]);
+        if (foreground.status !== 'granted' || background.status !== 'granted') {
+          await stopLocationTracking();
+          setTrackingState(null);
+          setError('Se perdió el permiso de ubicación; el seguimiento se detuvo.');
+        }
+      })();
+    });
+    return () => subscription.remove();
+  }, [idReporte, canTrack, detenerSeguimiento]);
 
   useEffect(() => {
     if (!idReporte) return;
@@ -84,11 +125,11 @@ export const useLocation = (idReporte?: number, estatusReporte?: number) => {
   }, [idReporte, obtenerUbicacionActual]);
 
   useEffect(() => {
-    if (tracking && !canTrack) {
+    if (isTrackingSelectedReport(trackingState, idReporte) && !canTrack) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       void detenerSeguimiento();
     }
-  }, [tracking, canTrack, detenerSeguimiento]);
+  }, [trackingState, idReporte, canTrack, detenerSeguimiento]);
 
   return {
     location,

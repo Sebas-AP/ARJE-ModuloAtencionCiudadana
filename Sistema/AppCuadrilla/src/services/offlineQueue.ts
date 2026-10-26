@@ -1,7 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type OperationData =
-  | { kind: 'location'; reportId: number; latitud: number; longitud: number }
+  | {
+    kind: 'location';
+    reportId: number;
+    latitud: number;
+    longitud: number;
+    idMuestra?: string;
+    fechaCaptura?: string;
+    precisionMetros?: number;
+  }
   | { kind: 'status'; reportId: number; status: 3 | 4 | 5 }
   | { kind: 'estimate'; reportId: number; tiempoEstimado: number }
   | { kind: 'resolutionComment'; reportId: number; comentariosResolucion: string }
@@ -62,7 +70,14 @@ function isQueuedOperation(value: unknown): value is QueuedOperation {
     case 'location':
       return isPositiveInteger(value.reportId)
         && typeof value.latitud === 'number' && Number.isFinite(value.latitud)
-        && typeof value.longitud === 'number' && Number.isFinite(value.longitud);
+        && typeof value.longitud === 'number' && Number.isFinite(value.longitud)
+        && (value.idMuestra === undefined || isNonemptyString(value.idMuestra))
+        && (value.fechaCaptura === undefined
+          || (isNonemptyString(value.fechaCaptura) && Number.isFinite(Date.parse(value.fechaCaptura))))
+        && (value.precisionMetros === undefined
+          || (typeof value.precisionMetros === 'number'
+            && Number.isFinite(value.precisionMetros)
+            && value.precisionMetros >= 0));
     case 'status':
       return isPositiveInteger(value.reportId) && [3, 4, 5].includes(value.status as number);
     case 'estimate':
@@ -137,11 +152,17 @@ export function createOfflineQueue(
       if (activeOwnerCuadrillaId === null) {
         throw new Error('No se puede guardar una operación sin una sesión activa de cuadrilla. Inicia sesión e inténtalo de nuevo.');
       }
+      const id = newId();
+      const createdAt = new Date().toISOString();
       const operation = {
         ...data,
+        ...(data.kind === 'location' && {
+          idMuestra: data.idMuestra ?? id,
+          fechaCaptura: data.fechaCaptura ?? createdAt,
+        }),
         ownerCuadrillaId: activeOwnerCuadrillaId,
-        id: newId(),
-        createdAt: new Date().toISOString(),
+        id,
+        createdAt,
         attempts: 0,
         terminal: false,
       } as QueuedOperation;

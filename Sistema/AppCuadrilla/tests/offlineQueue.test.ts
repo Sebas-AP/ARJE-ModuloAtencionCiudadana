@@ -253,17 +253,89 @@ function senders(overrides: Partial<Omit<SyncDependencies, 'queue'>> = {}): Omit
 
 test('batch sends consecutive locations for one report and removes only confirmed points', async () => {
   const queue = createMemoryQueue();
-  await queue.enqueue({ kind: 'location', reportId: 5, latitud: 1, longitud: 2 });
-  await queue.enqueue({ kind: 'location', reportId: 5, latitud: 3, longitud: 4 });
+  const first = await queue.enqueue({ kind: 'location', reportId: 5, latitud: 1, longitud: 2 });
+  const second = await queue.enqueue({ kind: 'location', reportId: 5, latitud: 3, longitud: 4 });
   const sentBatches: unknown[] = [];
 
   const result = await syncPendingOperations({ queue, ...senders({
     sendLocations: async (batch) => { sentBatches.push(batch); },
   }) });
 
-  assert.deepEqual(sentBatches, [{ reportId: 5, ownerCuadrillaId: 1, ubicaciones: [{ latitud: 1, longitud: 2 }, { latitud: 3, longitud: 4 }] }]);
+  assert.deepEqual(sentBatches, [{ reportId: 5, ownerCuadrillaId: 1, ubicaciones: [
+    { latitud: 1, longitud: 2, idMuestra: first.id, fechaCaptura: first.createdAt },
+    { latitud: 3, longitud: 4, idMuestra: second.id, fechaCaptura: second.createdAt },
+  ] }]);
   assert.deepEqual(result, { sent: 2, pending: 0, failed: 0, requiresAuthentication: false });
   assert.deepEqual(await queue.list(), []);
+});
+
+test('splits a 201-point backlog into 200 + 1 while preserving FIFO boundaries', async () => {
+  const queue = createMemoryQueue();
+  for (let index = 0; index < 201; index++) {
+    await queue.enqueue({ kind: 'location', reportId: 5, latitud: index, longitud: index });
+  }
+  await queue.enqueue({ kind: 'status', reportId: 5, status: 3 });
+  await queue.enqueue({ kind: 'location', reportId: 5, latitud: 500, longitud: 500 });
+  const calls: string[] = [];
+
+  await syncPendingOperations({ queue, ...senders({
+    sendLocations: async (batch) => {
+      calls.push(`location:${batch.ubicaciones.length}:${batch.ubicaciones[0].latitud}`);
+    },
+    sendStatus: async () => { calls.push('status'); },
+  }) });
+
+  assert.deepEqual(calls, ['location:200:0', 'location:1:200', 'status', 'location:1:500']);
+  assert.deepEqual(await queue.list(), []);
+});
+
+test('retries preserve the persisted sample id and original capture time', async () => {
+  const queue = createMemoryQueue();
+  const operation = await queue.enqueue({
+    kind: 'location', reportId: 5, latitud: 1, longitud: 2,
+    fechaCaptura: '2026-10-26T11:59:00.000Z', precisionMetros: 9,
+  });
+  const batches: any[] = [];
+  const networkFailure = async (batch: any) => { batches.push(batch); throw new Error('Network request failed'); };
+
+  await syncPendingOperations({ queue, ...senders({ sendLocations: networkFailure }) });
+  await syncPendingOperations({ queue, ...senders({ sendLocations: async (batch) => { batches.push(batch); } }) });
+
+  assert.deepEqual(batches.map((batch) => batch.ubicaciones[0]), [
+    {
+      latitud: 1, longitud: 2, idMuestra: operation.id,
+      fechaCaptura: '2026-10-26T11:59:00.000Z', precisionMetros: 9,
+    },
+    {
+      latitud: 1, longitud: 2, idMuestra: operation.id,
+      fechaCaptura: '2026-10-26T11:59:00.000Z', precisionMetros: 9,
+    },
+  ]);
+});
+
+test('a legacy queued location uses its persisted operation id and createdAt', async () => {
+  const values = new Map<string, string>();
+  values.set('arje_field_operation_queue', JSON.stringify([{
+    kind: 'location', reportId: 5, latitud: 1, longitud: 2,
+    ownerCuadrillaId: 1, id: 'legacy-location',
+    createdAt: '2026-10-12T00:00:00.000Z', attempts: 0, terminal: false,
+  }]));
+  const queue = createOfflineQueue({
+    getItem: async (key) => values.get(key) ?? null,
+    setItem: async (key, value) => { values.set(key, value); },
+  });
+  queue.setActiveOwner(1);
+  const batches: any[] = [];
+
+  await syncPendingOperations({ queue, ...senders({
+    sendLocations: async (batch) => { batches.push(batch); },
+  }) });
+
+  assert.deepEqual(batches[0].ubicaciones[0], {
+    latitud: 1, longitud: 2,
+    idMuestra: 'legacy-location',
+    fechaCaptura: '2026-10-12T00:00:00.000Z',
+  });
 });
 
 test('groupLocations preserves FIFO boundaries between reports and operation kinds', async () => {
@@ -460,20 +532,31 @@ for (const failure of [new Error('Network request failed'), new Error('API Error
   });
 }
 
-for (const status of [401, 403]) {
-  test(`${status} keeps the operation and requires authentication`, async () => {
-    const queue = createMemoryQueue();
-    await queue.enqueue({ kind: 'status', reportId: 5, status: 3 });
+test('401 keeps the operation and requires authentication', async () => {
+  const queue = createMemoryQueue();
+  await queue.enqueue({ kind: 'status', reportId: 5, status: 3 });
 
-    const result = await syncPendingOperations({ queue, ...senders({
-      sendStatus: async () => { throw new Error(`API Error ${status}: forbidden`); },
-    }) });
+  const result = await syncPendingOperations({ queue, ...senders({
+    sendStatus: async () => { throw new Error('API Error 401: unauthorized'); },
+  }) });
 
-    assert.deepEqual(result, { sent: 0, pending: 1, failed: 0, requiresAuthentication: true });
-    assert.deepEqual((await queue.list()).map(({ attempts, terminal }) => ({ attempts, terminal })),
-      [{ attempts: 1, terminal: false }]);
-  });
-}
+  assert.deepEqual(result, { sent: 0, pending: 1, failed: 0, requiresAuthentication: true });
+  assert.deepEqual((await queue.list()).map(({ attempts, terminal }) => ({ attempts, terminal })),
+    [{ attempts: 1, terminal: false }]);
+});
+
+test('403 marks the rejected operation terminal instead of retrying forever', async () => {
+  const queue = createMemoryQueue();
+  await queue.enqueue({ kind: 'location', reportId: 5, latitud: 1, longitud: 2 });
+
+  const result = await syncPendingOperations({ queue, ...senders({
+    sendLocations: async () => { throw new Error('API Error 403: report not assigned'); },
+  }) });
+
+  assert.deepEqual(result, { sent: 0, pending: 1, failed: 1, requiresAuthentication: false });
+  assert.deepEqual((await queue.list()).map(({ attempts, terminal }) => ({ attempts, terminal })),
+    [{ attempts: 1, terminal: true }]);
+});
 
 for (const status of [400, 409]) {
   test(`${status} marks a rejected status terminal and stops dependent report operations`, async () => {

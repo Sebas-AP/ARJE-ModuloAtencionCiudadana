@@ -59,6 +59,22 @@ test('conserva todos los puntos de un lote de ubicación', () => {
   ] });
 });
 
+test('preserva identidad, fecha real de captura y precisión de cada muestra', () => {
+  assert.deepEqual(buildLocationBatch([{
+    latitud: 21.8,
+    longitud: -102.3,
+    idMuestra: 'muestra-1',
+    fechaCaptura: '2026-10-26T12:00:00.000Z',
+    precisionMetros: 7.5,
+  }]), { ubicaciones: [{
+    latitud: 21.8,
+    longitud: -102.3,
+    idMuestra: 'muestra-1',
+    fechaCaptura: '2026-10-26T12:00:00.000Z',
+    precisionMetros: 7.5,
+  }] });
+});
+
 test('normaliza la respuesta de login de cuadrilla sin depender del perfil administrativo', () => {
   assert.deepEqual(
     createCuadrillaSession({

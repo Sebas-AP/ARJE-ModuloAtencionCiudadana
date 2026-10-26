@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import { buildAssignedReportsPath, buildLocationBatch, buildSupervisedReportsPath, fieldApiPaths } from './fieldApiContract';
 import { resolveApiBaseUrl } from './apiConfiguration';
 import { secureStorage } from './secureStorage';
-import type { CuadrillaLoginPayload } from './fieldApiContract';
+import type { CuadrillaLoginPayload, MuestraUbicacion } from './fieldApiContract';
 import type { ActualizarEstatusDTO, ActualizarTiempoEstimadoDTO, CuadrillaDTO, EvidenciaDTO, ReporteDTO, ResolverSupervisionDTO } from '../types';
 
 const API_BASE_URL = resolveApiBaseUrl(Platform.OS, process.env.EXPO_PUBLIC_API_BASE_URL);
@@ -147,7 +147,7 @@ export const enviarUbicacion = async (data: {
 
 export const enviarUbicaciones = async (
   idReporte: number,
-  ubicaciones: { latitud: number; longitud: number }[],
+  ubicaciones: MuestraUbicacion[],
   session?: AuthSessionSnapshot,
 ) => {
   return apiRequest<void>(fieldApiPaths.ubicaciones(idReporte), {

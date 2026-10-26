@@ -11,11 +11,17 @@ export function mobileRuntime() {
   const secure = new Map<string, string>([['arje_token', 'test-token']]);
   const files = new Set<string>(['file://photo.jpg']);
   const tasks = new Map<string, (body: any) => Promise<void>>();
+  const registeredTasks = new Set<string>();
   const requests: { url: string; options: any }[] = [];
   const cuadrilla = { id: 8, nombre: 'Norte', usuarioApp: 'norte', estatusDisponibilidad: 1, reportesAsignadosCount: 1 };
   let respond = async (_url: string, _options: any): Promise<any> => ({ ok: true, status: 204 });
   let tokenReads = 0;
   let onTokenRead: ((read: number) => void | Promise<void>) | undefined;
+  let locationStartError: Error | undefined;
+  let currentPosition = {
+    coords: { latitude: 21.8853, longitude: -102.2916, accuracy: 5 },
+    timestamp: Date.parse('2026-10-26T12:00:00.000Z'),
+  };
   const natives: Record<string, any> = {
     'react-native': {
       Platform: { OS: 'android' },
@@ -37,14 +43,24 @@ export function mobileRuntime() {
     },
     'expo-task-manager': {
       defineTask: (name: string, task: (body: any) => Promise<void>) => tasks.set(name, task),
-      isTaskRegisteredAsync: async (name: string) => tasks.has(name),
+      isTaskRegisteredAsync: async (name: string) => registeredTasks.has(name),
     },
     'expo-location': {
       Accuracy: { High: 6 },
       requestForegroundPermissionsAsync: async () => ({ status: 'granted' }),
       requestBackgroundPermissionsAsync: async () => ({ status: 'granted' }),
-      startLocationUpdatesAsync: async () => {},
-      stopLocationUpdatesAsync: async () => {},
+      getForegroundPermissionsAsync: async () => ({ status: 'granted' }),
+      getBackgroundPermissionsAsync: async () => ({ status: 'granted' }),
+      getCurrentPositionAsync: async () => currentPosition,
+      watchPositionAsync: async (_options: unknown, callback: (location: typeof currentPosition) => void) => {
+        callback(currentPosition);
+        return { remove: () => {} };
+      },
+      startLocationUpdatesAsync: async (name: string) => {
+        if (locationStartError) throw locationStartError;
+        registeredTasks.add(name);
+      },
+      stopLocationUpdatesAsync: async (name: string) => { registeredTasks.delete(name); },
     },
     'expo-file-system': {
       documentDirectory: 'file://documents/',
@@ -82,8 +98,10 @@ export function mobileRuntime() {
   }
   load('fieldOperationsService').setFieldOperationOwner(cuadrilla.id);
   return {
-    load, storage, secure, tasks, requests, cuadrilla,
+    load, storage, secure, tasks, registeredTasks, requests, cuadrilla,
     onTokenRead: (handler: (read: number) => void | Promise<void>) => { onTokenRead = handler; },
+    failLocationStart: (error: Error) => { locationStartError = error; },
+    setCurrentPosition: (position: typeof currentPosition) => { currentPosition = position; },
     removeFile: (uri: string) => { files.delete(uri); },
     respondWith: (handler: typeof respond) => { respond = handler; },
     pending: () => JSON.parse(storage.get('arje_field_operation_queue') ?? '[]'),

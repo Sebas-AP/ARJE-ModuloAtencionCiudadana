@@ -41,6 +41,20 @@ export const createCuadrillaSession = (response: CuadrillaLoginPayload) => ({
   cuadrilla: response.cuadrilla,
 });
 
-export const buildLocationBatch = (ubicaciones: { latitud: number; longitud: number }[]) => ({
-  ubicaciones: ubicaciones.map(({ latitud, longitud }) => ({ latitud, longitud })),
+export interface MuestraUbicacion {
+  latitud: number;
+  longitud: number;
+  idMuestra?: string;
+  fechaCaptura?: string;
+  precisionMetros?: number;
+}
+
+export const buildLocationBatch = (ubicaciones: MuestraUbicacion[]) => ({
+  ubicaciones: ubicaciones.map(({ latitud, longitud, idMuestra, fechaCaptura, precisionMetros }) => ({
+    latitud,
+    longitud,
+    ...(idMuestra !== undefined && { idMuestra }),
+    ...(fechaCaptura !== undefined && { fechaCaptura }),
+    ...(precisionMetros !== undefined && { precisionMetros }),
+  })),
 });

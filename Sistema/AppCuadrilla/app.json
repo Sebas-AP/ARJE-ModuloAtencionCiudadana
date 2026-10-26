@@ -20,6 +20,7 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Esta app necesita acceder a tu ubicación para reportar tu posición durante las intervenciones",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Esta app necesita acceder a tu ubicación en segundo plano para enviar coordenadas periódicas al servidor",
+        "NSLocationAlwaysUsageDescription": "Esta app necesita acceder a tu ubicación en segundo plano para enviar coordenadas periódicas al servidor",
         "NSCameraUsageDescription": "Esta app necesita acceder a la cámara para capturar evidencias de resolución",
         "NSPhotoLibraryUsageDescription": "Esta app necesita acceder a la galería para seleccionar fotos de evidencias"
       }
@@ -34,6 +35,9 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "POST_NOTIFICATIONS",
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
@@ -50,7 +54,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Permitir a ARJE Cuadrilla acceder a la ubicación en todo momento para seguimiento de intervenciones",
           "isIosBackgroundLocationEnabled": true,
-          "isAndroidBackgroundLocationEnabled": true
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       [

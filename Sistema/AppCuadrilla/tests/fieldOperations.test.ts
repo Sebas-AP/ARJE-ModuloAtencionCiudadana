@@ -141,6 +141,89 @@ test('background task queues every GPS point for its session owner and requests 
   assert.equal(app.requests.length, 1);
 });
 
+test('background GPS preserves its real timestamp and accuracy through retries', async () => {
+  const app = mobileRuntime();
+  const location = app.load('locationService');
+  const operations = app.load('fieldOperationsService');
+  await location.setLocationSessionOwner(8);
+  await location.setActiveReporteId(19);
+  const payloads: any[] = [];
+  let attempts = 0;
+  app.respondWith(async (url, options) => {
+    if (url.endsWith('/reportes/19/ubicaciones')) {
+      payloads.push(JSON.parse(options.body));
+      if (attempts++ === 0) throw new Error('Network request failed');
+    }
+    return { ok: true, status: 204 };
+  });
+
+  await app.tasks.get(location.LOCATION_TASK)!({ data: { locations: [{
+    coords: { latitude: 21.8, longitude: -102.3, accuracy: 6.5 },
+    timestamp: Date.parse('2026-10-26T11:58:00.000Z'),
+  }] } });
+
+  assert.equal(payloads.length, 1);
+  assert.deepEqual(payloads[0].ubicaciones[0], {
+    latitud: 21.8,
+    longitud: -102.3,
+    idMuestra: app.pending()[0].id,
+    fechaCaptura: '2026-10-26T11:58:00.000Z',
+    precisionMetros: 6.5,
+  });
+
+  await operations.syncFieldOperations();
+  assert.equal(payloads.length, 2);
+  assert.deepEqual(payloads[1], payloads[0]);
+  assert.deepEqual(app.pending(), []);
+});
+
+test('starting tracking records an initial sample and exposes one shared tracking state', async () => {
+  const app = mobileRuntime();
+  const location = app.load('locationService');
+  await location.setLocationSessionOwner(8);
+  app.setCurrentPosition({
+    coords: { latitude: 21.9, longitude: -102.4, accuracy: 4 },
+    timestamp: Date.parse('2026-10-26T12:00:00.000Z'),
+  });
+  const payloads: any[] = [];
+  app.respondWith(async (url, options) => {
+    if (url.endsWith('/reportes/19/ubicaciones')) payloads.push(JSON.parse(options.body));
+    return { ok: true, status: 204 };
+  });
+
+  await location.startLocationTracking(19);
+  const state = await location.getTrackingState();
+  const remounted = await location.getTrackingState();
+
+  assert.equal(state?.reportId, 19);
+  assert.equal(state?.ownerCuadrillaId, 8);
+  assert.equal(remounted?.reportId, state?.reportId);
+  assert.equal(remounted?.ownerCuadrillaId, state?.ownerCuadrillaId);
+  const initialSample = payloads[0].ubicaciones[0];
+  assert.equal(initialSample.latitud, 21.9);
+  assert.equal(initialSample.longitud, -102.4);
+  assert.equal(initialSample.fechaCaptura, '2026-10-26T12:00:00.000Z');
+  assert.equal(initialSample.precisionMetros, 4);
+  assert.equal(typeof initialSample.idMuestra, 'string');
+  assert.equal(initialSample.idMuestra.length > 0, true);
+
+  await location.stopLocationTracking();
+  assert.equal(await location.getTrackingState(), null);
+});
+
+test('a failed native task start clears the active tracking indicator', async () => {
+  const app = mobileRuntime();
+  const location = app.load('locationService');
+  await location.setLocationSessionOwner(8);
+  app.failLocationStart(new Error('No se pudo iniciar la tarea'));
+
+  await assert.rejects(location.startLocationTracking(19), /No se pudo iniciar la tarea/);
+
+  assert.equal(await location.getTrackingState(), null);
+  assert.equal(app.storage.get('arje_active_location_tracking'), undefined);
+  assert.equal(app.registeredTasks.has(location.LOCATION_TASK), false);
+});
+
 test('background task drops locations when the tracked owner no longer matches the session', async () => {
   const app = mobileRuntime();
   const location = app.load('locationService');
@@ -222,8 +305,8 @@ for (const trigger of ['login', 'restore']) {
 test('availability and GPS use existing API contracts through the shared queue', async () => {
   const app = mobileRuntime();
   const operations = app.load('fieldOperationsService');
-  await operations.fieldOperationQueue.enqueue({ kind: 'location', reportId: 19, latitud: 21.8, longitud: -102.3 });
-  await operations.fieldOperationQueue.enqueue({ kind: 'location', reportId: 19, latitud: 21.9, longitud: -102.4 });
+  const firstLocation = await operations.fieldOperationQueue.enqueue({ kind: 'location', reportId: 19, latitud: 21.8, longitud: -102.3 });
+  const secondLocation = await operations.fieldOperationQueue.enqueue({ kind: 'location', reportId: 19, latitud: 21.9, longitud: -102.4 });
   app.respondWith(async (url) => url.endsWith('/cuadrillas/me')
     ? { ok: true, status: 200, json: async () => app.cuadrilla }
     : { ok: true, status: 204 });
@@ -232,7 +315,14 @@ test('availability and GPS use existing API contracts through the shared queue',
     path: new URL(url).pathname, method: options.method, payload: JSON.parse(options.body),
   })), [
     { path: '/api/reportes/19/ubicaciones', method: 'POST', payload: { ubicaciones: [
-      { latitud: 21.8, longitud: -102.3 }, { latitud: 21.9, longitud: -102.4 },
+      {
+        latitud: 21.8, longitud: -102.3,
+        idMuestra: firstLocation.id, fechaCaptura: firstLocation.createdAt,
+      },
+      {
+        latitud: 21.9, longitud: -102.4,
+        idMuestra: secondLocation.id, fechaCaptura: secondLocation.createdAt,
+      },
     ] } },
     { path: '/api/cuadrillas/8/disponibilidad', method: 'PUT', payload: { estatusDisponibilidad: 2 } },
   ]);

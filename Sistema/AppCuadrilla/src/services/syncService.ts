@@ -1,3 +1,4 @@
+import type { MuestraUbicacion } from './fieldApiContract';
 import type { QueuedOperation } from './offlineQueue';
 
 type LocationOperation = Extract<QueuedOperation, { kind: 'location' }>;
@@ -11,7 +12,7 @@ type AvailabilityOperation = Extract<QueuedOperation, { kind: 'availability' }>;
 export interface LocationBatch {
   reportId: number;
   ownerCuadrillaId: number;
-  ubicaciones: { latitud: number; longitud: number }[];
+  ubicaciones: MuestraUbicacion[];
 }
 
 export interface SyncResult {
@@ -44,12 +45,15 @@ interface ActiveSync {
 
 const activeSyncs = new WeakMap<SyncDependencies['queue'], ActiveSync>();
 
+export const MAX_LOCATIONS_PER_BATCH = 200;
+
 export function groupLocations(items: QueuedOperation[]): QueuedOperation[][] {
   const groups: QueuedOperation[][] = [];
   for (const item of items) {
     const previous = groups[groups.length - 1];
     if (item.kind === 'location' && !item.terminal && previous?.[0]?.kind === 'location'
-      && !previous[0].terminal && previous[0].reportId === item.reportId) {
+      && !previous[0].terminal && previous[0].reportId === item.reportId
+      && previous.length < MAX_LOCATIONS_PER_BATCH) {
       previous.push(item);
     } else {
       groups.push([item]);
@@ -86,7 +90,13 @@ async function sendGroup(group: QueuedOperation[], dependencies: SyncDependencie
         ownerCuadrillaId: first.ownerCuadrillaId,
         ubicaciones: group.map((operation) => {
           const point = operation as LocationOperation;
-          return { latitud: point.latitud, longitud: point.longitud };
+          return {
+            latitud: point.latitud,
+            longitud: point.longitud,
+            idMuestra: point.idMuestra ?? point.id,
+            fechaCaptura: point.fechaCaptura ?? point.createdAt,
+            ...(point.precisionMetros !== undefined && { precisionMetros: point.precisionMetros }),
+          };
         }),
       });
       return;
@@ -138,12 +148,12 @@ async function runSync(
     } catch (error) {
       if (dependencies.queue.getActiveOwner() !== ownerCuadrillaId) break;
       const status = errorStatus(error);
-      if (status === 401 || status === 403) {
+      if (status === 401) {
         for (const operation of group) await dependencies.queue.markFailed(operation.id, errorMessage(error), false);
         requiresAuthentication = true;
         break;
       }
-      const terminal = status === 400 || status === 409;
+      const terminal = status === 400 || status === 403 || status === 409;
       for (const operation of group) await dependencies.queue.markFailed(operation.id, errorMessage(error), terminal);
       if (!terminal) break;
       if (first.kind === 'status' || first.kind === 'resolutionComment') blockedReports.add(first.reportId);

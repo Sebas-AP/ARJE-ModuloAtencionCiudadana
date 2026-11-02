@@ -31,7 +31,9 @@ builder.Services.AddOutputCache(options =>
     options.DefaultExpirationTimeSpan = TimeSpan.FromSeconds(60);
 });
 
-builder.Services.AddArjeCors(builder.Configuration["origenesPermitidos"]);
+builder.Services.AddArjeCors(
+    builder.Configuration["origenesPermitidos"],
+    builder.Environment.IsDevelopment());
 
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IAlmacenadorArchivos, AlmacenadorArchivosImgbb>();
@@ -48,7 +50,7 @@ builder.Services.AddAuthorization();
 // HTTP Client para NVIDIA API (timeout ágil de 10s para fallback inmediato en caso de red lenta)
 builder.Services.AddHttpClient<IClasificadorService, ClasificadorNvidiaService>(client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(10);
+    client.Timeout = TimeSpan.FromSeconds(20);
 });
 
 builder.Services.AddEndpointsApiExplorer();

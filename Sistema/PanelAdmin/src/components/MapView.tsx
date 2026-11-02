@@ -85,7 +85,7 @@ interface MapViewProps {
   focusTarget?: MapFocusTarget;
 }
 
-const DEFAULT_CENTER: [number, number] = [21.8853, -102.2916];
+const DEFAULT_CENTER: [number, number] = [23.6345, -102.5528];
 
 function RecenterMap({ center, zoom }: { center: [number, number]; zoom?: number }) {
   const map = useMap();
@@ -133,7 +133,7 @@ export const MapView: React.FC<MapViewProps> = ({
   reportes = [],
   cuadrillas = [],
   crewPositions = [],
-  center = DEFAULT_CENTER,
+  center,
   zoom = 13,
   height = '400px',
   onSelectReporte,
@@ -143,7 +143,9 @@ export const MapView: React.FC<MapViewProps> = ({
   const maptilerConfig = useMemo(() => getMaptilerConfigFromEnv(), []);
   const [tileError, setTileError] = useState(false);
   const [tileAttempt, setTileAttempt] = useState(0);
-  const [mapCenter, setMapCenter] = useState<[number, number]>(center);
+  const [geoCenter, setGeoCenter] = useState<[number, number] | null>(null);
+  const [dataCenter, setDataCenter] = useState<[number, number] | null>(null);
+  const [mapCenter, setMapCenter] = useState<[number, number]>(center ?? DEFAULT_CENTER);
   const handleMapCenterChange = useCallback((next: [number, number]) => {
     setMapCenter(next);
   }, []);
@@ -155,6 +157,45 @@ export const MapView: React.FC<MapViewProps> = ({
   const crewsWithoutPosition = cuadrillas.filter(
     (cuadrilla) => !effectiveCrews.some((crew) => crew.idCuadrilla === cuadrilla.id),
   );
+
+  const reportCenter = useMemo<[number, number] | null>(() => {
+    if (!visibleReportes.length) return null;
+    const totals = visibleReportes.reduce(
+      (acc, reporte) => [acc[0] + reporte.latitud, acc[1] + reporte.longitud],
+      [0, 0],
+    );
+    return [totals[0] / visibleReportes.length, totals[1] / visibleReportes.length];
+  }, [visibleReportes]);
+
+  useEffect(() => {
+    if (center) return;
+
+    const browserNavigator = typeof navigator === 'undefined' ? undefined : navigator;
+    if (!browserNavigator?.geolocation) return;
+
+    let cancelled = false;
+    browserNavigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (cancelled) return;
+        if (isValidCoordinatePair(position.coords.latitude, position.coords.longitude)) {
+          setGeoCenter([position.coords.latitude, position.coords.longitude]);
+        }
+      },
+      () => {},
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
+    );
+
+    return () => { cancelled = true; };
+  }, [center]);
+
+  useEffect(() => {
+    if (center || dataCenter || !reportCenter) return;
+    setDataCenter(reportCenter);
+  }, [center, dataCenter, reportCenter]);
+
+  const resolvedCenter = center ?? geoCenter ?? dataCenter ?? DEFAULT_CENTER;
+  const resolvedZoom = center || geoCenter || dataCenter ? zoom : 5;
+
   const retryTiles = () => {
     setTileError(false);
     setTileAttempt((attempt) => attempt + 1);
@@ -176,12 +217,12 @@ export const MapView: React.FC<MapViewProps> = ({
       }}
     >
       <MapContainer
-        center={center}
-        zoom={zoom}
+        center={resolvedCenter}
+        zoom={resolvedZoom}
         style={{ height: '100%', width: '100%', backgroundColor: '#E2E8F0' }}
         scrollWheelZoom={true}
       >
-        <RecenterMap center={center} zoom={zoom} />
+        <RecenterMap center={resolvedCenter} zoom={resolvedZoom} />
         <FocusMap target={focusTarget} />
         <MapCenterProbe onChange={handleMapCenterChange} />
         {maptilerConfig && (

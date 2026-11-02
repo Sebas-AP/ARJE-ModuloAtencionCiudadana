@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using ARJE.Api.Entidades.Enums;
 
@@ -41,7 +43,10 @@ public class ClasificadorNvidiaService : IClasificadorService
         { "Uso indevido", TipoProblema.UsoIndebido }
     };
 
+    private const string ModeloPorDefecto = "nvidia/nemotron-3.5-bolt-e4b";
+
     private readonly string? _apiKey;
+    private readonly string _modelo;
 
     public ClasificadorNvidiaService(HttpClient httpClient, IConfiguration configuration, ILogger<ClasificadorNvidiaService> logger)
     {
@@ -54,6 +59,13 @@ public class ClasificadorNvidiaService : IClasificadorService
         {
             _apiKey = Environment.GetEnvironmentVariable("NVIDIA_API_KEY");
         }
+
+        var modelo = _configuration["NvidiaModel"];
+        if (string.IsNullOrWhiteSpace(modelo))
+        {
+            modelo = Environment.GetEnvironmentVariable("NVIDIA_MODEL");
+        }
+        _modelo = string.IsNullOrWhiteSpace(modelo) ? ModeloPorDefecto : modelo;
 
         if (!string.IsNullOrWhiteSpace(_apiKey))
         {
@@ -79,7 +91,7 @@ public class ClasificadorNvidiaService : IClasificadorService
 
             var request = new
             {
-                model = "meta/llama-3.2-11b-vision-instruct",
+                model = _modelo,
                 messages = new[]
                 {
                     new { role = "system", content = "Eres el Agente Inteligente de Triage, Clasificación y Priorización de reportes de agua de ARJE. Responde EXCLUSIVAMENTE con JSON válido." },
@@ -146,19 +158,15 @@ Responde ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
                 if (parsed != null && !string.IsNullOrEmpty(parsed.Categoria))
                 {
                     var catTrim = parsed.Categoria.Trim();
-                    var tipoEnum = MapeoCategoriaAEnum.GetValueOrDefault(catTrim, TipoProblema.Otro);
+                    var tipoResuelto = ResolverTipoProblema(catTrim);
 
-                    if (tipoEnum == TipoProblema.Otro && !catTrim.Equals("Otro", StringComparison.OrdinalIgnoreCase))
+                    if (tipoResuelto is null)
                     {
-                        var match = MapeoCategoriaAEnum.FirstOrDefault(kvp =>
-                            kvp.Key.Contains(catTrim, StringComparison.OrdinalIgnoreCase) ||
-                            catTrim.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase));
-
-                        if (!string.IsNullOrEmpty(match.Key))
-                        {
-                            tipoEnum = match.Value;
-                        }
+                        _logger.LogWarning("La IA devolvió una categoría desconocida ({Categoria}); se usa la clasificación heurística.", catTrim);
+                        return ClasificacionFallback(descripcionOriginal);
                     }
+
+                    var tipoEnum = tipoResuelto.Value;
 
                     // Mapear prioridad
                     var prioridad = ParsearPrioridad(parsed.Prioridad);
@@ -186,6 +194,51 @@ Responde ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
         }
 
         return ClasificacionFallback(descripcionOriginal);
+    }
+
+    private static TipoProblema? ResolverTipoProblema(string categoria)
+    {
+        var normalizada = Normalizar(categoria);
+
+        foreach (var kvp in MapeoCategoriaAEnum)
+        {
+            if (Normalizar(kvp.Key) == normalizada)
+            {
+                return kvp.Value;
+            }
+        }
+
+        if (normalizada.Length < 6)
+        {
+            return null;
+        }
+
+        string? mejorClave = null;
+        foreach (var kvp in MapeoCategoriaAEnum)
+        {
+            var clave = Normalizar(kvp.Key);
+            if (clave.Length >= 6 && (clave.Contains(normalizada) || normalizada.Contains(clave))
+                && (mejorClave is null || clave.Length < mejorClave.Length))
+            {
+                mejorClave = kvp.Key;
+            }
+        }
+
+        return mejorClave is null ? null : MapeoCategoriaAEnum[mejorClave];
+    }
+
+    private static string Normalizar(string valor)
+    {
+        var descompuesto = valor.Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(descompuesto.Length);
+        foreach (var caracter in descompuesto)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(caracter) != UnicodeCategory.NonSpacingMark)
+            {
+                builder.Append(char.ToLowerInvariant(caracter));
+            }
+        }
+        return builder.ToString().Trim();
     }
 
     private PrioridadReporte ParsearPrioridad(string? prioridadStr)
@@ -242,7 +295,11 @@ Responde ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
             tipoProblema = TipoProblema.FaltaAbastecimiento;
             razonamiento = "Detección de problemas de presión insuficiente";
         }
-        else if (desc.Contains("no hay agua") || desc.Contains("sin agua") || desc.Contains("falta agua") || desc.Contains("corte") || desc.Contains("suspension") || desc.Contains("suspensión"))
+        else if (desc.Contains("no hay agua") || desc.Contains("sin agua") || desc.Contains("falta agua")
+                 || desc.Contains("no tengo agua") || desc.Contains("no tengo servicio") || desc.Contains("sin servicio")
+                 || desc.Contains("no hay servicio") || desc.Contains("no llega el agua") || desc.Contains("no nos llega")
+                 || desc.Contains("se fue el agua") || desc.Contains("nos quitaron el agua") || desc.Contains("nos dejaron sin agua")
+                 || desc.Contains("corte") || desc.Contains("suspension") || desc.Contains("suspensión"))
         {
             categoria = "Falta de abastecimiento";
             tipoProblema = TipoProblema.FaltaAbastecimiento;
@@ -284,7 +341,10 @@ Responde ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
             tipoProblema = TipoProblema.InstalacionRota;
             razonamiento = "Detección de tubería o infraestructura hidráulica fracturada";
         }
-        else if (desc.Contains("robo") || desc.Contains("ilegal") || desc.Contains("toma clandestina") || desc.Contains("desperdicio"))
+        else if (desc.Contains("robo") || desc.Contains("ilegal") || desc.Contains("toma clandestina")
+                 || desc.Contains("desperdicio") || desc.Contains("mal uso") || desc.Contains("haciendo mal uso")
+                 || desc.Contains("conectarse") || desc.Contains("conexion") || desc.Contains("conexión")
+                 || desc.Contains("se conecta") || desc.Contains("toma de agua"))
         {
             categoria = "Uso indebido";
             tipoProblema = TipoProblema.UsoIndebido;

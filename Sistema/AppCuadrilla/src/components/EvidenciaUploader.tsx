@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator, Platform, Modal, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,7 +7,6 @@ import { reportesService } from '../services/reportesService';
 import { getOperationFeedback, operationFeedbackMessages } from '../services/fieldUiPolicy';
 import type { SyncResult } from '../services/syncService';
 import { fitArtboard } from '../theme/figmaArtboard';
-import { storeImageHybrid, getImageHybrid, deleteImageHybrid } from '../services/webImageStorage';
 
 interface EvidenciaUploaderProps {
   idReporte: number;
@@ -21,20 +20,19 @@ export const EvidenciaUploader: React.FC<EvidenciaUploaderProps> = ({
   disabled = false,
 }) => {
   const [imagen, setImagen] = useState<string | null>(null);
-  const [imagenId, setImagenId] = useState<string | null>(null);
+  const [archivo, setArchivo] = useState<{ name: string; mimeType: string } | null>(null);
   const [subiendo, setSubiendo] = useState(false);
   const [showAudioNotice, setShowAudioNotice] = useState(false);
   const { width, height } = useWindowDimensions();
   const modalScale = fitArtboard(width, height);
 
-  // Load persisted image on mount
-  useEffect(() => {
-    if (imagenId) {
-      getImageHybrid(imagenId).then(uri => {
-        if (uri) setImagen(uri);
-      });
-    }
-  }, [imagenId]);
+  const aplicarSeleccion = (asset: ImagePicker.ImagePickerAsset) => {
+    const extension = (asset.mimeType?.split('/')[1] ?? asset.fileName?.split('.').pop() ?? 'jpg').toLowerCase();
+    const name = asset.fileName ?? `evidencia_${idReporte}_${Date.now()}.${extension}`;
+    const mimeType = asset.mimeType ?? `image/${extension === 'jpg' ? 'jpeg' : extension}`;
+    setImagen(asset.uri);
+    setArchivo({ name, mimeType });
+  };
 
   const seleccionarImagen = async () => {
     if (disabled) return;
@@ -53,11 +51,7 @@ export const EvidenciaUploader: React.FC<EvidenciaUploaderProps> = ({
     });
 
     if (!result.canceled && result.assets[0]) {
-      const uri = result.assets[0].uri;
-      const id = `evidencia_${idReporte}_${Date.now()}`;
-      const durableUri = await storeImageHybrid(uri, id);
-      setImagen(durableUri);
-      setImagenId(id);
+      aplicarSeleccion(result.assets[0]);
     }
   };
 
@@ -77,31 +71,20 @@ export const EvidenciaUploader: React.FC<EvidenciaUploaderProps> = ({
     });
 
     if (!result.canceled && result.assets[0]) {
-      const uri = result.assets[0].uri;
-      const id = `evidencia_${idReporte}_${Date.now()}`;
-      const durableUri = await storeImageHybrid(uri, id);
-      setImagen(durableUri);
-      setImagenId(id);
+      aplicarSeleccion(result.assets[0]);
     }
   };
 
   const subirEvidencia = async () => {
-    if (!imagen || subiendo || disabled || !imagenId) return;
+    if (!imagen || !archivo || subiendo || disabled) return;
 
     setSubiendo(true);
     try {
-      const uriParts = imagen.split('.');
-      const extension = uriParts[uriParts.length - 1];
-      const fileName = `evidencia_${idReporte}_${Date.now()}.${extension}`;
-      const mimeType = `image/${extension === 'jpg' ? 'jpeg' : extension}`;
+      const result = await reportesService.subirEvidenciaResolucion(idReporte, imagen, archivo.name, archivo.mimeType);
 
-      const result = await reportesService.subirEvidenciaResolucion(idReporte, imagen, fileName, mimeType);
-      
       Alert.alert('Evidencia', operationFeedbackMessages[getOperationFeedback(result)]);
-      // Clean up local storage after successful upload
-      await deleteImageHybrid(imagenId);
       setImagen(null);
-      setImagenId(null);
+      setArchivo(null);
       onSuccess?.(result);
     } catch (error: unknown) {
       console.error('Error subiendo evidencia:', error);
@@ -112,11 +95,8 @@ export const EvidenciaUploader: React.FC<EvidenciaUploaderProps> = ({
   };
 
   const eliminarImagen = () => {
-    if (imagenId) {
-      deleteImageHybrid(imagenId);
-    }
     setImagen(null);
-    setImagenId(null);
+    setArchivo(null);
   };
 
   const agregarEvidencia = () => {

@@ -11,7 +11,7 @@ import {
 import type { AuthSessionSnapshot } from './api';
 import { asyncStorageQueueStore, createOfflineQueue } from './offlineQueue';
 import { syncPendingOperations } from './syncService';
-import { assertPersistedEvidence, persistEvidence, removePersistedEvidence } from './evidenceStorage';
+import { appendEvidenceToFormData, assertPersistedEvidence, persistEvidence, removePersistedEvidence } from './evidenceStorage';
 
 // Every trigger must reuse this instance: syncPendingOperations locks by queue identity.
 export const fieldOperationQueue = createOfflineQueue(asyncStorageQueueStore, {
@@ -57,7 +57,7 @@ export const syncFieldOperations = () => syncPendingOperations({
     }
     const formData = new FormData();
     formData.append('tipo', '2');
-    formData.append('archivo', { uri, name, type: mimeType } as any);
+    await appendEvidenceToFormData(formData, uri, name, mimeType);
     return subirEvidencia(reportId, formData, await captureOperationSession(ownerCuadrillaId));
   },
   sendAvailability: async ({ availability, targetCuadrillaId, ownerCuadrillaId }) =>

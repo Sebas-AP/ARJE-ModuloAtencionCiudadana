@@ -77,7 +77,7 @@ export default function MapaWebScreen() {
   );
   const selectedReporte = reportes.find((reporte) => reporte.id === model.selectedId) ?? null;
 
-  const locate = () => {
+  const solicitarUbicacion = useCallback((silencioso = false) => {
     const browserNavigator = (globalThis as {
       navigator?: {
         geolocation?: {
@@ -90,11 +90,13 @@ export default function MapaWebScreen() {
       };
     }).navigator;
     if (!browserNavigator?.geolocation) {
-      setGeoError('Este navegador no permite obtener la ubicación.');
+      if (!silencioso) setGeoError('Este navegador no permite obtener la ubicación.');
       return;
     }
-    setLocating(true);
-    setGeoError(null);
+    if (!silencioso) {
+      setLocating(true);
+      setGeoError(null);
+    }
     browserNavigator.geolocation.getCurrentPosition(
       (position) => {
         if (!mounted.current) return;
@@ -105,17 +107,34 @@ export default function MapaWebScreen() {
         setOwnLocation(next);
         requestFocus(next.latitude, next.longitude);
         setLocating(false);
+        setGeoError(null);
       },
       (cause) => {
         if (!mounted.current) return;
         setLocating(false);
-        setGeoError(cause.code === cause.PERMISSION_DENIED
-          ? 'Permiso de ubicación denegado. Puedes seguir usando el mapa de reportes.'
-          : 'No se pudo obtener tu ubicación.');
+        if (!silencioso) {
+          setGeoError(cause.code === cause.PERMISSION_DENIED
+            ? 'Permiso de ubicación denegado. Puedes seguir usando el mapa de reportes.'
+            : 'No se pudo obtener tu ubicación.');
+        }
       },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
     );
-  };
+  }, [requestFocus]);
+
+  useEffect(() => {
+    if (requestedReporteId !== null) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      if (!cancelled) solicitarUbicacion(true);
+    }, 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [requestedReporteId, solicitarUbicacion]);
+
+  const locate = () => solicitarUbicacion(false);
 
   const centrarSeleccionado = () => {
     if (selectedReporte) requestFocus(selectedReporte.latitud, selectedReporte.longitud);

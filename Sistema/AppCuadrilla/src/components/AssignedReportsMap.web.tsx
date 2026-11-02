@@ -72,8 +72,9 @@ export function AssignedReportsMap({
   const initialCenter = useMemo<[number, number]>(() => {
     if (selectedMarker) return [selectedMarker.latitud, selectedMarker.longitud];
     if (ownLocation) return [ownLocation.latitude, ownLocation.longitude];
-    return [21.8853, -102.2916];
+    return [23.6345, -102.5528];
   }, [selectedMarker, ownLocation]);
+  const initialZoom = selectedMarker || ownLocation ? 14 : 5;
 
   if (!config) {
     return (
@@ -90,7 +91,7 @@ export function AssignedReportsMap({
     <View style={{ height, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#CBD5E1' }}>
       <MapContainer
         center={initialCenter}
-        zoom={14}
+        zoom={initialZoom}
         style={{ height: '100%', width: '100%' }}
         scrollWheelZoom
       >

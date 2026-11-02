@@ -13,7 +13,7 @@ import { isActiveAssignedStatus } from '../services/fieldApiContract';
 import { getNativeMaptilerConfig } from '../services/maptilerConfig';
 import { buildAssignedMapModel } from '../services/mapaAsignadosModel';
 
-const DEFAULT_CENTER: [number, number] = [-102.2916, 21.8853];
+const DEFAULT_CENTER: [number, number] = [-102.5528, 23.6345];
 const ATTRIBUTION_TEXT = '© MapTiler © OpenStreetMap contributors';
 
 function parseReporteId(value: string | undefined): number | null {
@@ -32,6 +32,7 @@ export default function MapaScreen() {
   const [ownLocation, setOwnLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const cameraRef = useRef<CameraRef>(null);
   const lastCenteredId = useRef<number | null>(null);
+  const centeredOnUser = useRef(false);
   const maptilerConfig = useMemo(() => getNativeMaptilerConfig(), []);
   const requestedReporteId = parseReporteId(reporteId);
 
@@ -86,9 +87,16 @@ export default function MapaScreen() {
 
   useEffect(() => {
     if (activeTrackingReporte) return;
-    void Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
-      .then((loc) => setOwnLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude }))
-      .catch(() => {});
+    void (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        setOwnLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      } catch {
+        // Sin permiso o sin GPS: el mapa conserva su vista de respaldo.
+      }
+    })();
   }, [activeTrackingReporte]);
 
   const userLocation = location ?? ownLocation;
@@ -107,6 +115,12 @@ export default function MapaScreen() {
     moveCamera(selectedReporte.latitud, selectedReporte.longitud);
   }, [selectedReporte, moveCamera]);
 
+  useEffect(() => {
+    if (selectedReporte || centeredOnUser.current || !userLocation) return;
+    centeredOnUser.current = true;
+    moveCamera(userLocation.latitude, userLocation.longitude);
+  }, [selectedReporte, userLocation, moveCamera]);
+
   const centrarEnReporte = () => {
     if (selectedReporte) moveCamera(selectedReporte.latitud, selectedReporte.longitud);
   };
@@ -115,6 +129,7 @@ export default function MapaScreen() {
     if (userLocation) moveCamera(userLocation.latitude, userLocation.longitude);
   };
 
+  const hasInitialTarget = Boolean(selectedReporte || userLocation);
   const initialCenter: [number, number] = selectedReporte
     ? [selectedReporte.longitud, selectedReporte.latitud]
     : userLocation
@@ -156,7 +171,7 @@ export default function MapaScreen() {
         >
           <Camera
             ref={cameraRef}
-            initialViewState={{ center: initialCenter, zoom: 14 }}
+            initialViewState={{ center: initialCenter, zoom: hasInitialTarget ? 14 : 5 }}
             minZoom={4}
             maxZoom={19}
           />

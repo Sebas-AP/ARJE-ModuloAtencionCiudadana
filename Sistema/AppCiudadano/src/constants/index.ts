@@ -1,11 +1,12 @@
 import { Platform } from 'react-native';
 import { TipoProblema, EstatusReporte, TipoEvidencia, NotificationData } from '../types';
 
-// IP local de la máquina (192.168.0.8) o localhost en web
-const LOCAL_IP = '192.168.0.8';
+// En web, el navegador corre en la misma máquina que la API.
+// En nativo (teléfono real), se requiere EXPO_PUBLIC_API_URL con la IP LAN
+// de la computadora (ver scripts/start-lan.sh); el emulador Android usa 10.0.2.2.
 const DEFAULT_URL = Platform.OS === 'web'
   ? 'http://localhost:5170/api'
-  : `http://${LOCAL_IP}:5170/api`;
+  : 'http://10.0.2.2:5170/api';
 
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ||
@@ -79,9 +80,30 @@ export const TIPO_EVIDENCIA_LABELS: Record<TipoEvidencia, string> = {
 
 export const MAX_EVIDENCIAS = 5;
 export const MAX_DESCRIPCION_LENGTH = 2000;
+export const MIN_DESCRIPCION_OTRO_LENGTH = 60;
 export const GPS_ACCURACY_THRESHOLD = 50; // meters
 export const OFFLINE_MAX_RETRIES = 3;
 export const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+export const OTRO_PROBLEMA_LABEL = 'Otro';
+
+// Misma taxonomía que reconoce el clasificador del backend
+// (Sistema/API/Servicios/ClasificadorNvidiaService.cs, arrays Categorias/MapeoCategoriaAEnum),
+// para que el reporte siga siendo compatible si ese agente se reutiliza después.
+export const PROBLEMAS_FRECUENTES: { label: string; tipoProblema: TipoProblema }[] = [
+  { label: 'Fuga en vía pública', tipoProblema: TipoProblema.Fuga },
+  { label: 'Fuga domiciliaria', tipoProblema: TipoProblema.Fuga },
+  { label: 'Agua contaminada o sucia', tipoProblema: TipoProblema.Otro },
+  { label: 'Baja presión del agua', tipoProblema: TipoProblema.FaltaAbastecimiento },
+  { label: 'Falta de abastecimiento', tipoProblema: TipoProblema.FaltaAbastecimiento },
+  { label: 'Suministro intermitente', tipoProblema: TipoProblema.FaltaAbastecimiento },
+  { label: 'Instalación rota', tipoProblema: TipoProblema.InstalacionRota },
+  { label: 'Medidor dañado', tipoProblema: TipoProblema.InstalacionRota },
+  { label: 'Registro dañado o sin tapa', tipoProblema: TipoProblema.InstalacionRota },
+  { label: 'Hundimiento o socavón por fuga', tipoProblema: TipoProblema.Fuga },
+  { label: 'Uso indebido', tipoProblema: TipoProblema.UsoIndebido },
+  { label: OTRO_PROBLEMA_LABEL, tipoProblema: TipoProblema.Otro },
+];
 
 export const CLASSIFICATION_KEYWORDS: Record<TipoProblema, string[]> = {
   [TipoProblema.Fuga]: [

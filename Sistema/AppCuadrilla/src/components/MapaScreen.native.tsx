@@ -29,6 +29,7 @@ export default function MapaScreen() {
   const [error, setError] = useState<string | null>(null);
   const [mapError, setMapError] = useState(false);
   const [mapAttempt, setMapAttempt] = useState(0);
+  const [mapReady, setMapReady] = useState(false);
   const [ownLocation, setOwnLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const cameraRef = useRef<CameraRef>(null);
   const lastCenteredId = useRef<number | null>(null);
@@ -102,24 +103,29 @@ export default function MapaScreen() {
   const userLocation = location ?? ownLocation;
 
   const moveCamera = useCallback((latitude: number, longitude: number, zoom = 15) => {
+    if (!cameraRef.current) return false;
     try {
-      cameraRef.current?.easeTo({ center: [longitude, latitude], zoom, duration: 600 });
+      cameraRef.current.easeTo({ center: [longitude, latitude], zoom, duration: 600 });
+      return true;
     } catch {
-      // La cámara aún no está lista; el siguiente gesto del usuario la ubicará.
+      // La cámara aún no está lista; se reintentará cuando mapReady cambie.
+      return false;
     }
   }, []);
 
   useEffect(() => {
-    if (!selectedReporte || lastCenteredId.current === selectedReporte.id) return;
-    lastCenteredId.current = selectedReporte.id;
-    moveCamera(selectedReporte.latitud, selectedReporte.longitud);
-  }, [selectedReporte, moveCamera]);
+    if (!selectedReporte || !mapReady || lastCenteredId.current === selectedReporte.id) return;
+    if (moveCamera(selectedReporte.latitud, selectedReporte.longitud)) {
+      lastCenteredId.current = selectedReporte.id;
+    }
+  }, [selectedReporte, mapReady, moveCamera]);
 
   useEffect(() => {
-    if (selectedReporte || centeredOnUser.current || !userLocation) return;
-    centeredOnUser.current = true;
-    moveCamera(userLocation.latitude, userLocation.longitude);
-  }, [selectedReporte, userLocation, moveCamera]);
+    if (selectedReporte || centeredOnUser.current || !userLocation || !mapReady) return;
+    if (moveCamera(userLocation.latitude, userLocation.longitude)) {
+      centeredOnUser.current = true;
+    }
+  }, [selectedReporte, userLocation, mapReady, moveCamera]);
 
   const centrarEnReporte = () => {
     if (selectedReporte) moveCamera(selectedReporte.latitud, selectedReporte.longitud);
@@ -167,7 +173,7 @@ export default function MapaScreen() {
           logo
           compass
           onDidFailLoadingMap={() => setMapError(true)}
-          onDidFinishLoadingMap={() => setMapError(false)}
+          onDidFinishLoadingMap={() => { setMapError(false); setMapReady(true); }}
         >
           <Camera
             ref={cameraRef}

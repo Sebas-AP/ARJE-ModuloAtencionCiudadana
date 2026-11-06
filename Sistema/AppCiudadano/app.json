@@ -31,7 +31,8 @@
           "speechRecognitionPermission": "Permitir a ARJE Reportes usar el reconocimiento de voz para dictar la descripción."
         }
       ],
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      "expo-sharing"
     ]
   }
 }

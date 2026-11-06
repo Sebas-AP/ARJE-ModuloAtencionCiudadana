@@ -57,3 +57,4 @@ api.log
 .env.*
 !.env.example
 !*.env.example
+/graphify-out

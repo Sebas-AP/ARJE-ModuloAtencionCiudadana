@@ -251,33 +251,39 @@ public class ReportesController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult> Post([FromBody] ReporteCreacionDTO creacionDTO)
     {
+        if (string.IsNullOrWhiteSpace(creacionDTO.NumeroContrato))
+        {
+            return BadRequest(new { mensaje = "El número de contrato es obligatorio" });
+        }
+
+        if (string.IsNullOrWhiteSpace(creacionDTO.NombreCiudadano))
+        {
+            return BadRequest(new { mensaje = "El nombre es obligatorio" });
+        }
+
+        if (string.IsNullOrWhiteSpace(creacionDTO.TelefonoCiudadano) ||
+            creacionDTO.TelefonoCiudadano.Length != 10 ||
+            !creacionDTO.TelefonoCiudadano.All(char.IsDigit))
+        {
+            return BadRequest(new { mensaje = "El teléfono debe ser un número válido de 10 dígitos" });
+        }
+
         var reporte = _mapper.Map<Reporte>(creacionDTO);
         reporte.FechaRecibido = DateTime.UtcNow;
         reporte.Estatus = EstatusReporte.Nuevo;
 
-        // Clasificar y priorizar automáticamente mediante Agente de IA
+        // Priorizar automáticamente mediante Agente de IA (la categoría ya la elige el ciudadano en la app)
         try
         {
             var clasif = await _clasificador.ClasificarReporteAsync(reporte.Descripcion);
-            if (string.IsNullOrWhiteSpace(reporte.Categoria))
-            {
-                reporte.Categoria = clasif.Categoria;
-            }
             reporte.ConfianzaIA = clasif.Confianza;
             reporte.RazonamientoIA = clasif.Razonamiento;
             reporte.Prioridad = clasif.Prioridad;
             reporte.ScorePrioridad = clasif.ScorePrioridad;
             reporte.JustificacionPrioridad = clasif.JustificacionPrioridad;
-
-            if (reporte.TipoProblema == TipoProblema.Otro && Enum.TryParse<TipoProblema>(clasif.TipoProblema, out var tipoEnum))
-            {
-                reporte.TipoProblema = tipoEnum;
-            }
         }
         catch
         {
-            if (string.IsNullOrWhiteSpace(reporte.Categoria))
-                reporte.Categoria = reporte.TipoProblema.ToString();
             reporte.Prioridad = PrioridadReporte.Media;
             reporte.ScorePrioridad = 0.50;
             reporte.JustificacionPrioridad = "Prioridad asignada automáticamente por seguridad";

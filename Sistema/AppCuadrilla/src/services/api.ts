@@ -5,7 +5,11 @@ import { secureStorage } from './secureStorage';
 import type { CuadrillaLoginPayload, MuestraUbicacion } from './fieldApiContract';
 import type { ActualizarEstatusDTO, ActualizarTiempoEstimadoDTO, CuadrillaDTO, EvidenciaDTO, ReporteDTO, ResolverSupervisionDTO } from '../types';
 
-const API_BASE_URL = resolveApiBaseUrl(Platform.OS, process.env.EXPO_PUBLIC_API_BASE_URL);
+const API_BASE_URL = resolveApiBaseUrl(
+  Platform.OS,
+  process.env.EXPO_PUBLIC_API_BASE_URL,
+  process.env.EXPO_PUBLIC_API_TUNNEL_URL,
+);
 
 export const getAuthToken = async (): Promise<string | null> => {
   return await secureStorage.getItemAsync('arje_token');
@@ -51,6 +55,9 @@ export const apiRequest = async <T>(
     ...fetchOptions,
     headers: {
       'Content-Type': 'application/json',
+      // Evita la página de advertencia HTML de ngrok cuando la API se
+      // alcanza por un túnel (modo --tunnel); no afecta otros entornos.
+      'ngrok-skip-browser-warning': 'true',
       ...(token && { Authorization: `Bearer ${token}` }),
       ...headers,
     },
@@ -79,6 +86,7 @@ export const apiRequestMultipart = async <T>(
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     method: 'POST',
     headers: {
+      'ngrok-skip-browser-warning': 'true',
       ...(token && { Authorization: `Bearer ${token}` }),
     },
     body: formData,

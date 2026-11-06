@@ -17,6 +17,7 @@ import { RootStackParamList } from '../navigation/types';
 import { COLORS, SPACING, FONT_SIZES, FONT_WEIGHTS, BORDER_RADIUS, TIPO_PROBLEMA_LABELS } from '../constants';
 import { useConsultaPublica, useReportePublicoDetalle } from '../hooks/useReportes';
 import { ReportePublicoDTO, EstatusReporte } from '../types';
+import { parseFolio } from '../services/folioModel';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -42,6 +43,11 @@ export const ConsultaReportesScreen = () => {
 
   const handleSearch = () => {
     const term = contratoInput.trim();
+    const folio = parseFolio(term);
+    if (folio) {
+      navigation.navigate('ReporteDetalle', { id: folio.id, numeroContrato: folio.numeroContrato });
+      return;
+    }
     setFiltroContrato(term);
     setHasSearched(true);
     fetchReportes(term);
@@ -216,13 +222,14 @@ export const ConsultaReportesScreen = () => {
             {/* Título y subtítulo según Figma */}
             <Text style={styles.title}>Consultar reportes</Text>
             <Text style={styles.subtitle}>
-              Introduce tu número de contrato para conocer el estatus actual de tus solicitudes de servicio.
+              Introduce tu folio (ej. FOL-482-A12345) para ir directo a ese reporte, o tu número de
+              contrato para ver todas tus solicitudes de servicio.
             </Text>
 
-            {/* Campo: Número de contrato */}
+            {/* Campo: Folio o número de contrato */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>
-                Número de contrato <Text style={styles.required}>*</Text>
+                Folio o número de contrato <Text style={styles.required}>*</Text>
               </Text>
               <View style={styles.inputWrapper}>
                 <View style={styles.inputIconContainer}>
@@ -232,7 +239,7 @@ export const ConsultaReportesScreen = () => {
                   style={styles.textInput}
                   value={contratoInput}
                   onChangeText={setContratoInput}
-                  placeholder="ej. T001 o 123456"
+                  placeholder="ej. FOL-482-A12345 o T001"
                   placeholderTextColor={COLORS.textTertiary}
                   keyboardType="default"
                   autoCapitalize="characters"

@@ -18,16 +18,23 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { COLORS, SPACING, FONT_SIZES, FONT_WEIGHTS, BORDER_RADIUS } from '../constants';
+import {
+  COLORS, SPACING, FONT_SIZES, FONT_WEIGHTS, BORDER_RADIUS,
+  PROBLEMAS_FRECUENTES, OTRO_PROBLEMA_LABEL, MIN_DESCRIPCION_OTRO_LENGTH, MAX_DESCRIPCION_LENGTH,
+} from '../constants';
 import { useLocation } from '../hooks/useLocation';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
-import { reportesService, clasificacionService } from '../services/reportes';
-import { Coordenadas, TipoProblema, TipoEvidencia } from '../types';
+import { reportesService } from '../services/reportes';
+import { Coordenadas, TipoEvidencia } from '../types';
 import ReporteLocationMap from '../components/ReporteLocationMap';
+import { Chip } from '../components/Chip';
 import { getConfirmedReportLocation, applySuggestedCoordinate, selectCoordinate } from '../services/reportLocationModel';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Sharing from 'expo-sharing';
+import * as Clipboard from 'expo-clipboard';
+import { captureRef } from 'react-native-view-shot';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -56,8 +63,10 @@ export const CrearReporteScreen = () => {
   const [numeroContrato, setNumeroContrato] = useState('');
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
+  const [paso1Error, setPaso1Error] = useState<string | null>(null);
 
   // Datos del Paso 2
+  const [problemaSeleccionado, setProblemaSeleccionado] = useState<string | null>(null);
   const [descripcion, setDescripcion] = useState('');
   const [selectedCoordinate, setSelectedCoordinate] = useState<Coordenadas | null>(null);
   const [locationConfirmed, setLocationConfirmed] = useState(false);
@@ -67,6 +76,7 @@ export const CrearReporteScreen = () => {
   // Modales
   const [modalAudioVisible, setModalAudioVisible] = useState(false);
   const [modalExitoVisible, setModalExitoVisible] = useState(false);
+  const [folioCreado, setFolioCreado] = useState<string | null>(null);
 
   // Estados de proceso
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,6 +85,7 @@ export const CrearReporteScreen = () => {
 
   // Timer para grabación de audio
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const folioCardRef = useRef<View>(null);
 
   // Obtener ubicación al montar
   useEffect(() => {
@@ -112,7 +123,17 @@ export const CrearReporteScreen = () => {
   };
 
   // Acciones de Paso 1 -> Paso 2
+  const validarPaso1 = (): string | null => {
+    if (!numeroContrato.trim()) return 'El número de contrato es obligatorio.';
+    if (!nombre.trim()) return 'El nombre es obligatorio.';
+    if (telefono.replace(/\D/g, '').length !== 10) return 'Ingresa un teléfono válido de 10 dígitos.';
+    return null;
+  };
+
   const handleNextStep = () => {
+    const error = validarPaso1();
+    setPaso1Error(error);
+    if (error) return;
     setPaso(2);
   };
 
@@ -203,6 +224,33 @@ export const CrearReporteScreen = () => {
     setEvidencias((prev) => prev.filter((e) => e.uri !== uri));
   };
 
+  const handleSelectProblema = (label: string) => {
+    setProblemaSeleccionado(label);
+    setDescripcion(label === OTRO_PROBLEMA_LABEL ? '' : label);
+  };
+
+  const handleShareFolioCapture = async () => {
+    if (!folioCardRef.current) return;
+    try {
+      const uri = await captureRef(folioCardRef, { format: 'png', quality: 0.9 });
+      const disponible = await Sharing.isAvailableAsync();
+      if (!disponible) {
+        Alert.alert('No disponible', 'Compartir no está disponible en este dispositivo.');
+        return;
+      }
+      await Sharing.shareAsync(uri);
+    } catch (err) {
+      console.warn('Error al compartir captura del folio', err);
+      Alert.alert('Error', 'No se pudo generar la captura del folio.');
+    }
+  };
+
+  const handleCopyFolio = async () => {
+    if (!folioCreado) return;
+    await Clipboard.setStringAsync(folioCreado);
+    Alert.alert('Folio copiado', 'El folio se copió al portapapeles.');
+  };
+
   const handleCoordinateChange = (next: Coordenadas) => {
     const selection = selectCoordinate(next);
     setSelectedCoordinate(selection.coordenada);
@@ -223,8 +271,16 @@ export const CrearReporteScreen = () => {
 
   // Enviar reporte final
   const handleSubmitReport = async () => {
-    if (!descripcion.trim()) {
-      Alert.alert('Descripción requerida', 'Por favor describe el incidente antes de enviar.');
+    if (!problemaSeleccionado) {
+      Alert.alert('Selecciona un problema', 'Elige el tipo de problema antes de enviar.');
+      return;
+    }
+
+    if (problemaSeleccionado === OTRO_PROBLEMA_LABEL && descripcion.trim().length < MIN_DESCRIPCION_OTRO_LENGTH) {
+      Alert.alert(
+        'Descripción muy corta',
+        `Describe el incidente con al menos ${MIN_DESCRIPCION_OTRO_LENGTH} caracteres.`
+      );
       return;
     }
 
@@ -238,32 +294,19 @@ export const CrearReporteScreen = () => {
     setEvidenceUploadComplete(false);
     // Marcar evidencias como subiendo
     setEvidencias(prev => prev.map(e => ({ ...e, status: 'uploading' as const })));
-    
+
     try {
-      // Clasificación automática mediante API (con fallback a keywords)
-      let tipoFinal: TipoProblema = TipoProblema.Fuga;
-      let categoriaFinal: string | undefined = undefined;
-      try {
-        const clasif = await clasificacionService.classify(descripcion.trim());
-        if (clasif?.tipoProblema) {
-          tipoFinal = clasif.tipoProblema;
-        }
-        if (clasif?.categoria) {
-          categoriaFinal = clasif.categoria;
-        }
-      } catch (err) {
-        console.warn('Fallback clasificación', err);
-      }
+      const problema = PROBLEMAS_FRECUENTES.find((p) => p.label === problemaSeleccionado)!;
 
       const payload = {
-        tipoProblema: tipoFinal,
-        categoria: categoriaFinal,
+        tipoProblema: problema.tipoProblema,
+        categoria: problemaSeleccionado,
         descripcion: descripcion.trim(),
         latitud: coords.latitud,
         longitud: coords.longitud,
-        numeroContrato: numeroContrato.trim() || undefined,
-        nombreCiudadano: nombre.trim() || undefined,
-        telefonoCiudadano: telefono.trim() || undefined,
+        numeroContrato: numeroContrato.trim(),
+        nombreCiudadano: nombre.trim(),
+        telefonoCiudadano: telefono.replace(/\D/g, ''),
       };
 
       let reporteId: number | null = null;
@@ -274,7 +317,8 @@ export const CrearReporteScreen = () => {
         const reporteCreado = await reportesService.create(payload);
         reporteId = reporteCreado.id;
         uploadToken = reporteCreado.uploadToken;
-        
+        setFolioCreado(reporteCreado.folio);
+
         // Subir evidencias si existen usando el token de subida
         if (evidencias.length > 0 && uploadToken) {
           for (let i = 0; i < evidencias.length; i++) {
@@ -383,7 +427,7 @@ export const CrearReporteScreen = () => {
                 <View style={styles.stepContent}>
                   {/* Campo: Número de contrato */}
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Número de contrato</Text>
+                    <Text style={styles.fieldLabel}>Número de contrato *</Text>
                     <View style={styles.inputWrapper}>
                       <View style={styles.inputIconContainer}>
                         <MaterialCommunityIcons name="pound" size={20} color={COLORS.primary} />
@@ -403,7 +447,7 @@ export const CrearReporteScreen = () => {
 
                   {/* Campo: Nombre */}
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Nombre</Text>
+                    <Text style={styles.fieldLabel}>Nombre *</Text>
                     <View style={styles.inputWrapper}>
                       <View style={styles.inputIconContainer}>
                         <Ionicons name="person-outline" size={19} color={COLORS.primary} />
@@ -412,7 +456,7 @@ export const CrearReporteScreen = () => {
                         style={styles.textInput}
                         value={nombre}
                         onChangeText={setNombre}
-                        placeholder="opcional"
+                        placeholder="ej. Juan Pérez"
                         placeholderTextColor={COLORS.textTertiary}
                         autoCapitalize="words"
                       />
@@ -421,7 +465,7 @@ export const CrearReporteScreen = () => {
 
                   {/* Campo: Teléfono */}
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Teléfono</Text>
+                    <Text style={styles.fieldLabel}>Teléfono *</Text>
                     <View style={styles.inputWrapper}>
                       <View style={styles.inputIconContainer}>
                         <Ionicons name="call-outline" size={19} color={COLORS.primary} />
@@ -430,12 +474,15 @@ export const CrearReporteScreen = () => {
                         style={styles.textInput}
                         value={telefono}
                         onChangeText={setTelefono}
-                        placeholder="opcional"
+                        placeholder="10 dígitos"
                         placeholderTextColor={COLORS.textTertiary}
                         keyboardType="phone-pad"
+                        maxLength={14}
                       />
                     </View>
                   </View>
+
+                  {paso1Error ? <Text style={styles.locationError}>{paso1Error}</Text> : null}
 
                   <View style={styles.bottomActions}>
                     {/* Botón Siguiente ➔ */}
@@ -456,21 +503,40 @@ export const CrearReporteScreen = () => {
               ) : (
                 /* =================== PASO 2 DE 2 =================== */
                 <View style={styles.stepContent}>
-                  {/* Campo: Descripción */}
+                  {/* Campo: Selector de problema frecuente */}
                   <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Descripción</Text>
-                    <View style={[styles.inputWrapper, styles.textAreaWrapper]}>
-                      <TextInput
-                        style={styles.textAreaInput}
-                        value={descripcion}
-                        onChangeText={setDescripcion}
-                        placeholder="Describe el incidente, el lugar y cualquier detalle relevante."
-                        placeholderTextColor={COLORS.textTertiary}
-                        multiline
-                        numberOfLines={5}
-                        textAlignVertical="top"
-                      />
+                    <Text style={styles.fieldLabel}>¿Cuál es el problema? *</Text>
+                    <View style={styles.problemasGrid}>
+                      {PROBLEMAS_FRECUENTES.map((problema) => (
+                        <Chip
+                          key={problema.label}
+                          label={problema.label}
+                          selected={problemaSeleccionado === problema.label}
+                          onPress={() => handleSelectProblema(problema.label)}
+                        />
+                      ))}
                     </View>
+
+                    {problemaSeleccionado === OTRO_PROBLEMA_LABEL && (
+                      <>
+                        <View style={[styles.inputWrapper, styles.textAreaWrapper, styles.otroDescripcionWrapper]}>
+                          <TextInput
+                            style={styles.textAreaInput}
+                            value={descripcion}
+                            onChangeText={setDescripcion}
+                            placeholder={`Describe el incidente (mínimo ${MIN_DESCRIPCION_OTRO_LENGTH} caracteres).`}
+                            placeholderTextColor={COLORS.textTertiary}
+                            multiline
+                            numberOfLines={5}
+                            maxLength={MAX_DESCRIPCION_LENGTH}
+                            textAlignVertical="top"
+                          />
+                        </View>
+                        <Text style={styles.locationHint}>
+                          {descripcion.trim().length}/{MIN_DESCRIPCION_OTRO_LENGTH} caracteres mínimos
+                        </Text>
+                      </>
+                    )}
                   </View>
 
                   <View style={styles.fieldGroup}>
@@ -552,21 +618,23 @@ export const CrearReporteScreen = () => {
                         <Text style={styles.adjuntoText}>Adjuntar archivo</Text>
                       </TouchableOpacity>
 
-                      {/* Tarjeta Grabar audio */}
-                      <TouchableOpacity
-                        style={styles.adjuntoCard}
-                        onPress={() => {
-                          setModalAudioVisible(true);
-                          setIsAudioRecording(false);
-                          setRecordingSeconds(0);
-                        }}
-                        activeOpacity={0.78}
-                      >
-                        <View style={styles.adjuntoCircle}>
-                          <Ionicons name="mic" size={22} color={COLORS.white} />
-                        </View>
-                        <Text style={styles.adjuntoText}>Grabar audio</Text>
-                      </TouchableOpacity>
+                      {/* Tarjeta Grabar audio: solo aplica cuando se describe el problema a mano ("Otro") */}
+                      {problemaSeleccionado === OTRO_PROBLEMA_LABEL && (
+                        <TouchableOpacity
+                          style={styles.adjuntoCard}
+                          onPress={() => {
+                            setModalAudioVisible(true);
+                            setIsAudioRecording(false);
+                            setRecordingSeconds(0);
+                          }}
+                          activeOpacity={0.78}
+                        >
+                          <View style={styles.adjuntoCircle}>
+                            <Ionicons name="mic" size={22} color={COLORS.white} />
+                          </View>
+                          <Text style={styles.adjuntoText}>Grabar audio</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
 
                     {/* Previsualización de archivos adjuntos */}
@@ -727,6 +795,35 @@ export const CrearReporteScreen = () => {
                 En breve se asignará una cuadrilla para atender su solicitud
               </Text>
 
+              {/* Folio: guárdalo antes de salir */}
+              {folioCreado && (
+                <View style={styles.folioSection}>
+                  <View ref={folioCardRef} collapsable={false} style={styles.folioCard}>
+                    <Text style={styles.folioCardLabel}>Tu folio</Text>
+                    <Text style={styles.folioCardValue}>{folioCreado}</Text>
+                  </View>
+                  <Text style={styles.folioHint}>Guarda este folio para dar seguimiento a tu reporte.</Text>
+                  <View style={styles.folioActionsRow}>
+                    <TouchableOpacity
+                      style={styles.folioActionButton}
+                      onPress={handleShareFolioCapture}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="share-outline" size={18} color={COLORS.actionBlue} />
+                      <Text style={styles.folioActionText}>Compartir captura</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.folioActionButton}
+                      onPress={handleCopyFolio}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="copy-outline" size={18} color={COLORS.actionBlue} />
+                      <Text style={styles.folioActionText}>Copiar folio</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
               {/* Divisor */}
               <View style={styles.successDivider} />
 
@@ -859,6 +956,14 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     width: '100%',
     height: '100%',
+  },
+  problemasGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  otroDescripcionWrapper: {
+    marginTop: SPACING.sm,
   },
   adjuntosRow: {
     flexDirection: 'row',
@@ -1221,6 +1326,58 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 19,
     paddingHorizontal: SPACING.sm,
+  },
+  folioSection: {
+    width: '100%',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  folioCard: {
+    width: '100%',
+    alignItems: 'center',
+    backgroundColor: COLORS.surfaceVariant,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+  },
+  folioCardLabel: {
+    fontSize: FONT_SIZES.xs,
+    fontWeight: FONT_WEIGHTS.semibold,
+    color: COLORS.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  folioCardValue: {
+    fontSize: FONT_SIZES.xl,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: COLORS.primary,
+    marginTop: 4,
+  },
+  folioHint: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  folioActionsRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    width: '100%',
+  },
+  folioActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: COLORS.cyan,
+    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: SPACING.sm,
+  },
+  folioActionText: {
+    fontSize: FONT_SIZES.xs,
+    fontWeight: FONT_WEIGHTS.semibold,
+    color: COLORS.actionBlue,
   },
   successDivider: {
     height: 1,

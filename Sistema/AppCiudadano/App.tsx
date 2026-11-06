@@ -60,16 +60,11 @@ export default function App() {
             options={{ headerShown: false }}
           />
 
-          {/* Detalle del reporte */}
+          {/* Detalle del reporte según Figma (cabecera azul + hoja blanca redondeada) */}
           <Stack.Screen
             name="ReporteDetalle"
             component={ReporteDetalleScreen}
-            options={{
-              title: 'Detalle del reporte',
-              headerShown: true,
-              headerStyle: { backgroundColor: COLORS.cardBg },
-              headerTintColor: COLORS.primary,
-            }}
+            options={{ headerShown: false }}
           />
 
           {/* Rutas de compatibilidad */}

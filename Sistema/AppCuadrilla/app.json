@@ -75,7 +75,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash.png",
+          "image": "./assets/arje-cuadrilla-logo.png",
           "resizeMode": "contain",
           "backgroundColor": "#253C96"
         }

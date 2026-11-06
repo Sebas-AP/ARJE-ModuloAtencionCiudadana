@@ -6,9 +6,14 @@ const ANDROID_EMULATOR_DEFAULT_API_URL = 'http://10.0.2.2:5170/api';
 export function resolveApiBaseUrl(
   platform: ApiPlatform,
   configuredUrl?: string,
+  tunnelUrl?: string,
 ): string {
   if (configuredUrl?.trim()) {
     return configuredUrl.trim().replace(/\/+$/, '');
+  }
+
+  if (tunnelUrl?.trim()) {
+    return `${tunnelUrl.trim().replace(/\/+$/, '')}/api`;
   }
 
   return platform === 'web'

@@ -144,7 +144,6 @@ export const MapView: React.FC<MapViewProps> = ({
   const [tileError, setTileError] = useState(false);
   const [tileAttempt, setTileAttempt] = useState(0);
   const [geoCenter, setGeoCenter] = useState<[number, number] | null>(null);
-  const [dataCenter, setDataCenter] = useState<[number, number] | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>(center ?? DEFAULT_CENTER);
   const handleMapCenterChange = useCallback((next: [number, number]) => {
     setMapCenter(next);
@@ -188,13 +187,8 @@ export const MapView: React.FC<MapViewProps> = ({
     return () => { cancelled = true; };
   }, [center]);
 
-  useEffect(() => {
-    if (center || dataCenter || !reportCenter) return;
-    setDataCenter(reportCenter);
-  }, [center, dataCenter, reportCenter]);
-
-  const resolvedCenter = center ?? geoCenter ?? dataCenter ?? DEFAULT_CENTER;
-  const resolvedZoom = center || geoCenter || dataCenter ? zoom : 5;
+  const resolvedCenter = center ?? reportCenter ?? geoCenter ?? DEFAULT_CENTER;
+  const resolvedZoom = center || reportCenter || geoCenter ? zoom : 5;
 
   const retryTiles = () => {
     setTileError(false);

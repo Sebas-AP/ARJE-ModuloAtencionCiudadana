@@ -34,6 +34,6 @@ public class ReporteCreacionDTO
     [StringLength(100)]
     public string? NombreCiudadano { get; set; }
 
-    [StringLength(20)]
+    [RegularExpression(@"^\d{10}$")]
     public string? TelefonoCiudadano { get; set; }
 }

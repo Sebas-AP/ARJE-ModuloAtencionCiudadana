@@ -15,23 +15,36 @@ public class AutoMapperProfiles : Profile
     {
         CreateMap<Reporte, ReporteDTO>()
             .ForMember(d => d.CuadrillaAsignadaNombre, o => o.MapFrom(s => s.CuadrillaAsignada != null ? s.CuadrillaAsignada.Nombre : null))
-            .ForMember(d => d.TotalEvidencias, o => o.MapFrom(s => s.Evidencias.Count));
+            .ForMember(d => d.TotalEvidencias, o => o.MapFrom(s => s.Evidencias.Count))
+            .AfterMap((_, destino) =>
+            {
+                destino.FechaRecibido = FechaHoraUtc.Normalizar(destino.FechaRecibido);
+                destino.FechaSupervision = FechaHoraUtc.Normalizar(destino.FechaSupervision);
+            });
 
         CreateMap<Reporte, ReporteDetalleDTO>()
             .ForMember(d => d.CuadrillaAsignadaNombre, o => o.MapFrom(s => s.CuadrillaAsignada != null ? s.CuadrillaAsignada.Nombre : null))
             .ForMember(d => d.CuadrillaSupervisoraNombre, o => o.MapFrom(s => s.CuadrillaSupervisora != null ? s.CuadrillaSupervisora.Nombre : null))
-            .ForMember(d => d.TotalEvidencias, o => o.MapFrom(s => s.Evidencias.Count));
+            .ForMember(d => d.TotalEvidencias, o => o.MapFrom(s => s.Evidencias.Count))
+            .AfterMap((_, destino) =>
+            {
+                destino.FechaRecibido = FechaHoraUtc.Normalizar(destino.FechaRecibido);
+                destino.FechaSupervision = FechaHoraUtc.Normalizar(destino.FechaSupervision);
+            });
 
         CreateMap<Reporte, ReportePublicoDTO>()
-            .ForMember(d => d.Evidencias, o => o.MapFrom(s => s.Evidencias));
+            .ForMember(d => d.Evidencias, o => o.MapFrom(s => s.Evidencias))
+            .AfterMap((_, destino) => destino.FechaRecibido = FechaHoraUtc.Normalizar(destino.FechaRecibido));
 
         CreateMap<ReporteCreacionDTO, Reporte>();
 
         CreateMap<Evidencia, EvidenciaDTO>()
-            .ForMember(d => d.ArchivoUrl, o => o.MapFrom(s => s.Archivo));
+            .ForMember(d => d.ArchivoUrl, o => o.MapFrom(s => s.Archivo))
+            .AfterMap((_, destino) => destino.FechaCaptura = FechaHoraUtc.Normalizar(destino.FechaCaptura));
 
         CreateMap<Evidencia, EvidenciaPublicoDTO>()
-            .ForMember(d => d.ArchivoUrl, o => o.MapFrom(s => s.Archivo));
+            .ForMember(d => d.ArchivoUrl, o => o.MapFrom(s => s.Archivo))
+            .AfterMap((_, destino) => destino.FechaCaptura = FechaHoraUtc.Normalizar(destino.FechaCaptura));
 
         CreateMap<EvidenciaCreacionDTO, Evidencia>()
             .ForMember(d => d.Archivo, o => o.Ignore())

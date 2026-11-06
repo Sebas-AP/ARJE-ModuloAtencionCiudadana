@@ -13,6 +13,9 @@ class ApiClient {
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
+        // Evita la página de advertencia HTML de ngrok cuando la API se
+        // alcanza por un túnel (modo --tunnel); no afecta otros entornos.
+        'ngrok-skip-browser-warning': 'true',
       },
     });
 

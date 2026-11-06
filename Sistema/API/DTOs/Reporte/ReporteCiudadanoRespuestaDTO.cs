@@ -5,7 +5,7 @@ namespace ARJE.Api.DTOs.Reporte;
 public class ReporteCiudadanoRespuestaDTO
 {
     public int Id { get; set; }
-    public string Folio => $"FOL-{Id}";
+    public string Folio => $"FOL-{Id}-{NumeroContrato}";
     public TipoProblema TipoProblema { get; set; }
     public string? Categoria { get; set; }
     public string Descripcion { get; set; } = string.Empty;

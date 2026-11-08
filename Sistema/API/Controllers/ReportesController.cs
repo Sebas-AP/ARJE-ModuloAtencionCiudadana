@@ -479,9 +479,10 @@ public class ReportesController : ControllerBase
     [HttpPut("{id:int}/tiempo-estimado")]
     public async Task<ActionResult> PutTiempoEstimado(int id, [FromBody] ActualizarTiempoEstimadoDTO dto)
     {
-        if (dto.TiempoEstimado is < 1 or > 1440)
+        var limiteMaximo = dto.Unidad == UnidadTiempoEstimado.Dias ? 30 : 240;
+        if (dto.TiempoEstimado < 1 || dto.TiempoEstimado > limiteMaximo)
         {
-            return BadRequest(new { mensaje = "El tiempo estimado debe estar entre 1 y 1440 minutos." });
+            return BadRequest(new { mensaje = $"El tiempo estimado debe estar entre 1 y {limiteMaximo} {(dto.Unidad == UnidadTiempoEstimado.Dias ? "días" : "horas")}." });
         }
 
         var reporte = await _context.Reportes.FindAsync(id);
@@ -496,18 +497,24 @@ public class ReportesController : ControllerBase
         }
 
         reporte.TiempoEstimado = dto.TiempoEstimado;
+        reporte.TiempoEstimadoUnidad = dto.Unidad;
         await _context.SaveChangesAsync();
         await _outputCacheStore.EvictByTagAsync("reportes", default);
 
         return NoContent();
     }
 
-    [HttpPut("{id:int}/comentarios-resolucion")]
-    public async Task<ActionResult> PutComentariosResolucion(int id, [FromBody] ActualizarComentariosResolucionDTO dto)
+    [HttpPut("{id:int}/motivo-proceso")]
+    public async Task<ActionResult> PutMotivoEnProceso(int id, [FromBody] ActualizarMotivoEnProcesoDTO dto)
     {
-        if (string.IsNullOrWhiteSpace(dto.ComentariosResolucion) || dto.ComentariosResolucion.Length > 2000)
+        if (dto.Motivo == MotivoEnProceso.Otro && string.IsNullOrWhiteSpace(dto.Detalle))
         {
-            return BadRequest(new { mensaje = "Los comentarios de resolución deben contener entre 1 y 2000 caracteres." });
+            return BadRequest(new { mensaje = "Debes especificar el motivo cuando seleccionas \"Otro\"." });
+        }
+
+        if (dto.Detalle?.Length > 500)
+        {
+            return BadRequest(new { mensaje = "El detalle del motivo no puede superar los 500 caracteres." });
         }
 
         var reporte = await _context.Reportes.FindAsync(id);
@@ -521,7 +528,41 @@ public class ReportesController : ControllerBase
             return Forbid();
         }
 
-        reporte.ComentariosResolucion = dto.ComentariosResolucion.Trim();
+        if (reporte.Estatus is not (EstatusReporte.LevantandoInformacion or EstatusReporte.EnProceso))
+        {
+            return BadRequest(new { mensaje = "El motivo de atención solo puede registrarse mientras el reporte está en proceso." });
+        }
+
+        reporte.MotivoEnProceso = dto.Motivo;
+        reporte.MotivoEnProcesoDetalle = dto.Motivo == MotivoEnProceso.Otro ? dto.Detalle!.Trim() : null;
+        await _context.SaveChangesAsync();
+        await _outputCacheStore.EvictByTagAsync("reportes", default);
+
+        return NoContent();
+    }
+
+    [HttpPut("{id:int}/comentarios-resolucion")]
+    public async Task<ActionResult> PutComentariosResolucion(int id, [FromBody] ActualizarComentariosResolucionDTO dto)
+    {
+        if (dto.Motivo == MotivoResolucion.Otro
+            && (string.IsNullOrWhiteSpace(dto.ComentariosResolucion) || dto.ComentariosResolucion.Length > 2000))
+        {
+            return BadRequest(new { mensaje = "Los comentarios de resolución deben contener entre 1 y 2000 caracteres cuando el motivo es \"Otro\"." });
+        }
+
+        var reporte = await _context.Reportes.FindAsync(id);
+        if (reporte == null)
+        {
+            return NotFound();
+        }
+
+        if (_fieldOperationPolicy.IsCuadrilla(User) && !_fieldOperationPolicy.CanAccessAssignedReport(reporte, User))
+        {
+            return Forbid();
+        }
+
+        reporte.MotivoResolucion = dto.Motivo;
+        reporte.ComentariosResolucion = dto.Motivo == MotivoResolucion.Otro ? dto.ComentariosResolucion!.Trim() : null;
         await _context.SaveChangesAsync();
         await _outputCacheStore.EvictByTagAsync("reportes", default);
 
@@ -592,9 +633,14 @@ public class ReportesController : ControllerBase
             }
         }
 
+        if (nuevoEstatus == EstatusReporte.EnProceso && !_fieldOperationPolicy.EnsureHasInProcessReason(reporte).IsAllowed)
+        {
+            return BadRequest(new { mensaje = "Se requiere registrar el motivo por el que el reporte está en proceso." });
+        }
+
         if (nuevoEstatus == EstatusReporte.Completado && !_fieldOperationPolicy.EnsureCanComplete(reporte).IsAllowed)
         {
-            return BadRequest(new { mensaje = "Se requiere evidencia de resolución para completar el reporte." });
+            return BadRequest(new { mensaje = "Se requiere evidencia de resolución y el motivo de resolución para completar el reporte." });
         }
 
         if (reporte.Estatus == nuevoEstatus)
@@ -858,11 +904,19 @@ public class ProgramarSupervisionDTO
 public class ActualizarTiempoEstimadoDTO
 {
     public decimal TiempoEstimado { get; set; }
+    public UnidadTiempoEstimado Unidad { get; set; } = UnidadTiempoEstimado.Horas;
 }
 
 public class ActualizarComentariosResolucionDTO
 {
-    public string ComentariosResolucion { get; set; } = string.Empty;
+    public MotivoResolucion Motivo { get; set; }
+    public string? ComentariosResolucion { get; set; }
+}
+
+public class ActualizarMotivoEnProcesoDTO
+{
+    public MotivoEnProceso Motivo { get; set; }
+    public string? Detalle { get; set; }
 }
 
 public class ResolverSupervisionDTO

@@ -129,6 +129,12 @@ public class FieldOperationControllerTests : IDisposable
         EstatusReporte from, EstatusReporte to, EstatusCuadrilla availability)
     {
         var report = await AddReport(from, resolution: true);
+        if (to == EstatusReporte.EnProceso)
+        {
+            // The crew only reaches this transition after registering why the report is in process.
+            report.MotivoEnProceso = MotivoEnProceso.ComenzandoReparacion;
+            await context.SaveChangesAsync();
+        }
         context.ChangeTracker.Clear();
         Assert.IsType<NoContentResult>(await Reports().PutEstatus(report.Id, to));
         context.ChangeTracker.Clear();
@@ -221,10 +227,105 @@ public class FieldOperationControllerTests : IDisposable
         var report = await AddReport(EstatusReporte.EnProceso);
 
         Assert.IsType<NoContentResult>(await Reports().PutComentariosResolucion(report.Id,
-            new ActualizarComentariosResolucionDTO { ComentariosResolucion = "Se sustituyó la válvula dañada." }));
+            new ActualizarComentariosResolucionDTO { Motivo = MotivoResolucion.Otro, ComentariosResolucion = "Se sustituyó la válvula dañada." }));
         Assert.IsType<BadRequestObjectResult>(await Reports().PutEstatus(report.Id, EstatusReporte.Completado));
         context.ChangeTracker.Clear();
-        Assert.Equal("Se sustituyó la válvula dañada.", (await context.Reportes.FindAsync(report.Id))!.ComentariosResolucion);
+        var persisted = (await context.Reportes.FindAsync(report.Id))!;
+        Assert.Equal(MotivoResolucion.Otro, persisted.MotivoResolucion);
+        Assert.Equal("Se sustituyó la válvula dañada.", persisted.ComentariosResolucion);
+    }
+
+    [Fact]
+    public async Task Resolution_motivo_other_than_otro_ignores_free_text()
+    {
+        var report = await AddReport(EstatusReporte.EnProceso);
+
+        Assert.IsType<NoContentResult>(await Reports().PutComentariosResolucion(report.Id,
+            new ActualizarComentariosResolucionDTO { Motivo = MotivoResolucion.FugaReparada, ComentariosResolucion = "Texto que debe ignorarse" }));
+        context.ChangeTracker.Clear();
+        var persisted = (await context.Reportes.FindAsync(report.Id))!;
+        Assert.Equal(MotivoResolucion.FugaReparada, persisted.MotivoResolucion);
+        Assert.Null(persisted.ComentariosResolucion);
+    }
+
+    [Fact]
+    public async Task Resolution_motivo_otro_requires_comment_text()
+    {
+        var report = await AddReport(EstatusReporte.EnProceso);
+
+        Assert.IsType<BadRequestObjectResult>(await Reports().PutComentariosResolucion(report.Id,
+            new ActualizarComentariosResolucionDTO { Motivo = MotivoResolucion.Otro }));
+    }
+
+    [Theory]
+    [InlineData(EstatusReporte.LevantandoInformacion)]
+    [InlineData(EstatusReporte.EnProceso)]
+    public async Task In_process_motivo_is_saved_while_report_is_active(EstatusReporte status)
+    {
+        var report = await AddReport(status);
+
+        Assert.IsType<NoContentResult>(await Reports().PutMotivoEnProceso(report.Id,
+            new ActualizarMotivoEnProcesoDTO { Motivo = MotivoEnProceso.PidiendoHerramientasYMateriales }));
+        context.ChangeTracker.Clear();
+        Assert.Equal(MotivoEnProceso.PidiendoHerramientasYMateriales, (await context.Reportes.FindAsync(report.Id))!.MotivoEnProceso);
+    }
+
+    [Fact]
+    public async Task In_process_motivo_otro_requires_detalle()
+    {
+        var report = await AddReport(EstatusReporte.LevantandoInformacion);
+
+        Assert.IsType<BadRequestObjectResult>(await Reports().PutMotivoEnProceso(report.Id,
+            new ActualizarMotivoEnProcesoDTO { Motivo = MotivoEnProceso.Otro }));
+    }
+
+    [Fact]
+    public async Task In_process_motivo_rejected_once_report_is_completed()
+    {
+        var report = await AddReport(EstatusReporte.Completado, resolution: true);
+
+        Assert.IsType<BadRequestObjectResult>(await Reports().PutMotivoEnProceso(report.Id,
+            new ActualizarMotivoEnProcesoDTO { Motivo = MotivoEnProceso.LlegandoAlLugar }));
+    }
+
+    [Fact]
+    public async Task Status_rejects_transition_to_en_proceso_without_motivo()
+    {
+        var report = await AddReport(EstatusReporte.LevantandoInformacion);
+
+        Assert.IsType<BadRequestObjectResult>(await Reports().PutEstatus(report.Id, EstatusReporte.EnProceso));
+        context.ChangeTracker.Clear();
+        Assert.Equal(EstatusReporte.LevantandoInformacion, (await context.Reportes.FindAsync(report.Id))!.Estatus);
+    }
+
+    [Theory]
+    [InlineData(0, UnidadTiempoEstimado.Horas)]
+    [InlineData(241, UnidadTiempoEstimado.Horas)]
+    [InlineData(0, UnidadTiempoEstimado.Dias)]
+    [InlineData(31, UnidadTiempoEstimado.Dias)]
+    public async Task Estimated_time_rejects_values_outside_range_for_unit(decimal valor, UnidadTiempoEstimado unidad)
+    {
+        var report = await AddReport(EstatusReporte.Asignado);
+
+        var result = await Reports().PutTiempoEstimado(report.Id,
+            new ActualizarTiempoEstimadoDTO { TiempoEstimado = valor, Unidad = unidad });
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        context.ChangeTracker.Clear();
+        Assert.Null((await context.Reportes.FindAsync(report.Id))!.TiempoEstimado);
+    }
+
+    [Fact]
+    public async Task Estimated_time_accepts_days_and_persists_unit()
+    {
+        var report = await AddReport(EstatusReporte.Asignado);
+
+        Assert.IsType<NoContentResult>(await Reports().PutTiempoEstimado(report.Id,
+            new ActualizarTiempoEstimadoDTO { TiempoEstimado = 2, Unidad = UnidadTiempoEstimado.Dias }));
+        context.ChangeTracker.Clear();
+        var persisted = (await context.Reportes.FindAsync(report.Id))!;
+        Assert.Equal(2, persisted.TiempoEstimado);
+        Assert.Equal(UnidadTiempoEstimado.Dias, persisted.TiempoEstimadoUnidad);
     }
 
     [Fact]
@@ -293,6 +394,8 @@ public class FieldOperationControllerTests : IDisposable
     {
         var report = await AddReport(EstatusReporte.EnProceso);
         Assert.IsType<CreatedAtRouteResult>((await Reports().PostEvidencia(report.Id, Evidence())).Result);
+        Assert.IsType<NoContentResult>(await Reports().PutComentariosResolucion(report.Id,
+            new ActualizarComentariosResolucionDTO { Motivo = MotivoResolucion.FugaReparada }));
         context.ChangeTracker.Clear();
         Assert.IsType<NoContentResult>(await Reports().PutEstatus(report.Id, EstatusReporte.Completado));
     }
@@ -352,7 +455,17 @@ public class FieldOperationControllerTests : IDisposable
             Descripcion = "Water leak", IdCuadrillaAsignada = 1, Estatus = status,
             TipoProblema = TipoProblema.Fuga
         };
-        if (resolution) report.Evidencias.Add(new Evidencia { Tipo = TipoEvidencia.Resolucion, Archivo = "resolution.jpg" });
+        // A report can only ever have reached EnProceso (or beyond) by already having
+        // satisfied the in-process-reason gate, so seed that invariant here too.
+        if (status is EstatusReporte.EnProceso or EstatusReporte.Completado or EstatusReporte.EnSupervision or EstatusReporte.Cerrado)
+        {
+            report.MotivoEnProceso = MotivoEnProceso.ComenzandoReparacion;
+        }
+        if (resolution)
+        {
+            report.Evidencias.Add(new Evidencia { Tipo = TipoEvidencia.Resolucion, Archivo = "resolution.jpg" });
+            report.MotivoResolucion = MotivoResolucion.FugaReparada;
+        }
         context.Reportes.Add(report);
         await context.SaveChangesAsync();
         return report;

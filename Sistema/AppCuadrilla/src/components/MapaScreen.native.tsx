@@ -87,18 +87,28 @@ export default function MapaScreen() {
   }, [cargarDatos, requestedReporteId]));
 
   useEffect(() => {
-    if (activeTrackingReporte) return;
+    let cancelled = false;
+    let subscription: Location.LocationSubscription | null = null;
     void (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') return;
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-        setOwnLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+        if (status !== 'granted' || cancelled) return;
+        // Always watch, regardless of activeTrackingReporte: the "my location" dot must
+        // keep updating even when no report is currently being tracked for the backend.
+        subscription = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 10 },
+          (loc) => setOwnLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude }),
+        );
+        if (cancelled) subscription.remove();
       } catch {
         // Sin permiso o sin GPS: el mapa conserva su vista de respaldo.
       }
     })();
-  }, [activeTrackingReporte]);
+    return () => {
+      cancelled = true;
+      subscription?.remove();
+    };
+  }, []);
 
   const userLocation = location ?? ownLocation;
 

@@ -4,7 +4,15 @@ import {
 } from './api';
 import { ReporteDTO, ActualizarEstatusDTO } from '../types';
 import { isVisibleAssignedStatus } from './fieldApiContract';
-import { queueEstimate, queueEvidence, queueResolutionAndStatus, queueStatus, queueSupervisionResult } from './fieldOperationsService';
+import {
+  queueEstimate,
+  queueEvidence,
+  queueInProcessReason,
+  queueInProcessReasonAndStatus,
+  queueResolutionAndStatus,
+  queueStatus,
+  queueSupervisionResult,
+} from './fieldOperationsService';
 import type { SyncResult } from './syncService';
 
 export const reportesService = {
@@ -22,17 +30,25 @@ export const reportesService = {
     if (data.estatus !== 3 && data.estatus !== 4 && data.estatus !== 5) {
       throw new Error('Estatus operativo inválido');
     }
-    const comentarios = data.comentariosResolucion?.trim();
-    return data.estatus === 5 && comentarios
-      ? queueResolutionAndStatus(id, comentarios, 5)
-      : queueStatus(id, data.estatus);
+    if (data.estatus === 4 && data.motivoEnProceso != null) {
+      return queueInProcessReasonAndStatus(id, data.motivoEnProceso, data.motivoEnProcesoDetalle?.trim() || undefined, 4);
+    }
+    if (data.estatus === 5 && data.motivoResolucion != null) {
+      return queueResolutionAndStatus(id, data.motivoResolucion, data.comentariosResolucion?.trim() || undefined, 5);
+    }
+    return queueStatus(id, data.estatus);
   },
 
-  async actualizarTiempoEstimado(id: number, tiempoEstimado: number): Promise<SyncResult> {
-    if (!Number.isFinite(tiempoEstimado) || tiempoEstimado < 1 || tiempoEstimado > 1440) {
-      throw new Error('El tiempo estimado debe estar entre 1 y 1440 minutos.');
+  async actualizarTiempoEstimado(id: number, tiempoEstimado: number, unidad: number): Promise<SyncResult> {
+    const limite = unidad === 2 ? 30 : 240;
+    if (!Number.isFinite(tiempoEstimado) || tiempoEstimado < 1 || tiempoEstimado > limite) {
+      throw new Error(`El tiempo estimado debe estar entre 1 y ${limite} ${unidad === 2 ? 'días' : 'horas'}.`);
     }
-    return queueEstimate(id, tiempoEstimado);
+    return queueEstimate(id, tiempoEstimado, unidad);
+  },
+
+  async actualizarMotivoEnProceso(id: number, motivo: number, detalle?: string): Promise<SyncResult> {
+    return queueInProcessReason(id, motivo, detalle?.trim() || undefined);
   },
 
   async resolverSupervision(id: number, confirmaReparacion: boolean, observaciones?: string): Promise<SyncResult> {

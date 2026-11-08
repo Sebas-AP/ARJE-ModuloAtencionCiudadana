@@ -144,6 +144,10 @@ export interface ReporteDTO {
   estatus: EstatusReporte | any;
   tiempoEstimado?: number; // en minutos u horas
   tiempoEstimadoHoras?: number;
+  tiempoEstimadoUnidad?: number | null; // 1 = Horas, 2 = Días
+  motivoEnProceso?: number | null;
+  motivoEnProcesoDetalle?: string | null;
+  motivoResolucion?: number | null;
   idCuadrillaAsignada?: number | null;
   cuadrillaAsignada?: string | null; // Alias para compatibilidad de vistas
   cuadrillaAsignadaNombre?: string | null;
@@ -247,4 +251,11 @@ export interface CuadrillaRendimientoDTO {
   nombre: string;
   reportesAtendidos: number;
   tiempoPromedioMinutos: number;
+}
+
+export interface MotivoCountDTO {
+  motivo: number;
+  etiqueta: string;
+  total: number;
+  porcentaje: number;
 }

@@ -15,7 +15,10 @@ public class FieldOperationPolicy
         new(authenticatedId > 0 && reporte.IdCuadrillaAsignada == authenticatedId);
 
     public FieldOperationDecision EnsureCanComplete(Reporte reporte) =>
-        new(reporte.Evidencias.Any(e => e.Tipo == TipoEvidencia.Resolucion));
+        new(reporte.Evidencias.Any(e => e.Tipo == TipoEvidencia.Resolucion) && reporte.MotivoResolucion.HasValue);
+
+    public FieldOperationDecision EnsureHasInProcessReason(Reporte reporte) =>
+        new(reporte.MotivoEnProceso.HasValue);
 
     public EstatusCuadrilla ResolveAvailability(EstatusCuadrilla requested, IEnumerable<EstatusReporte> statuses) =>
         statuses.Any(status => status is EstatusReporte.Asignado or EstatusReporte.LevantandoInformacion or EstatusReporte.EnProceso)

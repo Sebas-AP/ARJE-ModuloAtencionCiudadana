@@ -3,6 +3,7 @@ import {
   GraficaMesDTO,
   CategoriaCountDTO,
   CuadrillaRendimientoDTO,
+  MotivoCountDTO,
   ReporteDTO,
   EstatusReporte,
   PrioridadReporte,
@@ -131,6 +132,55 @@ function computeCuadrillasRendimiento(reportes: ReporteDTO[], cuadrillas: Cuadri
   });
 }
 
+const MOTIVO_EN_PROCESO_LABELS: Record<number, string> = {
+  1: 'Llegando al lugar',
+  2: 'Levantando información',
+  3: 'Pidiendo herramientas y materiales',
+  4: 'Comenzando con la reparación',
+  5: 'Otro',
+};
+
+const MOTIVO_RESOLUCION_LABELS: Record<number, string> = {
+  1: 'Fuga reparada',
+  2: 'Suministro restablecido',
+  3: 'Falla solucionada',
+  4: 'Calidad del agua mejorada',
+  5: 'Uso indebido corregido',
+  6: 'Otro',
+};
+
+function countByMotivo(reportes: ReporteDTO[], field: 'motivoEnProceso' | 'motivoResolucion', labels: Record<number, string>): MotivoCountDTO[] {
+  const conteos = new Map<number, number>();
+  reportes.forEach((r) => {
+    const motivo = r[field];
+    if (motivo == null) return;
+    conteos.set(motivo, (conteos.get(motivo) ?? 0) + 1);
+  });
+
+  const total = reportes.length || 1;
+  return Array.from(conteos.entries())
+    .map(([motivo, cantidad]) => ({
+      motivo,
+      etiqueta: labels[motivo] ?? `Motivo ${motivo}`,
+      total: cantidad,
+      porcentaje: Math.round((cantidad / total) * 100),
+    }))
+    .sort((a, b) => b.total - a.total);
+}
+
+// Motivo por el que los reportes ACTUALMENTE en proceso siguen abiertos — p. ej.
+// detectar que muchos están "Pidiendo herramientas y materiales" para decidir comprar más.
+export function computeMotivosEnProceso(reportes: ReporteDTO[]): MotivoCountDTO[] {
+  const enProceso = reportes.filter((r) => r.estatus === EstatusReporte.EnProceso);
+  return countByMotivo(enProceso, 'motivoEnProceso', MOTIVO_EN_PROCESO_LABELS);
+}
+
+// Distribución histórica de por qué se resolvieron los reportes ya completados/cerrados.
+export function computeMotivosResolucion(reportes: ReporteDTO[]): MotivoCountDTO[] {
+  const resueltos = reportes.filter((r) => r.estatus === EstatusReporte.Completado || r.estatus === EstatusReporte.Cerrado);
+  return countByMotivo(resueltos, 'motivoResolucion', MOTIVO_RESOLUCION_LABELS);
+}
+
 export const indicadoresService = {
   /**
    * Obtener métricas principales del dashboard
@@ -168,5 +218,21 @@ export const indicadoresService = {
       cuadrillasService.getAll(),
     ]);
     return computeCuadrillasRendimiento(reportes.data, cuadrillas);
+  },
+
+  /**
+   * Motivos por los que los reportes en proceso ahora mismo siguen sin completarse
+   */
+  async getMotivosEnProceso(): Promise<MotivoCountDTO[]> {
+    const { data: reportes } = await reportesService.getAll({ registrosPorPagina: 1000 });
+    return computeMotivosEnProceso(reportes);
+  },
+
+  /**
+   * Distribución histórica de los motivos de resolución de reportes completados/cerrados
+   */
+  async getMotivosResolucion(): Promise<MotivoCountDTO[]> {
+    const { data: reportes } = await reportesService.getAll({ registrosPorPagina: 1000 });
+    return computeMotivosResolucion(reportes);
   },
 };

@@ -1,6 +1,7 @@
 import {
   actualizarEstatusReporte,
   actualizarTiempoEstimado,
+  actualizarMotivoEnProceso,
   enviarUbicaciones,
   guardarComentariosResolucion,
   getAuthToken,
@@ -41,10 +42,12 @@ export const syncFieldOperations = () => syncPendingOperations({
     enviarUbicaciones(reportId, ubicaciones, await captureOperationSession(ownerCuadrillaId)),
   sendStatus: async ({ reportId, status, ownerCuadrillaId }) =>
     actualizarEstatusReporte(reportId, { estatus: status }, await captureOperationSession(ownerCuadrillaId)),
-  sendEstimate: async ({ reportId, tiempoEstimado, ownerCuadrillaId }) =>
-    actualizarTiempoEstimado(reportId, { tiempoEstimado }, await captureOperationSession(ownerCuadrillaId)),
-  sendResolutionComment: async ({ reportId, comentariosResolucion, ownerCuadrillaId }) =>
-    guardarComentariosResolucion(reportId, comentariosResolucion, await captureOperationSession(ownerCuadrillaId)),
+  sendEstimate: async ({ reportId, tiempoEstimado, unidad, ownerCuadrillaId }) =>
+    actualizarTiempoEstimado(reportId, { tiempoEstimado, unidad }, await captureOperationSession(ownerCuadrillaId)),
+  sendResolutionComment: async ({ reportId, motivo, comentariosResolucion, ownerCuadrillaId }) =>
+    guardarComentariosResolucion(reportId, { motivo, comentariosResolucion }, await captureOperationSession(ownerCuadrillaId)),
+  sendInProcessReason: async ({ reportId, motivo, detalle, ownerCuadrillaId }) =>
+    actualizarMotivoEnProceso(reportId, { motivo, detalle }, await captureOperationSession(ownerCuadrillaId)),
   sendSupervisionResult: async ({ reportId, confirmaReparacion, observaciones, ownerCuadrillaId }) =>
     resolverSupervision(reportId, { confirmaReparacion, observaciones }, await captureOperationSession(ownerCuadrillaId)),
   sendEvidence: async ({ reportId, uri, name, mimeType, ownerCuadrillaId }) => {
@@ -73,14 +76,30 @@ export async function queueStatus(reportId: number, status: 3 | 4 | 5) {
   return syncFieldOperations();
 }
 
-export async function queueResolutionAndStatus(reportId: number, comentariosResolucion: string, status: 5) {
-  await fieldOperationQueue.enqueue({ kind: 'resolutionComment', reportId, comentariosResolucion });
+export async function queueResolutionAndStatus(
+  reportId: number,
+  motivo: number,
+  comentariosResolucion: string | undefined,
+  status: 5
+) {
+  await fieldOperationQueue.enqueue({ kind: 'resolutionComment', reportId, motivo, comentariosResolucion });
   await fieldOperationQueue.enqueue({ kind: 'status', reportId, status });
   return syncFieldOperations();
 }
 
-export async function queueEstimate(reportId: number, tiempoEstimado: number) {
-  await fieldOperationQueue.enqueue({ kind: 'estimate', reportId, tiempoEstimado });
+export async function queueEstimate(reportId: number, tiempoEstimado: number, unidad: number) {
+  await fieldOperationQueue.enqueue({ kind: 'estimate', reportId, tiempoEstimado, unidad });
+  return syncFieldOperations();
+}
+
+export async function queueInProcessReason(reportId: number, motivo: number, detalle?: string) {
+  await fieldOperationQueue.enqueue({ kind: 'inProcessReason', reportId, motivo, detalle });
+  return syncFieldOperations();
+}
+
+export async function queueInProcessReasonAndStatus(reportId: number, motivo: number, detalle: string | undefined, status: 4) {
+  await fieldOperationQueue.enqueue({ kind: 'inProcessReason', reportId, motivo, detalle });
+  await fieldOperationQueue.enqueue({ kind: 'status', reportId, status });
   return syncFieldOperations();
 }
 

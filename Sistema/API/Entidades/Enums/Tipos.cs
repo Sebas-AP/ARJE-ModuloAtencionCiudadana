@@ -46,3 +46,28 @@ public enum PrioridadReporte
     Alta = 3,
     Critica = 4
 }
+
+public enum UnidadTiempoEstimado
+{
+    Horas = 1,
+    Dias = 2
+}
+
+public enum MotivoEnProceso
+{
+    LlegandoAlLugar = 1,
+    LevantandoInformacion = 2,
+    PidiendoHerramientasYMateriales = 3,
+    ComenzandoReparacion = 4,
+    Otro = 5
+}
+
+public enum MotivoResolucion
+{
+    FugaReparada = 1,
+    SuministroRestablecido = 2,
+    FallaSolucionada = 3,
+    CalidadAguaMejorada = 4,
+    UsoIndebidoCorregido = 5,
+    Otro = 6
+}

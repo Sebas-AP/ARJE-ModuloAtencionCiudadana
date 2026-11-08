@@ -22,8 +22,10 @@ import {
   Award,
   Sparkles,
   ArrowUpRight,
+  Wrench,
 } from 'lucide-react';
 import { ReporteDTO, CuadrillaDTO, EstatusReporte } from '../types';
+import { computeMotivosEnProceso, computeMotivosResolucion } from '../services/indicadoresService';
 
 // Registrar componentes de Chart.js
 ChartJS.register(
@@ -211,6 +213,36 @@ export const IndicadoresScreen: React.FC<IndicadoresScreenProps> = ({
       }],
     };
   }, [reportes, cuadrillas]);
+
+  // 5. Dataset Horizontal Bar: motivo por el que los reportes en proceso siguen abiertos
+  const motivosEnProcesoData = useMemo(() => {
+    const motivos = computeMotivosEnProceso(reportes);
+    const colors = ['#F36B2E', '#F59A1E', '#253C96', '#0057D9', '#64748B'];
+    return {
+      labels: motivos.map((m) => m.etiqueta),
+      datasets: [{
+        label: 'Reportes en proceso',
+        data: motivos.map((m) => m.total),
+        backgroundColor: motivos.map((_, i) => colors[i % colors.length]),
+        borderRadius: 6,
+      }],
+    };
+  }, [reportes]);
+
+  // 6. Dataset Horizontal Bar: motivo de resolución (histórico)
+  const motivosResolucionData = useMemo(() => {
+    const motivos = computeMotivosResolucion(reportes);
+    const colors = ['#22C55E', '#0057D9', '#253C96', '#00B8D9', '#7C3AED', '#64748B'];
+    return {
+      labels: motivos.map((m) => m.etiqueta),
+      datasets: [{
+        label: 'Reportes resueltos',
+        data: motivos.map((m) => m.total),
+        backgroundColor: motivos.map((_, i) => colors[i % colors.length]),
+        borderRadius: 6,
+      }],
+    };
+  }, [reportes]);
 
   // KPI: Reportes de hoy
   const reportesHoy = useMemo(() => {
@@ -631,6 +663,85 @@ export const IndicadoresScreen: React.FC<IndicadoresScreenProps> = ({
                 },
               }}
             />
+          </div>
+        </div>
+      </div>
+
+      {/* Fila 3: Motivo en proceso (08) + Motivo de resolución (09) */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1.2fr)',
+          gap: '24px',
+        }}
+      >
+        {/* Gráfica Horizontal Bar: motivo por el que los reportes en proceso siguen abiertos (08) */}
+        <div className="card" style={{ padding: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <Wrench size={18} color="var(--color-orange)" />
+            <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0 }}>
+              Reportes en proceso por motivo
+            </h3>
+          </div>
+          <p style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', margin: '2px 0 16px' }}>
+            Por qué siguen abiertos los reportes en proceso ahora mismo — útil para decidir compras de herramientas o refuerzos de personal
+          </p>
+
+          <div style={{ height: '260px' }}>
+            {motivosEnProcesoData.labels.length === 0 ? (
+              <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', textAlign: 'center', marginTop: '80px' }}>
+                No hay reportes en proceso con motivo registrado.
+              </p>
+            ) : (
+              <Bar
+                data={motivosEnProcesoData}
+                options={{
+                  indexAxis: 'y',
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    x: { beginAtZero: true, grid: { color: '#F1F5F9' }, ticks: { precision: 0 } },
+                    y: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                  },
+                }}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Gráfica Horizontal Bar: motivo de resolución histórico (09) */}
+        <div className="card" style={{ padding: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <CheckCircle2 size={18} color="var(--color-success)" />
+            <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0 }}>
+              Motivo de resolución (histórico)
+            </h3>
+          </div>
+          <p style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', margin: '2px 0 16px' }}>
+            Qué tipo de solución se aplicó en los reportes ya completados o cerrados
+          </p>
+
+          <div style={{ height: '260px' }}>
+            {motivosResolucionData.labels.length === 0 ? (
+              <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', textAlign: 'center', marginTop: '80px' }}>
+                Aún no hay reportes resueltos con motivo registrado.
+              </p>
+            ) : (
+              <Bar
+                data={motivosResolucionData}
+                options={{
+                  indexAxis: 'y',
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    x: { beginAtZero: true, grid: { color: '#F1F5F9' }, ticks: { precision: 0 } },
+                    y: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                  },
+                }}
+              />
+            )}
           </div>
         </div>
       </div>

@@ -133,9 +133,22 @@ export const actualizarEstatusReporte = async (id: number, data: ActualizarEstat
 export const actualizarTiempoEstimado = (id: number, data: ActualizarTiempoEstimadoDTO, session?: AuthSessionSnapshot) =>
   apiRequest<void>(fieldApiPaths.tiempoEstimado(id), { method: 'PUT', body: JSON.stringify(data), session });
 
-export const guardarComentariosResolucion = (id: number, comentariosResolucion: string, session?: AuthSessionSnapshot) =>
+export const guardarComentariosResolucion = (
+  id: number,
+  data: { motivo: number; comentariosResolucion?: string },
+  session?: AuthSessionSnapshot
+) =>
   apiRequest<void>(fieldApiPaths.comentariosResolucion(id), {
-    method: 'PUT', body: JSON.stringify({ comentariosResolucion }), session,
+    method: 'PUT', body: JSON.stringify(data), session,
+  });
+
+export const actualizarMotivoEnProceso = (
+  id: number,
+  data: { motivo: number; detalle?: string },
+  session?: AuthSessionSnapshot
+) =>
+  apiRequest<void>(fieldApiPaths.motivoProceso(id), {
+    method: 'PUT', body: JSON.stringify(data), session,
   });
 
 export const resolverSupervision = (id: number, data: ResolverSupervisionDTO, session?: AuthSessionSnapshot) =>

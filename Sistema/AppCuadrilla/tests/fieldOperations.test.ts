@@ -57,12 +57,13 @@ test('report list uses the authenticated crew endpoint without trusting a client
   assert.equal(app.requests.length, 1);
 });
 
-test('resolution comment is synchronized before the completion status', async () => {
+test('resolution motivo is synchronized before the completion status', async () => {
   const app = mobileRuntime();
   app.respondWith(async () => ({ ok: true, status: 204 }));
 
   await app.load('reportesService').reportesService.actualizarEstatus(19, {
     estatus: 5,
+    motivoResolucion: 6,
     comentariosResolucion: 'Se sustituyó la válvula dañada.',
   });
 
@@ -70,8 +71,27 @@ test('resolution comment is synchronized before the completion status', async ()
     path: new URL(url).pathname,
     payload: JSON.parse(options.body),
   })), [
-    { path: '/api/reportes/19/comentarios-resolucion', payload: { comentariosResolucion: 'Se sustituyó la válvula dañada.' } },
+    { path: '/api/reportes/19/comentarios-resolucion', payload: { motivo: 6, comentariosResolucion: 'Se sustituyó la válvula dañada.' } },
     { path: '/api/reportes/19/estatus', payload: 5 },
+  ]);
+  assert.deepEqual(app.pending(), []);
+});
+
+test('in-process motivo is synchronized before advancing into EnProceso', async () => {
+  const app = mobileRuntime();
+  app.respondWith(async () => ({ ok: true, status: 204 }));
+
+  await app.load('reportesService').reportesService.actualizarEstatus(19, {
+    estatus: 4,
+    motivoEnProceso: 3,
+  });
+
+  assert.deepEqual(app.requests.map(({ url, options }) => ({
+    path: new URL(url).pathname,
+    payload: JSON.parse(options.body),
+  })), [
+    { path: '/api/reportes/19/motivo-proceso', payload: { motivo: 3 } },
+    { path: '/api/reportes/19/estatus', payload: 4 },
   ]);
   assert.deepEqual(app.pending(), []);
 });

@@ -21,6 +21,7 @@ export const fieldApiPaths = {
   disponibilidad: (idCuadrilla: number) => `/cuadrillas/${idCuadrilla}/disponibilidad`,
   tiempoEstimado: (idReporte: number) => `/reportes/${idReporte}/tiempo-estimado`,
   comentariosResolucion: (idReporte: number) => `/reportes/${idReporte}/comentarios-resolucion`,
+  motivoProceso: (idReporte: number) => `/reportes/${idReporte}/motivo-proceso`,
   resultadoSupervision: (idReporte: number) => `/reportes/${idReporte}/supervision/resultado`,
 };
 

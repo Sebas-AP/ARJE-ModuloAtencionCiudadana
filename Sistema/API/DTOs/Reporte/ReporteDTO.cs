@@ -18,6 +18,10 @@ public class ReporteDTO
     public DateTime FechaRecibido { get; set; }
     public EstatusReporte Estatus { get; set; }
     public decimal? TiempoEstimado { get; set; }
+    public UnidadTiempoEstimado? TiempoEstimadoUnidad { get; set; }
+    public MotivoEnProceso? MotivoEnProceso { get; set; }
+    public string? MotivoEnProcesoDetalle { get; set; }
+    public MotivoResolucion? MotivoResolucion { get; set; }
     public DateTime? FechaSupervision { get; set; }
     public string? NotasSupervision { get; set; }
     public string? ComentariosResolucion { get; set; }

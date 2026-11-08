@@ -134,6 +134,36 @@ export default function MapaWebScreen() {
     };
   }, [requestedReporteId, solicitarUbicacion]);
 
+  // Keeps the "my location" dot live regardless of how the screen was opened —
+  // a one-shot fix (above) goes stale if the crew keeps this screen open while moving.
+  useEffect(() => {
+    const browserNavigator = (globalThis as {
+      navigator?: {
+        geolocation?: {
+          watchPosition: (
+            success: (position: { coords: { latitude: number; longitude: number } }) => void,
+            failure?: (cause: { code: number }) => void,
+            options?: { enableHighAccuracy?: boolean; maximumAge?: number },
+          ) => number;
+          clearWatch: (id: number) => void;
+        };
+      };
+    }).navigator;
+    const geolocation = browserNavigator?.geolocation;
+    if (!geolocation) return;
+    const watchId = geolocation.watchPosition(
+      (position) => {
+        if (!mounted.current) return;
+        setOwnLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+      },
+      () => {
+        // Silencioso: si falla, el mapa conserva la última ubicación conocida.
+      },
+      { enableHighAccuracy: true, maximumAge: 10_000 },
+    );
+    return () => geolocation.clearWatch(watchId);
+  }, []);
+
   const locate = () => solicitarUbicacion(false);
 
   const centrarSeleccionado = () => {

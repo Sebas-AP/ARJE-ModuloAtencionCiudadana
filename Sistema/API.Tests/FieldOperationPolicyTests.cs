@@ -39,11 +39,28 @@ public class FieldOperationPolicyTests
         }).IsAllowed);
 
     [Fact]
-    public void Allows_completion_with_resolution_evidence() =>
-        Assert.True(policy.EnsureCanComplete(new Reporte
+    public void Resolution_evidence_without_motivo_does_not_allow_completion() =>
+        Assert.False(policy.EnsureCanComplete(new Reporte
         {
             Evidencias = [new Evidencia { Tipo = TipoEvidencia.Resolucion, Archivo = "resolution.jpg" }]
         }).IsAllowed);
+
+    [Fact]
+    public void Allows_completion_with_resolution_evidence_and_motivo() =>
+        Assert.True(policy.EnsureCanComplete(new Reporte
+        {
+            Evidencias = [new Evidencia { Tipo = TipoEvidencia.Resolucion, Archivo = "resolution.jpg" }],
+            MotivoResolucion = MotivoResolucion.FugaReparada
+        }).IsAllowed);
+
+    [Fact]
+    public void Rejects_in_process_reason_when_not_set() =>
+        Assert.False(policy.EnsureHasInProcessReason(new Reporte()).IsAllowed);
+
+    [Fact]
+    public void Allows_in_process_reason_when_set() =>
+        Assert.True(policy.EnsureHasInProcessReason(
+            new Reporte { MotivoEnProceso = MotivoEnProceso.PidiendoHerramientasYMateriales }).IsAllowed);
 
     [Theory]
     [InlineData(2, 1)]

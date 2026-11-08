@@ -147,6 +147,16 @@ namespace ARJE.Api.Migrations
                     b.Property<decimal>("Longitud")
                         .HasColumnType("decimal(18,15)");
 
+                    b.Property<int?>("MotivoEnProceso")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MotivoEnProcesoDetalle")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("MotivoResolucion")
+                        .HasColumnType("int");
+
                     b.Property<string>("NombreCiudadano")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -177,6 +187,9 @@ namespace ARJE.Api.Migrations
 
                     b.Property<decimal?>("TiempoEstimado")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("TiempoEstimadoUnidad")
+                        .HasColumnType("int");
 
                     b.Property<int>("TipoProblema")
                         .HasColumnType("int");
@@ -235,13 +248,13 @@ namespace ARJE.Api.Migrations
 
                     b.HasIndex("IdCuadrilla");
 
-                    b.HasIndex("IdCuadrilla", "FechaHora", "Id");
+                    b.HasIndex("IdReporte");
 
                     b.HasIndex("IdCuadrilla", "IdMuestra")
                         .IsUnique()
                         .HasFilter("[IdMuestra] IS NOT NULL");
 
-                    b.HasIndex("IdReporte");
+                    b.HasIndex("IdCuadrilla", "FechaHora", "Id");
 
                     b.ToTable("SeguimientosUbicacion");
                 });
@@ -290,7 +303,7 @@ namespace ARJE.Api.Migrations
                             Id = 1,
                             Activo = true,
                             Nombre = "Administrador",
-                            PasswordHash = "$2a$11$I9l4ysKinQXn1lE2k5k1..IVpcktKiVYPsJKY12ElJY43ZqXR0c2C",
+                            PasswordHash = "$2a$11$8IU1A8TL2nx5WuE/IPiRh.C2NCvznqOUxNmj5rL4iNNkbGJWUL3pS",
                             Rol = 1,
                             Usuario = "admin"
                         });

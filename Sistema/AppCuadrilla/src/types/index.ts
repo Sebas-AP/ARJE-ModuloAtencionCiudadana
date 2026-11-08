@@ -34,6 +34,10 @@ export interface ReporteDTO {
   estatus: number;
   tiempoEstimado?: number;
   tiempoEstimadoHoras?: number;
+  tiempoEstimadoUnidad?: number | null;
+  motivoEnProceso?: number | null;
+  motivoEnProcesoDetalle?: string | null;
+  motivoResolucion?: number | null;
   idCuadrillaAsignada?: number | null;
   cuadrillaAsignada?: string | null;
   cuadrillaAsignadaNombre?: string | null;
@@ -105,6 +109,28 @@ export const EstatusReporteColors: Record<number, string> = {
   7: '#94A3B8',
 };
 
+export const UnidadTiempoEstimadoLabels: Record<number, string> = {
+  1: 'Horas',
+  2: 'Días',
+};
+
+export const MotivoEnProcesoLabels: Record<number, string> = {
+  1: 'Llegando al lugar',
+  2: 'Levantando información',
+  3: 'Pidiendo herramientas y materiales',
+  4: 'Comenzando con la reparación',
+  5: 'Otro',
+};
+
+export const MotivoResolucionLabels: Record<number, string> = {
+  1: 'Fuga reparada',
+  2: 'Suministro restablecido',
+  3: 'Falla solucionada',
+  4: 'Calidad del agua mejorada',
+  5: 'Uso indebido corregido',
+  6: 'Otro',
+};
+
 export type PrioridadReporte = 'Critica' | 'Alta' | 'Media' | 'Baja';
 
 export const PrioridadColors: Record<PrioridadReporte, string> = {
@@ -123,11 +149,25 @@ export interface ActualizarEstatusDTO {
   estatus: number;
   tiempoEstimado?: number;
   idCuadrillaAsignada?: number;
+  motivoEnProceso?: number;
+  motivoEnProcesoDetalle?: string;
+  motivoResolucion?: number;
   comentariosResolucion?: string;
 }
 
 export interface ActualizarTiempoEstimadoDTO {
   tiempoEstimado: number;
+  unidad: number;
+}
+
+export interface ActualizarComentariosResolucionDTO {
+  motivo: number;
+  comentariosResolucion?: string;
+}
+
+export interface ActualizarMotivoEnProcesoDTO {
+  motivo: number;
+  detalle?: string;
 }
 
 export interface ResolverSupervisionDTO {

@@ -47,6 +47,15 @@ public class Reporte : IId
 
     public decimal? TiempoEstimado { get; set; }
 
+    public UnidadTiempoEstimado? TiempoEstimadoUnidad { get; set; }
+
+    public MotivoEnProceso? MotivoEnProceso { get; set; }
+
+    [StringLength(500)]
+    public string? MotivoEnProcesoDetalle { get; set; }
+
+    public MotivoResolucion? MotivoResolucion { get; set; }
+
     public DateTime? FechaSupervision { get; set; }
 
     [StringLength(1000)]
@@ -69,6 +78,7 @@ public class Reporte : IId
     [StringLength(100)]
     public string? NombreCiudadano { get; set; }
 
+    [StringLength(20)]
     [RegularExpression(@"^\d{10}$")]
     public string? TelefonoCiudadano { get; set; }
 

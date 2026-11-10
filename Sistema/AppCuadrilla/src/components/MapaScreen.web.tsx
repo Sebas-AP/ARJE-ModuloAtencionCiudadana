@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { authService } from '../services/authService';
@@ -9,6 +9,7 @@ import { APP_THEME } from '../theme/appTheme';
 import { getWebMaptilerConfig } from '../services/maptilerConfig';
 import { buildWebMapModel, type WebOwnLocation } from '../services/webMapModel';
 import { AssignedReportsMap, type MapFocusRequest } from './AssignedReportsMap.web';
+import { buildDirectionsUrl } from '../services/navigation';
 
 function parseReporteId(value: string | undefined): number | null {
   const parsed = Number.parseInt(value ?? '', 10);
@@ -236,6 +237,12 @@ export default function MapaWebScreen() {
           <Text style={styles.coordinates}>
             {selectedReporte.latitud.toFixed(6)}, {selectedReporte.longitud.toFixed(6)}
           </Text>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => { void Linking.openURL(buildDirectionsUrl(selectedReporte.latitud, selectedReporte.longitud, 'web')); }}
+          >
+            <Text style={styles.secondaryButtonText}>Cómo llegar</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <View style={styles.card}>

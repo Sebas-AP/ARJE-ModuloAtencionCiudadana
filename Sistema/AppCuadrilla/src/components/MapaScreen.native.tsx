@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Camera, type CameraRef, Map, Marker } from '@maplibre/maplibre-react-native';
 import * as Location from 'expo-location';
@@ -12,6 +12,7 @@ import { APP_THEME } from '../theme/appTheme';
 import { isActiveAssignedStatus } from '../services/fieldApiContract';
 import { getNativeMaptilerConfig } from '../services/maptilerConfig';
 import { buildAssignedMapModel } from '../services/mapaAsignadosModel';
+import { buildDirectionsUrl } from '../services/navigation';
 
 const DEFAULT_CENTER: [number, number] = [-102.5528, 23.6345];
 const ATTRIBUTION_TEXT = '© MapTiler © OpenStreetMap contributors';
@@ -277,6 +278,14 @@ export default function MapaScreen() {
               </View>
               <TouchableOpacity style={styles.centerButton} onPress={centrarEnUsuario} disabled={!userLocation}>
                 <Text style={styles.centerButtonText}>Mi ubicación</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.infoRow}>
+              <TouchableOpacity
+                style={styles.centerButton}
+                onPress={() => { void Linking.openURL(buildDirectionsUrl(selectedReporte.latitud, selectedReporte.longitud, Platform.OS)); }}
+              >
+                <Text style={styles.centerButtonText}>Cómo llegar</Text>
               </TouchableOpacity>
             </View>
             <Text style={styles.reportCount}>

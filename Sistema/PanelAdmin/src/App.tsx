@@ -92,7 +92,7 @@ export function App() {
     try {
       setRefreshing(true);
       const [repRes, cuadRes, metRes] = await Promise.all([
-        reportesService.getAll(),
+        reportesService.getAll({ registrosPorPagina: 1000 }),
         cuadrillasService.getAll(),
         indicadoresService.getMetrics(),
       ]);

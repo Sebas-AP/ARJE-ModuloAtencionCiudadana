@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, TextInput, ScrollView, Linking } from 'react-native';
+import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, TextInput, ScrollView, Linking, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -13,6 +13,7 @@ import { getAllowedNextStatuses, getOperationFeedback, hasResolutionEvidence, op
 import type { SyncResult } from '../../services/syncService';
 import { MotivoEnProcesoLabels, MotivoResolucionLabels, ReporteDTO } from '../../types';
 import { getReporteStatusVisual } from '../../services/reportesListModel';
+import { buildDirectionsUrl } from '../../services/navigation';
 import { APP_THEME } from '../../theme/appTheme';
 
 const dateTime = (value?: string) => {
@@ -46,7 +47,7 @@ export default function ReporteDetalleScreen() {
     operationsRef.current = sync.operations;
   }, [sync.operations]);
 
-  const { location, obtenerUbicacionActual } = useLocation(reporteId, reporte?.estatus);
+  const { location, error: locationError, obtenerUbicacionActual } = useLocation(reporteId, reporte?.estatus);
   const cargarReporte = useCallback(async () => {
     try {
       const data = await reportesService.getDetalle(reporteId);
@@ -102,8 +103,12 @@ export default function ReporteDetalleScreen() {
     if (location) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setUbicacionActual(location);
+      Alert.alert('Ubicación marcada', `Lat ${location.latitude.toFixed(5)}, Lon ${location.longitude.toFixed(5)}`);
     }
   }, [location]);
+  useEffect(() => {
+    if (locationError) Alert.alert('Error', locationError);
+  }, [locationError]);
   const resolutionReady = evidenceConfirmed || hasResolutionEvidence(reporteId, reporte?.evidencias ?? [], sync.operations);
   const pending = pendingReportOperation || statusNeedsRefresh || guardando || sync.isLoading || !!sync.error;
   const handleActualizarEstatus = async (
@@ -202,6 +207,7 @@ export default function ReporteDetalleScreen() {
       </View>}
       {reporte.estatus === 6 ? <View style={styles.supervisionCard}><Text style={styles.cardTitle}>Validar supervisión</Text><Text style={styles.muted}>Confirma la reparación o recházala para que vuelva a estar en proceso.</Text><TextInput value={comentario} onChangeText={setComentario} maxLength={1000} multiline placeholder="Observaciones de supervisión (opcional)" placeholderTextColor="#8FAFD9" style={styles.supervisionInput} accessibilityLabel="Observaciones de supervisión" /><View style={styles.supervisionActions}><TouchableOpacity accessibilityRole="button" disabled={pending} onPress={() => { void handleResolverSupervision(false); }} style={[styles.rejectAction, pending && styles.disabledAction]}><Text style={styles.rejectText}>Rechazar y reabrir</Text></TouchableOpacity><TouchableOpacity accessibilityRole="button" disabled={pending} onPress={() => { void handleResolverSupervision(true); }} style={[styles.primaryAction, styles.compactAction, pending && styles.disabledAction]}><Text style={styles.primaryActionText}>Confirmar supervisión</Text></TouchableOpacity></View></View> : <>
         <TouchableOpacity accessibilityRole="button" accessibilityLabel={ubicacionActual ? `Ubicación marcada ${ubicacionActual.latitude.toFixed(4)}, ${ubicacionActual.longitude.toFixed(4)}` : 'Marcar ubicación'} accessibilityState={{ disabled: guardando }} disabled={guardando} style={styles.locationButton} onPress={() => { void obtenerUbicacionActual(); }}><Ionicons name="location-outline" size={22} color="#2200FF" /><Text style={styles.locationButtonText}>Marcar ubicación</Text></TouchableOpacity>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Cómo llegar al reporte" style={styles.locationButton} onPress={() => { void Linking.openURL(buildDirectionsUrl(reporte.latitud, reporte.longitud, Platform.OS)); }}><Ionicons name="navigate-outline" size={22} color="#2200FF" /><Text style={styles.locationButtonText}>Cómo llegar</Text></TouchableOpacity>
         <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: pending || !getAllowedNextStatuses(reporte.estatus).length || faltaMotivoProceso }} disabled={pending || !getAllowedNextStatuses(reporte.estatus).length || faltaMotivoProceso} style={[styles.primaryAction, (pending || !getAllowedNextStatuses(reporte.estatus).length || faltaMotivoProceso) && styles.disabledAction]} onPress={() => {
           if (reporte.estatus === 4) { setResolviendo(true); return; }
           const next = getAllowedNextStatuses(reporte.estatus)[0];
